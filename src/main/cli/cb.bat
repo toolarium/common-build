@@ -342,6 +342,7 @@ if [%projectTypeId%] equ [2] set projectType=config
 
 mkdir %projectName% 2>nul
 cd %projectName%
+echo apply from: "https://git.io/JfDQT" > build.gradle
 echo %PN_FULL%
 call %PN_FULL% -PprojectType=%projectType% -PprojectRootPackageName=%projectRootPackageName% -PprojectGroupId=%projectGroupId% -PprojectComponentId=%projectComponentId% -PprojectDescription="%projectDescription%"
 
