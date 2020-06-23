@@ -17,7 +17,7 @@ by corresponding environment variables.
 Install the latest windows cli to `c:\devtools` and add this directory to User PATH environment variable.
 
 ```powershell
-powershell -Command "iwr -useb https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb.bat | iex"
+powershell -Command "iwr https://git.io/Jfx5G -OutFile ${env:TEMP}/cb.bat" & %TEMP%\cb.bat --install
 ```
 
 **Linux**

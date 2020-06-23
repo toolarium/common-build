@@ -104,7 +104,7 @@ if [%CB_INSTALL_USER_COMMIT%] equ [true] (pause)
 :: create directories
 if not exist %DEVTOOLS% mkdir %DEVTOOLS% >nul 2>nul
 if not exist %CB_HOME% mkdir %CB_HOME% >nul 2>nul
-setx CB_HOME %CB_HOME%
+::setx CB_HOME %CB_HOME%
 set "CB_BIN=%CB_HOME%\bin" 
 if not exist %CB_BIN% mkdir %CB_BIN% >nul 2>nul
 set "CB_LOGS=%CB_HOME%\logs" 
@@ -112,7 +112,7 @@ if not exist %CB_LOGS% mkdir %CB_LOGS% >nul 2>nul
 set "DEV_REPOSITORY=%DEVTOOLS%\.repository" 
 if not exist %DEV_REPOSITORY% mkdir %DEV_REPOSITORY% >nul 2>nul
 set "PATH=%CB_BIN%;%PATH%"
-setx PATH=%CB_BIN%;%PATH%
+::setx PATH=%CB_BIN%;%PATH%
 set LOGFILE=%CB_LOGS%\%FULLTIMESTAMP%-%CB_USER%.log
 echo %LINE%>> %LOGFILE%
 echo Started common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%>> %LOGFILE%
