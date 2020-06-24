@@ -12,8 +12,8 @@
 
 :: constants
 set LINE=----------------------------------------------------------------------------------------
-set STARLINE=****************************************************************************************
-set PATH_BACKUP=%PATH%
+::set STARLINE=****************************************************************************************
+::set PATH_BACKUP=%PATH%
 set PN=%~nx0
 set PN_FULL=%0
 for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value') do set "dt=%%a"
@@ -42,7 +42,7 @@ if not defined CB_HOME (set "CB_HOME=%DEVTOOLS%\cb")
 if not defined CB_USER (set "CB_USER=%USERNAME%")
 if not defined CB_PACKAGE_PASSWORD (set "CB_PACKAGE_PASSWORD=")
 set PARAMETERS=
-
+	
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CHECK_PARAMETER
@@ -68,18 +68,17 @@ echo usage: %PN% [OPTION] [TARGET]
 echo.
 echo Overview of the available OPTIONs:
 echo  -h, --help                Help
-echo  -new                      Create a new project
+echo  -new, --new               Create a new project
 echo  -exp, --explore           Starts in Windows environment a new explorer
+echo  --silent                  Suppress the console output from the common-build
 echo  --install                 Install the common build environment
-echo  -p                        List all project targets
 echo.
 echo Environment variable:
 echo  DEVTOOLS                  Defines the devtools directory, default c:\devtools
 echo  CB_HOME                   Defines the common build home environment, default %%DEVTOOLS%%\cb
-echo  CB_PACKAGE_URL            Url where additional zip packages are available to download
+echo  CB_PACKAGE_URL            Url where additional zip packages are available to download (default, no url)
 echo  CB_PACKAGE_USER           The user for the access to the CB_PACKAGE_URL
-echo  CB_PACKAGE_PASSWORD       In case it is set to ask, the password can be entered securely on command line
-echo  CB_INSTALL_USER_COMMIT    false in case to not wait of any user commitment, default true
+echo  CB_PACKAGE_PASSWORD       In case it is set to ask, the password can be entered securely on the command line
 echo.
 echo Example:
 echo  -Install specific jdk version: cb --install java 14
@@ -87,6 +86,149 @@ echo  -Install specific gradle version: cb --install gradle 6.5
 echo  -Install specific maven version: cb --install maven 3.6.3
 echo  -Install specific ant version: cb --install ant 1.10.8
 echo.
+goto END
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:COMMON_BUILD_HELP
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo %PN% - common build
+echo .
+echo ERROR: There seems to be an installation failure. Some tools and environment variable
+echo        are not properly available. Please call the following command to install properly: 
+echo.
+echo        %PN_FULL% --install 
+echo.
+echo Additional help can be found by the --help command. Otherwise please check
+echo the homepage for more information: https://github.com/toolarium/common-build
+echo.
+goto END
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:COMMON_BUILD
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+if [%CB_HOME%] equ [] goto COMMON_BUILD_HELP
+if [%DEVTOOLS%] equ [] goto COMMON_BUILD_HELP
+if [%JAVA_HOME%] equ [] goto COMMON_BUILD_HELP
+if exist build.gradle goto COMMON_BUILD_GRADLE
+if exist pom.xml goto COMMON_BUILD_MAVEN
+if exist build.xml goto COMMON_BUILD_ANT
+
+:COMMON_BUILD_GRADLE
+set GRADLE_EXEC=gradle
+if exist gradlew.bat set "GRADLE_EXEC=gradlew" & goto COMMON_BUILD_GRADLE_EXEC
+WHERE call gradle >nul 2>nul
+if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_GRADLE_EXEC
+echo %GRADLE_HOME%
+if not [%GRADLE_HOME%] equ [] set "PATH=%GRADLE_HOME%\bin;%PATH%"
+WHERE gradle >nul 2>nul
+if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_GRADLE_EXEC
+set "TMPFILE=%CB_LOGS%\cb-gradle-home.tmp"
+dir %DEVTOOLS%\*gradle* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
+for %%R in (%TMPFILE%) do if %%~zR lss 1 set "CB_INSTALL_USER_COMMIT=false" & call %PN_FULL% --silent --install gradle
+dir %DEVTOOLS%\*gradle* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
+for %%R in (%TMPFILE%) do if not %%~zR lss 1 set /pGRADLE_HOME=<%TMPFILE%
+del %TMPFILE% 2>nul
+set "GRADLE_HOME=%GRADLE_HOME:~2%"
+set "GRADLE_HOME=%DEVTOOLS%\%GRADLE_HOME%"
+PATH=%GRADLE_HOME%\bin;%PATH%
+:COMMON_BUILD_GRADLE_EXEC
+cmd /C %GRADLE_EXEC% %PARAMETERS%
+goto END
+
+:COMMON_BUILD_MAVEN
+WHERE mvn >nul 2>nul
+if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_MAVEN_EXEC
+if not [%MAVEN_HOME%] equ [] set "PATH=%MAVEN_HOME%\bin;%PATH%"
+WHERE mvn >nul 2>nul
+if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_MAVEN_EXEC
+set "TMPFILE=%CB_LOGS%\cb-maven-home.tmp"
+dir %DEVTOOLS%\*maven* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
+for %%R in (%TMPFILE%) do if %%~zR lss 1 set "CB_INSTALL_USER_COMMIT=false" & call %PN_FULL% --silent --install maven
+dir %DEVTOOLS%\*maven* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
+for %%R in (%TMPFILE%) do if not %%~zR lss 1 set /pMAVEN_HOME=<%TMPFILE%
+del %TMPFILE% 2>nul
+set "MAVEN_HOME=%MAVEN_HOME:~2%"
+set "MAVEN_HOME=%DEVTOOLS%\%MAVEN_HOME%"
+PATH=%MAVEN_HOME%\bin;%PATH%
+:COMMON_BUILD_MAVEN_EXEC
+cmd /C mvn %PARAMETERS%
+goto END
+
+:COMMON_BUILD_ANT
+WHERE ant >nul 2>nul
+if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_ANT_EXEC
+if not [%ANT_HOME%] equ [] set "PATH=%ANT_HOME%\bin;%PATH%"
+WHERE ant >nul 2>nul
+if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_ANT_EXEC
+set "TMPFILE=%CB_LOGS%\cb-ant-home.tmp"
+dir %DEVTOOLS%\*ant* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
+for %%R in (%TMPFILE%) do if %%~zR lss 1 set "CB_INSTALL_USER_COMMIT=false" & call %PN_FULL% --silent --install ant
+dir %DEVTOOLS%\*ant* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
+for %%R in (%TMPFILE%) do if not %%~zR lss 1 set /pANT_HOME=<%TMPFILE%
+del %TMPFILE% 2>nul
+set "ANT_HOME=%ANT_HOME:~2%"
+set "ANT_HOME=%DEVTOOLS%\%ANT_HOME%"
+PATH=%ANT_HOME%\bin;%PATH%
+:COMMON_BUILD_ANT_EXEC
+cmd /C ant %PARAMETERS%
+goto END
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:PROJECT_WIZARD
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+SHIFT
+SET CB_WIZARD_PARAMETERS=%PARAMETERS%
+
+:CHECK_PARAMETER_WIZARD
+IF %0X==X GOTO START_WIZARD
+SET CB_WIZARD_PARAMETERS=%CB_WIZARD_PARAMETERS% %1
+SHIFT
+GOTO CHECK_PARAMETER_WIZARD
+
+:START_WIZARD
+if not defined projectName (set projectName=my-project)
+set /p projectName=Please enter project name, e.g. [%projectName%]: 
+
+if not defined projectRootPackageName (set projectRootPackageName=my.package.name)
+set /p projectRootPackageName=Please enter package name, e.g. [%projectRootPackageName%]: 
+
+FOR /F "tokens=1,2 delims=-" %%i in ("%projectName%") do ( set "projectGroupId=%%i" )
+set /p projectGroupId=Please enter project group id, e.g. [%projectGroupId%]: 
+
+FOR /F "tokens=1,2 delims=-" %%i in ("%projectName%") do ( set "projectComponentId=%%i" )
+set /p projectComponentId=Please enter project component id, e.g. [%projectComponentId%]: 
+
+if not defined projectDescription (set projectDescription=The implementation of the %projectName%)
+set /p projectDescription=Please enter project description [%projectDescription%]: 
+
+echo.
+echo Project types:
+echo [1] java-library
+echo [2] config project
+set /p projectTypeId=Please choose the project type [1]: 
+
+if [%projectTypeId%] equ [] set projectType=java-library
+if [%projectTypeId%] equ [1] set projectType=java-library
+if [%projectTypeId%] equ [2] set projectType=config
+
+mkdir %projectName% 2>nul
+cd %projectName%
+echo apply from: "https://git.io/JfDQT" > build.gradle
+echo %PN_FULL%
+call %PN_FULL% -PprojectType=%projectType% -PprojectRootPackageName=%projectRootPackageName% -PprojectGroupId=%projectGroupId% -PprojectComponentId=%projectComponentId% -PprojectDescription="%projectDescription%"
+
+cd ..
+goto END
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:PROJECT_EXPLORE
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+SHIFT
+explorer %CD%
 goto END
 
 
@@ -133,6 +275,9 @@ set "WGET_PARAM=-c"
 :: be sure findstr works
 findstr 2>nul
 if %ERRORLEVEL% EQU 9009 (SET "PATH=%PATH%;%SystemRoot%\System32\")
+
+:: the script itself
+copy %PN_FULL% %CB_BIN% >nul 2>nul
 
 :: to upper case
 set "TOUPPER=%CB_BIN%\toupper.bat"
@@ -302,133 +447,25 @@ set "USER_FRIENDLY_TIMESTAMP=%HH%:%Min%:%Sec%"
 set "USER_FRIENDLY_FULLTIMESTAMP=%USER_FRIENDLY_DATESTAMP% %USER_FRIENDLY_TIMESTAMP%"
 echo End common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%>> %LOGFILE%
 ::exit /b 1
-goto END
 
-
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:PROJECT_WIZARD
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-SHIFT
-SET CB_WIZARD_PARAMETERS=%PARAMETERS%
-
-:CHECK_PARAMETER_WIZARD
-IF %0X==X GOTO START_WIZARD
-SET CB_WIZARD_PARAMETERS=%CB_WIZARD_PARAMETERS% %1
-SHIFT
-GOTO CHECK_PARAMETER_WIZARD
-
-:START_WIZARD
-if not defined projectName (set projectName=my-project)
-set /p projectName=Please enter project name, e.g. [%projectName%]: 
-
-if not defined projectRootPackageName (set projectRootPackageName=my.package.name)
-set /p projectRootPackageName=Please enter package name, e.g. [%projectRootPackageName%]: 
-
-FOR /F "tokens=1,2 delims=-" %%i in ("%projectName%") do ( set "projectGroupId=%%i" )
-set /p projectGroupId=Please enter project group id, e.g. [%projectGroupId%]: 
-
-FOR /F "tokens=1,2 delims=-" %%i in ("%projectName%") do ( set "projectComponentId=%%i" )
-set /p projectComponentId=Please enter project component id, e.g. [%projectComponentId%]: 
-
-if not defined projectDescription (set projectDescription=The implementation of the %projectName%)
-set /p projectDescription=Please enter project description [%projectDescription%]: 
-
-echo.
-echo Project types:
-echo [1] java-library
-echo [2] config project
-set /p projectTypeId=Please choose the project type [1]: 
-
-if [%projectTypeId%] equ [] set projectType=java-library
-if [%projectTypeId%] equ [1] set projectType=java-library
-if [%projectTypeId%] equ [2] set projectType=config
-
-mkdir %projectName% 2>nul
-cd %projectName%
-echo apply from: "https://git.io/JfDQT" > build.gradle
-echo %PN_FULL%
-call %PN_FULL% -PprojectType=%projectType% -PprojectRootPackageName=%projectRootPackageName% -PprojectGroupId=%projectGroupId% -PprojectComponentId=%projectComponentId% -PprojectDescription="%projectDescription%"
-
-cd ..
-goto END
-
-
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:PROJECT_EXPLORE
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-SHIFT
-explorer %CD%
-goto END
-
-
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:COMMON_BUILD
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-if exist build.gradle goto COMMON_BUILD_GRADLE
-if exist pom.xml goto COMMON_BUILD_MAVEN
-if exist build.xml goto COMMON_BUILD_ANT
-
-:COMMON_BUILD_GRADLE
-set GRADLE_EXEC=gradle
-if exist gradlew.bat set "GRADLE_EXEC=gradlew" & goto COMMON_BUILD_GRADLE_EXEC
-WHERE call gradle >nul 2>nul
-if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_GRADLE_EXEC
-echo %GRADLE_HOME%
-if not [%GRADLE_HOME%] equ [] set "PATH=%GRADLE_HOME%\bin;%PATH%"
-WHERE gradle >nul 2>nul
-if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_GRADLE_EXEC
-set "TMPFILE=%CB_LOGS%\cb-gradle-home.tmp"
-dir %DEVTOOLS%\*gradle* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
-for %%R in (%TMPFILE%) do if %%~zR lss 1 set "CB_INSTALL_USER_COMMIT=false" & call %PN_FULL% --silent --install gradle
-dir %DEVTOOLS%\*gradle* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
-for %%R in (%TMPFILE%) do if not %%~zR lss 1 set /pGRADLE_HOME=<%TMPFILE%
-del %TMPFILE%
-set "GRADLE_HOME=%GRADLE_HOME:~2%"
-set "GRADLE_HOME=%DEVTOOLS%\%GRADLE_HOME%"
-PATH=%GRADLE_HOME%\bin;%PATH%
-:COMMON_BUILD_GRADLE_EXEC
-cmd /C %GRADLE_EXEC% %PARAMETERS%
-goto END
-
-:COMMON_BUILD_MAVEN
-WHERE mvn >nul 2>nul
-if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_MAVEN_EXEC
-if not [%MAVEN_HOME%] equ [] set "PATH=%MAVEN_HOME%\bin;%PATH%"
-WHERE mvn >nul 2>nul
-if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_MAVEN_EXEC
-set "TMPFILE=%CB_LOGS%\cb-maven-home.tmp"
-dir %DEVTOOLS%\*maven* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
-for %%R in (%TMPFILE%) do if %%~zR lss 1 set "CB_INSTALL_USER_COMMIT=false" & call %PN_FULL% --silent --install maven
-dir %DEVTOOLS%\*maven* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
-for %%R in (%TMPFILE%) do if not %%~zR lss 1 set /pMAVEN_HOME=<%TMPFILE%
-del %TMPFILE%
-set "MAVEN_HOME=%MAVEN_HOME:~2%"
-set "MAVEN_HOME=%DEVTOOLS%\%MAVEN_HOME%"
-PATH=%MAVEN_HOME%\bin;%PATH%
-:COMMON_BUILD_MAVEN_EXEC
-cmd /C mvn %PARAMETERS%
-goto END
-
-:COMMON_BUILD_ANT
-WHERE ant >nul 2>nul
-if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_ANT_EXEC
-if not [%ANT_HOME%] equ [] set "PATH=%ANT_HOME%\bin;%PATH%"
-WHERE ant >nul 2>nul
-if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_ANT_EXEC
-set "TMPFILE=%CB_LOGS%\cb-ant-home.tmp"
-dir %DEVTOOLS%\*ant* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
-for %%R in (%TMPFILE%) do if %%~zR lss 1 set "CB_INSTALL_USER_COMMIT=false" & call %PN_FULL% --silent --install ant
-dir %DEVTOOLS%\*ant* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
-for %%R in (%TMPFILE%) do if not %%~zR lss 1 set /pANT_HOME=<%TMPFILE%
-del %TMPFILE%
-set "ANT_HOME=%ANT_HOME:~2%"
-set "ANT_HOME=%DEVTOOLS%\%ANT_HOME%"
-PATH=%ANT_HOME%\bin;%PATH%
-:COMMON_BUILD_ANT_EXEC
-cmd /C ant %PARAMETERS%
+set "TOUPPER=" & set "DEV_REPOSITORY=" & set "PROCESSOR_ARCHITECTURE_NUMBER=" & set "CURRENT_DRIVE=" & set "CURRENT_PATH="
+set "CB_USER=" & set "CB_PACKAGE_PASSWORD=" & set "CB_PACKAGE_URL=" & set "CB_PKG_FILTER="
+set "CB_WGET_VERSION=" & set "CB_JAVA_VERSION=" & set "CB_GRADLE_VERSION=" & set "CB_MAVEN_VERSION=" & set "CB_ANT_VERSION="
+set "DEVTOOLS_NAME=" & set "DEVTOOLS_DRIVE=" 
+set "gradleVersion=" & set "GRADLE_DOWNLOAD_PACKAGENAME=" & set "GRADLE_DOWNLOAD_PACKAGE_URL=" & set "GRADLE_DOWNLOAD_URL="
+set "mavenVersion=" & set "MAVEN_DOWNLOAD_PACKAGENAME=" & set "MAVEN_DOWNLOAD_PACKAGE_URL=" & set "MAVEN_DOWNLOAD_URL="
+set "antVersion=" & set "ANT_DOWNLOAD_PACKAGENAME=" & set "ANT_DOWNLOAD_PACKAGE_URL=" & set "ANT_DOWNLOAD_URL="
+set "JAVA_DOWNLOAD_URL=" & set "JAVA_INFO_DOWNLOAD_URL=" & set "JAVA_OPENJDK_IMPL=" & set "jdkFilename=" & set "jdkVersion="
+set "WGET_CMD=" & set "WGET_DOWNLOAD_URL=" & set "WGET_LOG=" & set "WGET_PACKAGE_URL="
+set "WGET_PARAM=" & set "WGET_PROGRESSBAR=" & set "WGET_SECURITY_CREDENTIALS="
 goto END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :END
+:: keep CB_HOME, JAVA_HOME, DEVTOOLS
+set "PN=" & set "PN_FULL=" & set "LOGFILE=" & set "TMPFILE=" & set "LINE="
+set "CB_BIN=" & set "CB_LOGS=" & set "CB_INSTALL_SILENT=" & set "CB_INSTALL_USER_COMMIT="
+set "DD=" & set "MM=" & set "HH=" & set "YY=" & set "YYYY=" & set "Min=" & set "Sec=" & set "DATESTAMP=" & set "TIMESTAMP=" & set "dt="
+set "FULLTIMESTAMP=" & set "USER_FRIENDLY_DATESTAMP=" & set "USER_FRIENDLY_TIMESTAMP=" & set "USER_FRIENDLY_FULLTIMESTAMP="
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
