@@ -401,10 +401,11 @@ echo    echo !line!>> %TOUPPER%
 echo )>> %TOUPPER%
 :TOUPPER_INSTALLED
 
-set CURRENT_PATH=%~dp0
-for /f %%i in ('CALL %CB_BIN%\toupper %CURRENT_PATH%') do set CURRENT_PATH=%%i
-set CURRENT_DRIVE=%~d0
-for /f %%i in ('CALL %CB_BIN%\toupper %CURRENT_DRIVE%') do set CURRENT_DRIVE=%%i
+set CURRENT_PATH=%CD%
+set SCRIPT_PATH=%~dp0
+for /f %%i in ('CALL %CB_BIN%\toupper %SCRIPT_PATH%') do set SCRIPT_PATH=%%i
+set SCRIPT_DRIVE=%~d0
+for /f %%i in ('CALL %CB_BIN%\toupper %SCRIPT_DRIVE%') do set SCRIPT_DRIVE=%%i
 
 SET PROCESSOR_ARCHITECTURE_NUMBER=64
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:32=%" SET PROCESSOR_ARCHITECTURE_NUMBER=32
@@ -448,12 +449,12 @@ for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKLM\S
 for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKCU\Environment" /v "Path" 2^>nul') do (if /I "%%N" == "Path" (set "UserPath=%%P" & goto GET_USER_PATH_FROM_REGISTRY_END))
 :GET_USER_PATH_FROM_REGISTRY_END
 echo Current user path is %UserPath% >> %LOGFILE%
-if /I [%DEVTOOLS_DRIVE%] NEQ [%CURRENT_DRIVE%] (%DEVTOOLS_DRIVE%)
+if /I [%DEVTOOLS_DRIVE%] NEQ [%SCRIPT_DRIVE%] (%DEVTOOLS_DRIVE%)
 cd %CB_LOGS%
 WHERE cb >nul 2>nul
 if %ERRORLEVEL% NEQ 0 (echo -Set CB_HOME to path. & setx PATH "%CB_BIN%;%UserPath%" >nul 2>nul)
 set "PATH=%CB_BIN%;%PATH%"
-if /I [%DEVTOOLS_DRIVE%] NEQ [%CURRENT_DRIVE%] (%CURRENT_DRIVE%)
+if /I [%DEVTOOLS_DRIVE%] NEQ [%SCRIPT_DRIVE%] (%SCRIPT_DRIVE%)
 cd %CURRENT_PATH%
 
 :: java
