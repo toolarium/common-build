@@ -13,7 +13,7 @@
 :: constants
 set LINE=----------------------------------------------------------------------------------------
 ::set STARLINE=****************************************************************************************
-::set PATH_BACKUP=%PATH%
+set PATH_BACKUP=%PATH%
 set PN=%~nx0
 set PN_FULL=%0
 for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value') do set "dt=%%a"
@@ -41,20 +41,27 @@ if not defined DEVTOOLS (set "DEVTOOLS=%DEVTOOLS_DRIVE%:\%DEVTOOLS_NAME%")
 if not defined CB_HOME (set "CB_HOME=%DEVTOOLS%\cb")
 if not defined CB_USER (set "CB_USER=%USERNAME%")
 if not defined CB_PACKAGE_PASSWORD (set "CB_PACKAGE_PASSWORD=")
+set "JAVA_VERSION_FILE=.java-version"
+set "CB_JAVA_VERSION_FILE=.cb-java-version"
 set PARAMETERS=
-	
+del %CB_JAVA_VERSION_FILE% 2>nul
 
+	
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CHECK_PARAMETER
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 set OPTIONAL_PARAMETER=%2
 if %0X==X goto COMMON_BUILD
-if .%1==.--silent shift & set "CB_INSTALL_USER_COMMIT=false" set "CB_INSTALL_SILENT=true"
+if .%1==.--silent shift & set "CB_INSTALL_USER_COMMIT=false" & set "CB_INSTALL_SILENT=true"
+if .%1==.-h goto HELP
 if .%1==.--help goto HELP
+if .%1==.-new goto PROJECT_WIZARD
 if .%1==.--new goto PROJECT_WIZARD
-if .%1==.--install goto INSTALL_CB
 if .%1==.-exp goto PROJECT_EXPLORE
 if .%1==.--explore goto PROJECT_EXPLORE
+if .%1==.--install goto INSTALL_CB
+if .%1==.--jdk (shift & echo %1> %CB_JAVA_VERSION_FILE%)
+
 set PARAMETERS=%PARAMETERS% %1
 shift
 goto CHECK_PARAMETER
@@ -67,9 +74,10 @@ echo %PN% - common build
 echo usage: %PN% [OPTION] [TARGET]
 echo.
 echo Overview of the available OPTIONs:
-echo  -h, --help                Help
-echo  -new, --new               Create a new project
+echo  --help                    Help
+echo  --new                     Create a new project
 echo  -exp, --explore           Starts in Windows environment a new explorer
+echo  --jdk [version]           Set a different jdk for this run, e.g. --jdk 14
 echo  --silent                  Suppress the console output from the common-build
 echo  --install                 Install the common build environment
 echo.
@@ -79,6 +87,9 @@ echo  CB_HOME                   Defines the common build home environment, defau
 echo  CB_PACKAGE_URL            Url where additional zip packages are available to download (default, no url)
 echo  CB_PACKAGE_USER           The user for the access to the CB_PACKAGE_URL
 echo  CB_PACKAGE_PASSWORD       In case it is set to ask, the password can be entered securely on the command line
+echo.
+echo Special files:
+echo  .java-version             Can be used to reference to a specific jdk version
 echo.
 echo Example:
 echo  -Install specific jdk version: cb --install java 14
@@ -108,9 +119,51 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :COMMON_BUILD
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-if [%CB_HOME%] equ [] goto COMMON_BUILD_HELP
-if [%DEVTOOLS%] equ [] goto COMMON_BUILD_HELP
-if [%JAVA_HOME%] equ [] goto COMMON_BUILD_HELP
+set "JAVA_HOME_BACKUP=%JAVA_HOME%" & set "CB_JAVA_HOME=" & set "cbJavaVersion="
+
+:: current run jdk switch
+for %%R in (%CB_JAVA_VERSION_FILE%) do if not %%~zR lss 1 set /pcbJavaVersion=<%CB_JAVA_VERSION_FILE% & del %CB_JAVA_VERSION_FILE% 2>nul
+if not [%cbJavaVersion%] EQU [] echo Run jdk switch to %cbJavaVersion%
+if not [%cbJavaVersion%] EQU [] goto COMMON_BUILD_VERIFY_JAVA_INSTALLATION
+
+:: project specific jdk switch
+for %%R in (%JAVA_VERSION_FILE%) do if not %%~zR lss 1 set /pcbJavaVersion=<%JAVA_VERSION_FILE%
+if not [%cbJavaVersion%] EQU [] echo Project jdk switch %cbJavaVersion%
+if not [%cbJavaVersion%] EQU [] goto COMMON_BUILD_VERIFY_JAVA_INSTALLATION
+goto COMMON_BUILD_VERIFY_JAVA
+
+:COMMON_BUILD_VERIFY_JAVA_INSTALLATION
+dir %DEVTOOLS%\*jdk-%cbJavaVersion%* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %CB_JAVA_VERSION_FILE%
+for %%R in (%CB_JAVA_VERSION_FILE%) do if %%~zR lss 1 call %PN_FULL% --silent --install java %cbJavaVersion%
+dir %DEVTOOLS%\*jdk-%cbJavaVersion%* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %CB_JAVA_VERSION_FILE%
+set "cbJavaVersionAvailable=true"
+for %%R in (%CB_JAVA_VERSION_FILE%) do if %%~zR lss 1 set "cbJavaVersionAvailable=false"
+del %CB_JAVA_VERSION_FILE% 2>nul
+if [%cbJavaVersionAvailable%] EQU [false] echo -Can not switch to the java version %cbJavaVersion%!
+if [%cbJavaVersionAvailable%] EQU [false] goto END
+set "CB_JAVA_HOME=%DEVTOOLS%\%cbJavaVersion:~2%"
+echo -Set java to %CB_JAVA_HOME% 
+set "PATH=%CB_JAVA_HOME%\bin;%PATH%"
+
+:COMMON_BUILD_VERIFY_JAVA
+WHERE java >nul 2>nul
+if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_JAVA_EXEC
+if not [%JAVA_HOME%] equ [] set "PATH=%JAVA_HOME%\bin;%PATH%"
+WHERE java >nul 2>nul
+if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_JAVA_EXEC
+set "TMPFILE=%CB_LOGS%\cb-java-home.tmp"
+dir %DEVTOOLS%\*jdk* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
+for %%R in (%TMPFILE%) do if %%~zR lss 1 call %PN_FULL% --silent --install java
+dir %DEVTOOLS%\*jdk* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
+for %%R in (%TMPFILE%) do if not %%~zR lss 1 set /pJAVA_HOME=<%TMPFILE%
+del %TMPFILE% 2>nul
+set "JAVA_HOME=%JAVA_HOME:~2%"
+set "JAVA_HOME=%DEVTOOLS%\%JAVA_HOME%"
+PATH=%JAVA_HOME%\bin;%PATH%
+echo CB: set java version to %JAVA_HOME%
+echo %LINE%
+:COMMON_BUILD_JAVA_EXEC
+
 if exist build.gradle goto COMMON_BUILD_GRADLE
 if exist pom.xml goto COMMON_BUILD_MAVEN
 if exist build.xml goto COMMON_BUILD_ANT
@@ -120,13 +173,12 @@ set GRADLE_EXEC=gradle
 if exist gradlew.bat set "GRADLE_EXEC=gradlew" & goto COMMON_BUILD_GRADLE_EXEC
 WHERE call gradle >nul 2>nul
 if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_GRADLE_EXEC
-echo %GRADLE_HOME%
 if not [%GRADLE_HOME%] equ [] set "PATH=%GRADLE_HOME%\bin;%PATH%"
 WHERE gradle >nul 2>nul
 if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_GRADLE_EXEC
 set "TMPFILE=%CB_LOGS%\cb-gradle-home.tmp"
 dir %DEVTOOLS%\*gradle* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
-for %%R in (%TMPFILE%) do if %%~zR lss 1 set "CB_INSTALL_USER_COMMIT=false" & call %PN_FULL% --silent --install gradle
+for %%R in (%TMPFILE%) do if %%~zR lss 1 call %PN_FULL% --silent --install gradle
 dir %DEVTOOLS%\*gradle* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
 for %%R in (%TMPFILE%) do if not %%~zR lss 1 set /pGRADLE_HOME=<%TMPFILE%
 del %TMPFILE% 2>nul
@@ -134,6 +186,9 @@ set "GRADLE_HOME=%GRADLE_HOME:~2%"
 set "GRADLE_HOME=%DEVTOOLS%\%GRADLE_HOME%"
 PATH=%GRADLE_HOME%\bin;%PATH%
 :COMMON_BUILD_GRADLE_EXEC
+if defined JAVA_HOME_BACKUP (set JAVA_HOME=%JAVA_HOME_BACKUP%)
+if defined PATH_BACKUP (set PATH=%PATH_BACKUP%)
+if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
 cmd /C %GRADLE_EXEC% %PARAMETERS%
 goto END
 
@@ -145,7 +200,7 @@ WHERE mvn >nul 2>nul
 if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_MAVEN_EXEC
 set "TMPFILE=%CB_LOGS%\cb-maven-home.tmp"
 dir %DEVTOOLS%\*maven* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
-for %%R in (%TMPFILE%) do if %%~zR lss 1 set "CB_INSTALL_USER_COMMIT=false" & call %PN_FULL% --silent --install maven
+for %%R in (%TMPFILE%) do if %%~zR lss 1 call %PN_FULL% --silent --install maven
 dir %DEVTOOLS%\*maven* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
 for %%R in (%TMPFILE%) do if not %%~zR lss 1 set /pMAVEN_HOME=<%TMPFILE%
 del %TMPFILE% 2>nul
@@ -153,6 +208,9 @@ set "MAVEN_HOME=%MAVEN_HOME:~2%"
 set "MAVEN_HOME=%DEVTOOLS%\%MAVEN_HOME%"
 PATH=%MAVEN_HOME%\bin;%PATH%
 :COMMON_BUILD_MAVEN_EXEC
+if defined JAVA_HOME_BACKUP (set JAVA_HOME=%JAVA_HOME_BACKUP%)
+if defined PATH_BACKUP (set PATH=%PATH_BACKUP%)
+if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
 cmd /C mvn %PARAMETERS%
 goto END
 
@@ -164,7 +222,7 @@ WHERE ant >nul 2>nul
 if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_ANT_EXEC
 set "TMPFILE=%CB_LOGS%\cb-ant-home.tmp"
 dir %DEVTOOLS%\*ant* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
-for %%R in (%TMPFILE%) do if %%~zR lss 1 set "CB_INSTALL_USER_COMMIT=false" & call %PN_FULL% --silent --install ant
+for %%R in (%TMPFILE%) do if %%~zR lss 1 call %PN_FULL% --silent --install ant
 dir %DEVTOOLS%\*ant* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> %TMPFILE%
 for %%R in (%TMPFILE%) do if not %%~zR lss 1 set /pANT_HOME=<%TMPFILE%
 del %TMPFILE% 2>nul
@@ -172,6 +230,9 @@ set "ANT_HOME=%ANT_HOME:~2%"
 set "ANT_HOME=%DEVTOOLS%\%ANT_HOME%"
 PATH=%ANT_HOME%\bin;%PATH%
 :COMMON_BUILD_ANT_EXEC
+if defined JAVA_HOME_BACKUP (set JAVA_HOME=%JAVA_HOME_BACKUP%)
+if defined PATH_BACKUP (set PATH=%PATH_BACKUP%)
+if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
 cmd /C ant %PARAMETERS%
 goto END
 
@@ -235,16 +296,17 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :INSTALL_CB
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-if not [%CB_INSTALL_SILENT%] equ [true] goto INSTALL_CB_DIRECTORY
-echo %LINE%
-echo Started common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%:
-echo -Please close any open development process such as IDE's!
-echo %LINE%
+if [%CB_INSTALL_SILENT%] equ [false] (echo %LINE%
+		echo Started common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%:
+		echo -Please close any open development process such as IDE's!
+		echo %LINE%)
 if [%CB_INSTALL_USER_COMMIT%] equ [true] (pause)
-:INSTALL_CB_DIRECTORY
 
 :: create directories
+if [%CB_INSTALL_SILENT%] equ [false] (echo -Use %DEVTOOLS% path as devtools folder)
 if not exist %DEVTOOLS% mkdir %DEVTOOLS% >nul 2>nul
+setx DEVTOOLS "%DEVTOOLS%" >nul 2>nul
+if [%CB_INSTALL_SILENT%] equ [false] (echo -Use %CB_HOME% path as CB_HOME folder)
 if not exist %CB_HOME% mkdir %CB_HOME% >nul 2>nul
 setx CB_HOME "%CB_HOME%" >nul 2>nul
 set "CB_BIN=%CB_HOME%\bin" 
@@ -254,11 +316,8 @@ if not exist %CB_LOGS% mkdir %CB_LOGS% >nul 2>nul
 set "DEV_REPOSITORY=%DEVTOOLS%\.repository" 
 if not exist %DEV_REPOSITORY% mkdir %DEV_REPOSITORY% >nul 2>nul
 
-WHERE cb >nul 2>nul
-if not %ERRORLEVEL% NEQ 0 (echo -Add CB_HOME to path.
-set "PATH=%CB_BIN%;%PATH%" & setx PATH "%PATH%" >nul 2>nul)
-
 set LOGFILE=%CB_LOGS%\%FULLTIMESTAMP%-%CB_USER%.log
+if [%CB_INSTALL_SILENT%] equ [false] (echo -The log of the installation you find in %LOGFILE%)
 echo %LINE%>> %LOGFILE%
 echo Started common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%>> %LOGFILE%
 echo common-build: %CB_HOME%, devtools: %DEVTOOLS% (name: %DEVTOOLS_NAME%, drive:%DEVTOOLS_DRIVE%)>> %LOGFILE%
@@ -299,9 +358,17 @@ echo )>> %TOUPPER%
 :TOUPPER_INSTALLED
 
 set CURRENT_PATH=%~dp0
-for /f %%i in ('CALL toupper %CURRENT_PATH%') do set CURRENT_PATH=%%i
+for /f %%i in ('CALL %CB_BIN%\toupper %CURRENT_PATH%') do set CURRENT_PATH=%%i
 set CURRENT_DRIVE=%~d0
-for /f %%i in ('CALL toupper %CURRENT_DRIVE%') do set CURRENT_DRIVE=%%i
+for /f %%i in ('CALL %CB_BIN%\toupper %CURRENT_DRIVE%') do set CURRENT_DRIVE=%%i
+
+:: add to path
+cd %CB_LOGS%
+WHERE cb >nul 2>nul
+if not %ERRORLEVEL% NEQ 0 (echo -Set CB_HOME to path.
+set "PATH=%CB_BIN%;%PATH%" & setx PATH "%PATH%" >nul 2>nul)
+cd %CURRENT_PATH%
+
 SET PROCESSOR_ARCHITECTURE_NUMBER=64
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:32=%" SET PROCESSOR_ARCHITECTURE_NUMBER=32
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:64=%" SET PROCESSOR_ARCHITECTURE_NUMBER=64
@@ -316,6 +383,10 @@ set "WGET_PACKAGE_URL=%WGET_DOWNLOAD_URL%/%CB_WGET_VERSION%/%PROCESSOR_ARCHITECT
 echo -Install %CB_BIN%\%WGET_CMD% & echo -Install %CB_BIN%\%WGET_CMD%>> %LOGFILE%
 powershell -Command "iwr $start_time = Get-Date;Invoke-WebRequest -Uri '%WGET_PACKAGE_URL%' -OutFile '%CB_BIN%\%WGET_CMD%';Write-Output 'Time taken: $((Get-Date).Subtract($start_time).Seconds) seconds' 2>nul | iex 2>nul" 2>nul
 :INSTALL_WGET_END
+
+::echo %CB_BIN%\%WGET_CMD% -O %DEV_REPOSITORY%\%jdkFilename% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "%JAVA_DOWNLOAD_URL%">> %LOGFILE%
+::%CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb-env-clean.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% ""
+::%CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% ""
 
 set CB_PKG_FILTER=*.zip
 if .%2==.java goto INSTALL_JDK
@@ -449,9 +520,7 @@ echo End common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTA
 ::exit /b 1
 
 set "TOUPPER=" & set "DEV_REPOSITORY=" & set "PROCESSOR_ARCHITECTURE_NUMBER=" & set "CURRENT_DRIVE=" & set "CURRENT_PATH="
-set "CB_USER=" & set "CB_PACKAGE_PASSWORD=" & set "CB_PACKAGE_URL=" & set "CB_PKG_FILTER="
-set "CB_WGET_VERSION=" & set "CB_JAVA_VERSION=" & set "CB_GRADLE_VERSION=" & set "CB_MAVEN_VERSION=" & set "CB_ANT_VERSION="
-set "DEVTOOLS_NAME=" & set "DEVTOOLS_DRIVE=" 
+set "CB_PKG_FILTER="
 set "gradleVersion=" & set "GRADLE_DOWNLOAD_PACKAGENAME=" & set "GRADLE_DOWNLOAD_PACKAGE_URL=" & set "GRADLE_DOWNLOAD_URL="
 set "mavenVersion=" & set "MAVEN_DOWNLOAD_PACKAGENAME=" & set "MAVEN_DOWNLOAD_PACKAGE_URL=" & set "MAVEN_DOWNLOAD_URL="
 set "antVersion=" & set "ANT_DOWNLOAD_PACKAGENAME=" & set "ANT_DOWNLOAD_PACKAGE_URL=" & set "ANT_DOWNLOAD_URL="
@@ -463,9 +532,7 @@ goto END
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :END
-:: keep CB_HOME, JAVA_HOME, DEVTOOLS
-set "PN=" & set "PN_FULL=" & set "LOGFILE=" & set "TMPFILE=" & set "LINE="
-set "CB_BIN=" & set "CB_LOGS=" & set "CB_INSTALL_SILENT=" & set "CB_INSTALL_USER_COMMIT="
-set "DD=" & set "MM=" & set "HH=" & set "YY=" & set "YYYY=" & set "Min=" & set "Sec=" & set "DATESTAMP=" & set "TIMESTAMP=" & set "dt="
-set "FULLTIMESTAMP=" & set "USER_FRIENDLY_DATESTAMP=" & set "USER_FRIENDLY_TIMESTAMP=" & set "USER_FRIENDLY_FULLTIMESTAMP="
+if defined JAVA_HOME_BACKUP (set JAVA_HOME=%JAVA_HOME_BACKUP%)
+if defined PATH_BACKUP (set PATH=%PATH_BACKUP%)
+if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
