@@ -160,8 +160,7 @@ del %TMPFILE% 2>nul
 set "JAVA_HOME=%JAVA_HOME:~2%"
 set "JAVA_HOME=%DEVTOOLS%\%JAVA_HOME%"
 set "PATH=%JAVA_HOME%\bin;%PATH%"
-echo CB: set java version to %JAVA_HOME%
-echo %LINE%
+echo -Set java version to %JAVA_HOME%
 :COMMON_BUILD_JAVA_EXEC
 
 if exist build.gradle goto COMMON_BUILD_GRADLE
@@ -188,7 +187,7 @@ set "PATH=%GRADLE_HOME%\bin;%PATH%"
 :COMMON_BUILD_GRADLE_EXEC
 ::if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
 ::if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
-if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
+::if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
 cmd /C %GRADLE_EXEC% %PARAMETERS%
 goto END
 
@@ -210,7 +209,7 @@ set "PATH=%MAVEN_HOME%\bin;%PATH%"
 :COMMON_BUILD_MAVEN_EXEC
 ::if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
 ::if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
-if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
+::if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
 cmd /C mvn %PARAMETERS%
 goto END
 
@@ -232,7 +231,7 @@ set "PATH=%ANT_HOME%\bin;%PATH%"
 :COMMON_BUILD_ANT_EXEC
 ::if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
 ::if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
-if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
+::if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
 cmd /C ant %PARAMETERS%
 goto END
 
@@ -377,6 +376,13 @@ echo -Install %CB_BIN%\%WGET_CMD% & echo -Install %CB_BIN%\%WGET_CMD%>> %LOGFILE
 powershell -Command "iwr $start_time = Get-Date;Invoke-WebRequest -Uri '%WGET_PACKAGE_URL%' -OutFile '%CB_BIN%\%WGET_CMD%';Write-Output 'Time taken: $((Get-Date).Subtract($start_time).Seconds) seconds' 2>nul | iex 2>nul" 2>nul
 :INSTALL_WGET_END
 
+set CB_PKG_FILTER=*.zip
+if .%2==.java goto INSTALL_JDK
+if .%2==.gradle goto INSTALL_GRADLE
+if .%2==.maven goto INSTALL_MAVEN
+if .%2==.ant goto INSTALL_ANT
+if .%2==.pkg goto INSTALL_PACKAGES
+
 :: own files
 echo -Install cb files... & echo -Install cb files...>> %LOGFILE%
 echo %CB_BIN%\%WGET_CMD% -O %CB_HOME%\VERSION %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/VERSION">> %LOGFILE%
@@ -404,13 +410,6 @@ if %ERRORLEVEL% NEQ 0 (echo -Set CB_HOME to path. & setx PATH "%CB_BIN%;%UserPat
 set "PATH=%CB_BIN%;%PATH%"
 if /I [%DEVTOOLS_DRIVE%] NEQ [%CURRENT_DRIVE%] (%CURRENT_DRIVE%)
 cd %CURRENT_PATH%
-
-set CB_PKG_FILTER=*.zip
-if .%2==.java goto INSTALL_JDK
-if .%2==.gradle goto INSTALL_GRADLE
-if .%2==.maven goto INSTALL_MAVEN
-if .%2==.ant goto INSTALL_ANT
-if .%2==.pkg goto INSTALL_PACKAGES
 
 :: java
 :INSTALL_JDK
@@ -548,7 +547,7 @@ goto END
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :END
-if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
-if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
-if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
+::if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
+::if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
+::if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
