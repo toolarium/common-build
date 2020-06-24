@@ -186,8 +186,8 @@ set "GRADLE_HOME=%GRADLE_HOME:~2%"
 set "GRADLE_HOME=%DEVTOOLS%\%GRADLE_HOME%"
 set "PATH=%GRADLE_HOME%\bin;%PATH%"
 :COMMON_BUILD_GRADLE_EXEC
-if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
-if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
+::if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
+::if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
 if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
 cmd /C %GRADLE_EXEC% %PARAMETERS%
 goto END
@@ -208,8 +208,8 @@ set "MAVEN_HOME=%MAVEN_HOME:~2%"
 set "MAVEN_HOME=%DEVTOOLS%\%MAVEN_HOME%"
 set "PATH=%MAVEN_HOME%\bin;%PATH%"
 :COMMON_BUILD_MAVEN_EXEC
-if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
-if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
+::if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
+::if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
 if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
 cmd /C mvn %PARAMETERS%
 goto END
@@ -230,8 +230,8 @@ set "ANT_HOME=%ANT_HOME:~2%"
 set "ANT_HOME=%DEVTOOLS%\%ANT_HOME%"
 set "PATH=%ANT_HOME%\bin;%PATH%"
 :COMMON_BUILD_ANT_EXEC
-if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
-if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
+::if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
+::if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
 if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
 cmd /C ant %PARAMETERS%
 goto END
