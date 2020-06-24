@@ -1,3 +1,4 @@
-major.number=0
-minor.number=2
-micro.number=0
+major.number        = 0
+minor.number        = 4
+revision.number     = 0
+qualifier           = 

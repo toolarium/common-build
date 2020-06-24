@@ -46,7 +46,37 @@ set "CB_JAVA_VERSION_FILE=.cb-java-version"
 set PARAMETERS=
 del %CB_JAVA_VERSION_FILE% 2>nul
 
-	
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: read version
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+if not exist %CB_HOME%\VERSION goto READ_VERSION_END
+( set "major.number=" & set /p "major.number="
+  set "minor.number=" & set /p "minor.number="
+  set "revision.number=" & set /p "revision.number="
+  set "qualifier=" & set /p "qualifier=" ) < %CB_HOME%\VERSION
+set CB_VERSION=%major.number:~22%.%minor.number:~22%.%revision.number:~22%
+::if [%qualifier%] equ [] set CB_VERSION=%CB_VERSION%-%qualifier:~22%
+:READ_VERSION_END
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: custom initialisation
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+if [%CB_CUSTOM_SETTING%] equ [] goto CUSTOM_SETTINGS_END
+if exist %CB_CUSTOM_SETTING% goto CUSTOM_SETTINGS_START
+echo %LINE%
+echo -Could not find custom scrpit, see %%CB_CUSTOM_SETTING%%: 
+echo  %CB_CUSTOM_SETTING%
+echo %LINE%
+goto CUSTOM_SETTINGS_END
+
+:CUSTOM_SETTINGS_START
+::echo Custom settings %CB_CUSTOM_SETTING%
+call %CB_CUSTOM_SETTING% %1 %2 %3 %4 %5 %6 %7
+:CUSTOM_SETTINGS_END
+
+
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CHECK_PARAMETER
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -55,41 +85,54 @@ if %0X==X goto COMMON_BUILD
 if .%1==.--silent shift & set "CB_INSTALL_USER_COMMIT=false" & set "CB_INSTALL_SILENT=true"
 if .%1==.-h goto HELP
 if .%1==.--help goto HELP
+if .%1==.-v goto VERSION
+if .%1==.--version goto VERSION
 if .%1==.-new goto PROJECT_WIZARD
 if .%1==.--new goto PROJECT_WIZARD
 if .%1==.-exp goto PROJECT_EXPLORE
 if .%1==.--explore goto PROJECT_EXPLORE
 if .%1==.--install goto INSTALL_CB
 if .%1==.--jdk (shift & echo %1> %CB_JAVA_VERSION_FILE%)
-
 set PARAMETERS=%PARAMETERS% %1
 shift
 goto CHECK_PARAMETER
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:VERSION
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo %LINE%
+echo common build %CB_VERSION%
+echo %LINE%
+echo.
+goto END
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :HELP
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %PN% - common build 
+echo %PN% - common build v%CB_VERSION%
 echo usage: %PN% [OPTION] [TARGET]
 echo.
 echo Overview of the available OPTIONs:
-echo  --help                    Help
-echo  --new                     Create a new project
-echo  -exp, --explore           Starts in Windows environment a new explorer
-echo  --jdk [version]           Set a different jdk for this run, e.g. --jdk 14
-echo  --silent                  Suppress the console output from the common-build
-echo  --install                 Install the common build environment
+echo  -h, --help                Show this help message.
+echo  -v, --version             Print version information.
+echo  --new                     Create a new project.
+echo  -exp, --explore           Starts in Windows environment a new explorer.
+echo  --jdk [version]           Set a different jdk for this run, e.g. --jdk 14.
+echo  --silent                  Suppress the console output from the common-build.
+echo  --install                 Install the common build environment.
 echo.
 echo Environment variable:
-echo  DEVTOOLS                  Defines the devtools directory, default c:\devtools
-echo  CB_HOME                   Defines the common build home environment, default %%DEVTOOLS%%\cb
-echo  CB_PACKAGE_URL            Url where additional zip packages are available to download (default, no url)
-echo  CB_PACKAGE_USER           The user for the access to the CB_PACKAGE_URL
-echo  CB_PACKAGE_PASSWORD       In case it is set to ask, the password can be entered securely on the command line
+echo  DEVTOOLS                  Defines the devtools directory, default c:\devtools.
+echo  CB_HOME                   Defines the common build home environment, default %%DEVTOOLS%%\cb.
+echo  CB_PACKAGE_URL            Url where additional zip packages are available to download (default, no url).
+echo  CB_PACKAGE_USER           The user for the access to the CB_PACKAGE_URL.
+echo  CB_PACKAGE_PASSWORD       In case it is set to ask, the password can be entered securely on the command line.
+echo  CB_CUSTOM_SETTING         Can be use to reference to an own start script.
 echo.
 echo Special files:
-echo  .java-version             Can be used to reference to a specific jdk version
+echo  .java-version             Can be used to reference to a specific jdk version.
 echo.
 echo Example:
 echo  -Install specific jdk version: cb --install java 14
@@ -192,6 +235,8 @@ cmd /C %GRADLE_EXEC% %PARAMETERS%
 goto END
 
 :COMMON_BUILD_MAVEN
+set MAVEN_EXEC=mvn
+if exist mvnw.bat set "MAVEN_EXEC=mvn" & goto COMMON_BUILD_MAVEN_EXEC
 WHERE mvn >nul 2>nul
 if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_MAVEN_EXEC
 if not [%MAVEN_HOME%] equ [] set "PATH=%MAVEN_HOME%\bin;%PATH%"
@@ -210,7 +255,7 @@ set "PATH=%MAVEN_HOME%\bin;%PATH%"
 ::if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
 ::if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
 ::if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
-cmd /C mvn %PARAMETERS%
+cmd /C %MAVEN_EXEC% %PARAMETERS%
 goto END
 
 :COMMON_BUILD_ANT
