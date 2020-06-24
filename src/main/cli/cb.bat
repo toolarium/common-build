@@ -159,7 +159,7 @@ for %%R in (%TMPFILE%) do if not %%~zR lss 1 set /pJAVA_HOME=<%TMPFILE%
 del %TMPFILE% 2>nul
 set "JAVA_HOME=%JAVA_HOME:~2%"
 set "JAVA_HOME=%DEVTOOLS%\%JAVA_HOME%"
-PATH=%JAVA_HOME%\bin;%PATH%
+set "PATH=%JAVA_HOME%\bin;%PATH%"
 echo CB: set java version to %JAVA_HOME%
 echo %LINE%
 :COMMON_BUILD_JAVA_EXEC
@@ -171,7 +171,7 @@ if exist build.xml goto COMMON_BUILD_ANT
 :COMMON_BUILD_GRADLE
 set GRADLE_EXEC=gradle
 if exist gradlew.bat set "GRADLE_EXEC=gradlew" & goto COMMON_BUILD_GRADLE_EXEC
-WHERE call gradle >nul 2>nul
+WHERE gradle >nul 2>nul
 if not %ERRORLEVEL% NEQ 0 goto COMMON_BUILD_GRADLE_EXEC
 if not [%GRADLE_HOME%] equ [] set "PATH=%GRADLE_HOME%\bin;%PATH%"
 WHERE gradle >nul 2>nul
@@ -184,7 +184,7 @@ for %%R in (%TMPFILE%) do if not %%~zR lss 1 set /pGRADLE_HOME=<%TMPFILE%
 del %TMPFILE% 2>nul
 set "GRADLE_HOME=%GRADLE_HOME:~2%"
 set "GRADLE_HOME=%DEVTOOLS%\%GRADLE_HOME%"
-PATH=%GRADLE_HOME%\bin;%PATH%
+set "PATH=%GRADLE_HOME%\bin;%PATH%"
 :COMMON_BUILD_GRADLE_EXEC
 if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
 if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
@@ -206,7 +206,7 @@ for %%R in (%TMPFILE%) do if not %%~zR lss 1 set /pMAVEN_HOME=<%TMPFILE%
 del %TMPFILE% 2>nul
 set "MAVEN_HOME=%MAVEN_HOME:~2%"
 set "MAVEN_HOME=%DEVTOOLS%\%MAVEN_HOME%"
-PATH=%MAVEN_HOME%\bin;%PATH%
+set "PATH=%MAVEN_HOME%\bin;%PATH%"
 :COMMON_BUILD_MAVEN_EXEC
 if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
 if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
@@ -228,7 +228,7 @@ for %%R in (%TMPFILE%) do if not %%~zR lss 1 set /pANT_HOME=<%TMPFILE%
 del %TMPFILE% 2>nul
 set "ANT_HOME=%ANT_HOME:~2%"
 set "ANT_HOME=%DEVTOOLS%\%ANT_HOME%"
-PATH=%ANT_HOME%\bin;%PATH%
+set "PATH=%ANT_HOME%\bin;%PATH%"
 :COMMON_BUILD_ANT_EXEC
 if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
 if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
@@ -519,7 +519,6 @@ if .%2==.pkg goto EXTRACT_ARCHIVES
 ::if exist %CB_BIN%\cleanup-installation.bat (echo -Cleanup old packages... >> %LOGFILE% 
 ::	call %CB_BIN%\cleanup-installation >> %LOGFILE% 2>/nul)
 
-cd %DEVTOOLS%
 echo %LINE%>> %LOGFILE%
 echo -Extract files in %DEVTOOLS%... & echo -Extract files in %DEVTOOLS%... >> %LOGFILE%
 ::dir %DEV_REPOSITORY%\%SERVER_PATH%\%DEVTOOLS_NAME%\*.zip /b/s --> unzip
