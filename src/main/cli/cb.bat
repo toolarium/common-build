@@ -577,6 +577,11 @@ set "USER_FRIENDLY_DATESTAMP=%DD%.%MM%.%YYYY%"
 set "USER_FRIENDLY_TIMESTAMP=%HH%:%Min%:%Sec%" 
 set "USER_FRIENDLY_FULLTIMESTAMP=%USER_FRIENDLY_DATESTAMP% %USER_FRIENDLY_TIMESTAMP%"
 echo End common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%>> %LOGFILE%
+echo .
+echo %LINE%
+echo Successfully installed common-build %CB_VERSION% und %CB_HOME%. The user %%PATH%% is 
+echo already extended and you can start working with it with the command cb!
+echo %LINE%
 ::exit /b 1
 
 set "TOUPPER=" & set "DEV_REPOSITORY=" & set "PROCESSOR_ARCHITECTURE_NUMBER=" & set "CURRENT_DRIVE=" & set "CURRENT_PATH="
