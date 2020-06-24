@@ -36,8 +36,8 @@ if not defined CB_PACKAGE_URL (set "CB_PACKAGE_URL=")
 if not defined CB_INSTALL_SILENT (set "CB_INSTALL_SILENT=false")
 if not defined CB_INSTALL_USER_COMMIT (set "CB_INSTALL_USER_COMMIT=true")
 if not defined DEVTOOLS_NAME (set DEVTOOLS_NAME=devtools)
-if not defined DEVTOOLS_DRIVE (set DEVTOOLS_DRIVE=c)
-if not defined DEVTOOLS (set "DEVTOOLS=%DEVTOOLS_DRIVE%:\%DEVTOOLS_NAME%")
+if not defined DEVTOOLS_DRIVE (set DEVTOOLS_DRIVE=c:)
+if not defined DEVTOOLS (set "DEVTOOLS=%DEVTOOLS_DRIVE%\%DEVTOOLS_NAME%")
 if not defined CB_HOME (set "CB_HOME=%DEVTOOLS%\cb")
 if not defined CB_USER (set "CB_USER=%USERNAME%")
 if not defined CB_PACKAGE_PASSWORD (set "CB_PACKAGE_PASSWORD=")
@@ -186,8 +186,8 @@ set "GRADLE_HOME=%GRADLE_HOME:~2%"
 set "GRADLE_HOME=%DEVTOOLS%\%GRADLE_HOME%"
 PATH=%GRADLE_HOME%\bin;%PATH%
 :COMMON_BUILD_GRADLE_EXEC
-if defined JAVA_HOME_BACKUP (set JAVA_HOME=%JAVA_HOME_BACKUP%)
-if defined PATH_BACKUP (set PATH=%PATH_BACKUP%)
+if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
+if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
 if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
 cmd /C %GRADLE_EXEC% %PARAMETERS%
 goto END
@@ -208,8 +208,8 @@ set "MAVEN_HOME=%MAVEN_HOME:~2%"
 set "MAVEN_HOME=%DEVTOOLS%\%MAVEN_HOME%"
 PATH=%MAVEN_HOME%\bin;%PATH%
 :COMMON_BUILD_MAVEN_EXEC
-if defined JAVA_HOME_BACKUP (set JAVA_HOME=%JAVA_HOME_BACKUP%)
-if defined PATH_BACKUP (set PATH=%PATH_BACKUP%)
+if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
+if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
 if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
 cmd /C mvn %PARAMETERS%
 goto END
@@ -230,8 +230,8 @@ set "ANT_HOME=%ANT_HOME:~2%"
 set "ANT_HOME=%DEVTOOLS%\%ANT_HOME%"
 PATH=%ANT_HOME%\bin;%PATH%
 :COMMON_BUILD_ANT_EXEC
-if defined JAVA_HOME_BACKUP (set JAVA_HOME=%JAVA_HOME_BACKUP%)
-if defined PATH_BACKUP (set PATH=%PATH_BACKUP%)
+if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
+if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
 if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
 cmd /C ant %PARAMETERS%
 goto END
@@ -317,7 +317,7 @@ set "DEV_REPOSITORY=%DEVTOOLS%\.repository"
 if not exist %DEV_REPOSITORY% mkdir %DEV_REPOSITORY% >nul 2>nul
 
 set LOGFILE=%CB_LOGS%\%FULLTIMESTAMP%-%CB_USER%.log
-if [%CB_INSTALL_SILENT%] equ [false] (echo -The log of the installation you find in %LOGFILE%)
+if [%CB_INSTALL_SILENT%] equ [false] (echo -The installation log file can be found here %LOGFILE%)
 echo %LINE%>> %LOGFILE%
 echo Started common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%>> %LOGFILE%
 echo common-build: %CB_HOME%, devtools: %DEVTOOLS% (name: %DEVTOOLS_NAME%, drive:%DEVTOOLS_DRIVE%)>> %LOGFILE%
@@ -362,14 +362,6 @@ for /f %%i in ('CALL %CB_BIN%\toupper %CURRENT_PATH%') do set CURRENT_PATH=%%i
 set CURRENT_DRIVE=%~d0
 for /f %%i in ('CALL %CB_BIN%\toupper %CURRENT_DRIVE%') do set CURRENT_DRIVE=%%i
 
-:: add to path
-cd %CB_LOGS%
-WHERE cb >nul 2>nul
-if %ERRORLEVEL% NEQ 0 (echo -Set CB_HOME to path.
-set "PATH=%CB_BIN%;%PATH%"
-setx PATH "%CB_BIN%;%PATH%">nul 2>nul)
-cd %CURRENT_PATH%
-
 SET PROCESSOR_ARCHITECTURE_NUMBER=64
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:32=%" SET PROCESSOR_ARCHITECTURE_NUMBER=32
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:64=%" SET PROCESSOR_ARCHITECTURE_NUMBER=64
@@ -386,14 +378,32 @@ powershell -Command "iwr $start_time = Get-Date;Invoke-WebRequest -Uri '%WGET_PA
 :INSTALL_WGET_END
 
 :: own files
-echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\VERSION %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/VERSION">> %LOGFILE%
-%CB_BIN%\%WGET_CMD% -O %CB_BIN%\VERSION %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/VERSION"
-echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\LICENSE %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://github.com/toolarium/common-build/blob/master/LICENSE">> %LOGFILE%
-%CB_BIN%\%WGET_CMD% -O %CB_BIN%\LICENSE %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://github.com/toolarium/common-build/blob/master/LICENSE"
-echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb-env-clean.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb-env-clean.bat">> %LOGFILE%
-%CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb-env-clean.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb-env-clean.bat"
+echo -Install cb files... & echo -Install cb files...>> %LOGFILE%
+echo %CB_BIN%\%WGET_CMD% -O %CB_HOME%\VERSION %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/VERSION">> %LOGFILE%
+%CB_BIN%\%WGET_CMD% -O %CB_HOME%\VERSION %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/VERSION"
+echo %CB_BIN%\%WGET_CMD% -O %CB_HOME%\LICENSE %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://github.com/toolarium/common-build/blob/master/LICENSE">> %LOGFILE%
+%CB_BIN%\%WGET_CMD% -O %CB_HOME%\LICENSE %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://github.com/toolarium/common-build/blob/master/LICENSE"
+echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb.bat">> %LOGFILE%
+%CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb.bat"
 ::echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb">> %LOGFILE%
 ::%CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb"
+echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb-env-clean.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb-env-clean.bat">> %LOGFILE%
+%CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb-env-clean.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb-env-clean.bat"
+
+:: add to path
+set "SystemPath=" & set "UserPath="
+for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKLM\System\CurrentControlSet\Control\Session Manager\Environment" /v "Path" 2^>nul') do (if /I "%%N" == "Path" (set "SystemPath=%%P" & goto GET_USER_PATH_FROM_REGISTRY))
+:GET_USER_PATH_FROM_REGISTRY
+for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKCU\Environment" /v "Path" 2^>nul') do (if /I "%%N" == "Path" (set "UserPath=%%P" & goto GET_USER_PATH_FROM_REGISTRY_END))
+:GET_USER_PATH_FROM_REGISTRY_END
+echo Current user path is %UserPath% >> %LOGFILE%
+if /I [%DEVTOOLS_DRIVE%] NEQ [%CURRENT_DRIVE%] (%DEVTOOLS_DRIVE%)
+cd %CB_LOGS%
+WHERE cb >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (echo -Set CB_HOME to path. & setx PATH "%CB_BIN%;%UserPath%" >nul 2>nul)
+set "PATH=%CB_BIN%;%PATH%"
+if /I [%DEVTOOLS_DRIVE%] NEQ [%CURRENT_DRIVE%] (%CURRENT_DRIVE%)
+cd %CURRENT_PATH%
 
 set CB_PKG_FILTER=*.zip
 if .%2==.java goto INSTALL_JDK
@@ -513,7 +523,7 @@ cd %DEVTOOLS%
 echo %LINE%>> %LOGFILE%
 echo -Extract files in %DEVTOOLS%... & echo -Extract files in %DEVTOOLS%... >> %LOGFILE%
 ::dir %DEV_REPOSITORY%\%SERVER_PATH%\%DEVTOOLS_NAME%\*.zip /b/s --> unzip
-FOR /F %%i IN ('dir %DEV_REPOSITORY%\%CB_PKG_FILTER% /b/s') DO (powershell -command "Expand-Archive -Force '%%i' '%DEVTOOLS%'" >> %LOGFILE% 2>nul)
+FOR /F %%i IN ('dir %DEV_REPOSITORY%\%CB_PKG_FILTER% /b/s') DO (echo -Extract package %%i>> %LOGFILE% & powershell -command "Expand-Archive -Force '%%i' '%DEVTOOLS%'" >> %LOGFILE% 2>nul)
 echo %LINE%>> %LOGFILE%
 
 :INSTALL_CB_END
