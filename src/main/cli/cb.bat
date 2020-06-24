@@ -384,9 +384,15 @@ echo -Install %CB_BIN%\%WGET_CMD% & echo -Install %CB_BIN%\%WGET_CMD%>> %LOGFILE
 powershell -Command "iwr $start_time = Get-Date;Invoke-WebRequest -Uri '%WGET_PACKAGE_URL%' -OutFile '%CB_BIN%\%WGET_CMD%';Write-Output 'Time taken: $((Get-Date).Subtract($start_time).Seconds) seconds' 2>nul | iex 2>nul" 2>nul
 :INSTALL_WGET_END
 
-::echo %CB_BIN%\%WGET_CMD% -O %DEV_REPOSITORY%\%jdkFilename% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "%JAVA_DOWNLOAD_URL%">> %LOGFILE%
-::%CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb-env-clean.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% ""
-::%CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% ""
+:: own files
+echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\VERSION %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/VERSION">> %LOGFILE%
+%CB_BIN%\%WGET_CMD% -O %CB_BIN%\VERSION %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/VERSION"
+echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\LICENSE %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://github.com/toolarium/common-build/blob/master/LICENSE">> %LOGFILE%
+%CB_BIN%\%WGET_CMD% -O %CB_BIN%\LICENSE %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://github.com/toolarium/common-build/blob/master/LICENSE"
+echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb-env-clean.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb-env-clean.bat">> %LOGFILE%
+%CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb-env-clean.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb-env-clean.bat"
+::echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb">> %LOGFILE%
+::%CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb"
 
 set CB_PKG_FILTER=*.zip
 if .%2==.java goto INSTALL_JDK
