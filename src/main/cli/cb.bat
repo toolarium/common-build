@@ -365,8 +365,9 @@ for /f %%i in ('CALL %CB_BIN%\toupper %CURRENT_DRIVE%') do set CURRENT_DRIVE=%%i
 :: add to path
 cd %CB_LOGS%
 WHERE cb >nul 2>nul
-if not %ERRORLEVEL% NEQ 0 (echo -Set CB_HOME to path.
-set "PATH=%CB_BIN%;%PATH%" & setx PATH "%PATH%" >nul 2>nul)
+if %ERRORLEVEL% NEQ 0 (echo -Set CB_HOME to path.
+set "PATH=%CB_BIN%;%PATH%"
+setx PATH "%CB_BIN%;%PATH%">nul 2>nul)
 cd %CURRENT_PATH%
 
 SET PROCESSOR_ARCHITECTURE_NUMBER=64
@@ -538,7 +539,7 @@ goto END
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :END
-if defined JAVA_HOME_BACKUP (set JAVA_HOME=%JAVA_HOME_BACKUP%)
-if defined PATH_BACKUP (set PATH=%PATH_BACKUP%)
+if defined JAVA_HOME_BACKUP set "JAVA_HOME=%JAVA_HOME_BACKUP%"
+if defined PATH_BACKUP set "PATH=%PATH_BACKUP%"
 if exist %CB_BIN%\cb-env-clean.bat call %CB_BIN%\cb-env-clean.bat 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
