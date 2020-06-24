@@ -29,7 +29,7 @@ set "USER_FRIENDLY_FULLTIMESTAMP=%USER_FRIENDLY_DATESTAMP% %USER_FRIENDLY_TIMEST
 :: tool version default
 if not defined CB_WGET_VERSION (set CB_WGET_VERSION=1.20.3)
 if not defined CB_JAVA_VERSION (set CB_JAVA_VERSION=11)
-if not defined CB_GRADLE_VERSION (set CB_GRADLE_VERSION=6.5)
+if not defined CB_GRADLE_VERSION (set CB_GRADLE_VERSION=6.3)
 if not defined CB_MAVEN_VERSION (set CB_MAVEN_VERSION=3.6.3)
 if not defined CB_ANT_VERSION (set CB_ANT_VERSION=1.10.8)
 if not defined CB_PACKAGE_URL (set "CB_PACKAGE_URL=")
@@ -92,8 +92,8 @@ if .%1==.--new goto PROJECT_WIZARD
 if .%1==.-exp goto PROJECT_EXPLORE
 if .%1==.--explore goto PROJECT_EXPLORE
 if .%1==.--install goto INSTALL_CB
-if .%1==.--jdk (shift & echo %1> %CB_JAVA_VERSION_FILE%)
-set PARAMETERS=%PARAMETERS% %1
+if .%1==.--jdk (echo %2> %CB_JAVA_VERSION_FILE% & shift)
+set PARAMETERS=%PARAMETERS% %~1
 shift
 goto CHECK_PARAMETER
 
@@ -322,9 +322,8 @@ if [%projectTypeId%] equ [2] set projectType=config
 mkdir %projectName% 2>nul
 cd %projectName%
 echo apply from: "https://git.io/JfDQT" > build.gradle
-echo %PN_FULL%
-call %PN_FULL% -PprojectType=%projectType% -PprojectRootPackageName=%projectRootPackageName% -PprojectGroupId=%projectGroupId% -PprojectComponentId=%projectComponentId% -PprojectDescription="%projectDescription%"
-
+::%PN_FULL% "-PprojectType=%projectType%" "-PprojectRootPackageName=%projectRootPackageName%" "-PprojectGroupId=%projectGroupId%" "-PprojectComponentId=%projectComponentId%" "-PprojectDescription=%projectDescription%"
+%PN_FULL% "-PprojectType=%projectType%" "-PprojectRootPackageName=%projectRootPackageName%" "-PprojectGroupId=%projectGroupId%" "-PprojectComponentId=%projectComponentId%" "-PprojectDescription="%projectDescription% ""
 cd ..
 goto END
 
@@ -570,6 +569,13 @@ echo -Extract files in %DEVTOOLS%... & echo -Extract files in %DEVTOOLS%... >> %
 FOR /F %%i IN ('dir %DEV_REPOSITORY%\%CB_PKG_FILTER% /b/s') DO (echo -Extract package %%i>> %LOGFILE% & powershell -command "Expand-Archive -Force '%%i' '%DEVTOOLS%'" >> %LOGFILE% 2>nul)
 echo %LINE%>> %LOGFILE%
 
+:INSTALL_CB_SUCCESS_END
+echo .
+echo %LINE%
+echo Successfully installed common-build %CB_VERSION% und %CB_HOME%. The user %%PATH%% is 
+echo already extended and you can start working with it with the command cb!
+echo %LINE%
+
 :INSTALL_CB_END
 for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value') do set "dt=%%a"
 set "YY=%dt:~2,2%" & set "YYYY=%dt:~0,4%" & set "MM=%dt:~4,2%" & set "DD=%dt:~6,2%"
@@ -578,11 +584,6 @@ set "USER_FRIENDLY_DATESTAMP=%DD%.%MM%.%YYYY%"
 set "USER_FRIENDLY_TIMESTAMP=%HH%:%Min%:%Sec%" 
 set "USER_FRIENDLY_FULLTIMESTAMP=%USER_FRIENDLY_DATESTAMP% %USER_FRIENDLY_TIMESTAMP%"
 echo End common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%>> %LOGFILE%
-echo .
-echo %LINE%
-echo Successfully installed common-build %CB_VERSION% und %CB_HOME%. The user %%PATH%% is 
-echo already extended and you can start working with it with the command cb!
-echo %LINE%
 ::exit /b 1
 
 set "TOUPPER=" & set "DEV_REPOSITORY=" & set "PROCESSOR_ARCHITECTURE_NUMBER=" & set "CURRENT_DRIVE=" & set "CURRENT_PATH="
