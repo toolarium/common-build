@@ -147,7 +147,7 @@ goto END
 :COMMON_BUILD_HELP
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %PN% - common build
-echo .
+echo.
 echo ERROR: There seems to be an installation failure. Some tools and environment variable
 echo        are not properly available. Please call the following command to install properly: 
 echo.
@@ -163,6 +163,7 @@ goto END
 :COMMON_BUILD
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 set "JAVA_HOME_BACKUP=%JAVA_HOME%" & set "CB_JAVA_HOME=" & set "cbJavaVersion="
+set "CB_LOGS=%CB_HOME%\logs" 
 
 :: current run jdk switch
 for %%R in (%CB_JAVA_VERSION_FILE%) do if not %%~zR lss 1 set /pcbJavaVersion=<%CB_JAVA_VERSION_FILE% & del %CB_JAVA_VERSION_FILE% 2>nul
@@ -359,13 +360,13 @@ if not exist %CB_LOGS% mkdir %CB_LOGS% >nul 2>nul
 set "DEV_REPOSITORY=%DEVTOOLS%\.repository" 
 if not exist %DEV_REPOSITORY% mkdir %DEV_REPOSITORY% >nul 2>nul
 
-set LOGFILE=%CB_LOGS%\%FULLTIMESTAMP%-%CB_USER%.log
-if [%CB_INSTALL_SILENT%] equ [false] (echo -The installation log file can be found here %LOGFILE%)
-echo %LINE%>> %LOGFILE%
-echo Started common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%>> %LOGFILE%
-echo common-build: %CB_HOME%, devtools: %DEVTOOLS% (name: %DEVTOOLS_NAME%, drive:%DEVTOOLS_DRIVE%)>> %LOGFILE%
-echo wget: %CB_WGET_VERSION%, gradle: %CB_GRADLE_VERSION%, java: %CB_JAVA_VERSION%>> %LOGFILE%
-echo %LINE%>> %LOGFILE%
+set "LOGFILE=%CB_LOGS%\%FULLTIMESTAMP%-%CB_USER%.log"
+if [%CB_INSTALL_SILENT%] equ [false] (echo -The installation log file can be found here "%LOGFILE%")
+echo %LINE%>> "%LOGFILE%"
+echo Started common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%>> "%LOGFILE%"
+echo common-build: %CB_HOME%, devtools: %DEVTOOLS% (name: %DEVTOOLS_NAME%, drive:%DEVTOOLS_DRIVE%)>> "%LOGFILE%"
+echo wget: %CB_WGET_VERSION%, gradle: %CB_GRADLE_VERSION%, java: %CB_JAVA_VERSION%>> "%LOGFILE%"
+echo %LINE%>> "%LOGFILE%"
 
 :: tools settings
 set "TMPFILE=%CB_LOGS%\tmpfile.tmp"
@@ -384,7 +385,7 @@ copy %PN_FULL% %CB_BIN% >nul 2>nul
 :: to upper case
 set "TOUPPER=%CB_BIN%\toupper.bat"
 if exist %TOUPPER% goto TOUPPER_INSTALLED
-echo -Install %TOUPPER% & echo Install %TOUPPER%>> %LOGFILE%
+echo -Install %TOUPPER% & echo Install %TOUPPER%>> "%LOGFILE%"
 echo @ECHO OFF> %TOUPPER%
 echo :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::>> %TOUPPER%
 echo :: Copyright by toolarium, all rights reserved.>> %TOUPPER%
@@ -417,7 +418,7 @@ WHERE %WGET_CMD% >nul 2>nul
 if not %ERRORLEVEL% NEQ 0 goto INSTALL_WGET_END
 set "WGET_DOWNLOAD_URL=https://eternallybored.org/misc/wget/"
 set "WGET_PACKAGE_URL=%WGET_DOWNLOAD_URL%/%CB_WGET_VERSION%/%PROCESSOR_ARCHITECTURE_NUMBER%/%WGET_CMD%"
-echo -Install %CB_BIN%\%WGET_CMD% & echo -Install %CB_BIN%\%WGET_CMD%>> %LOGFILE%
+echo -Install %CB_BIN%\%WGET_CMD% & echo -Install %CB_BIN%\%WGET_CMD%>> "%LOGFILE%"
 powershell -Command "iwr $start_time = Get-Date;Invoke-WebRequest -Uri '%WGET_PACKAGE_URL%' -OutFile '%CB_BIN%\%WGET_CMD%';Write-Output 'Time taken: $((Get-Date).Subtract($start_time).Seconds) seconds' 2>nul | iex 2>nul" 2>nul
 :INSTALL_WGET_END
 
@@ -429,16 +430,16 @@ if .%2==.ant goto INSTALL_ANT
 if .%2==.pkg goto INSTALL_PACKAGES
 
 :: own files
-echo -Install cb files... & echo -Install cb files...>> %LOGFILE%
-echo %CB_BIN%\%WGET_CMD% -O %CB_HOME%\VERSION %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/VERSION">> %LOGFILE%
+echo -Install cb files... & echo -Install cb files...>> "%LOGFILE%"
+echo %CB_BIN%\%WGET_CMD% -O %CB_HOME%\VERSION %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/VERSION">> "%LOGFILE%"
 %CB_BIN%\%WGET_CMD% -O %CB_HOME%\VERSION %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/VERSION"
-echo %CB_BIN%\%WGET_CMD% -O %CB_HOME%\LICENSE %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://github.com/toolarium/common-build/blob/master/LICENSE">> %LOGFILE%
+echo %CB_BIN%\%WGET_CMD% -O %CB_HOME%\LICENSE %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://github.com/toolarium/common-build/blob/master/LICENSE">> "%LOGFILE%"
 %CB_BIN%\%WGET_CMD% -O %CB_HOME%\LICENSE %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://github.com/toolarium/common-build/blob/master/LICENSE"
-echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb.bat">> %LOGFILE%
+echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb.bat">> "%LOGFILE%"
 %CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb.bat"
-::echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb">> %LOGFILE%
+::echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb">> "%LOGFILE%"
 ::%CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb"
-echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb-env-clean.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb-env-clean.bat">> %LOGFILE%
+echo %CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb-env-clean.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb-env-clean.bat">> "%LOGFILE%"
 %CB_BIN%\%WGET_CMD% -O %CB_BIN%\cb-env-clean.bat %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb-env-clean.bat"
 
 :: add to path
@@ -447,7 +448,7 @@ for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKLM\S
 :GET_USER_PATH_FROM_REGISTRY
 for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKCU\Environment" /v "Path" 2^>nul') do (if /I "%%N" == "Path" (set "UserPath=%%P" & goto GET_USER_PATH_FROM_REGISTRY_END))
 :GET_USER_PATH_FROM_REGISTRY_END
-echo Current user path is %UserPath% >> %LOGFILE%
+echo Current user path is %UserPath% >> "%LOGFILE%"
 if /I [%DEVTOOLS_DRIVE%] NEQ [%SCRIPT_DRIVE%] (%DEVTOOLS_DRIVE%)
 cd %CB_LOGS%
 WHERE cb >nul 2>nul
@@ -464,18 +465,18 @@ if .%jdkVersion%==. set jdkVersion=%CB_JAVA_VERSION%
 set JAVA_OPENJDK_IMPL=hotspot
 set "JAVA_INFO_DOWNLOAD_URL=https://api.adoptopenjdk.net/v2/info/releases/openjdk%jdkVersion%?openjdk_impl=%JAVA_OPENJDK_IMPL%&os=windows&arch=x%PROCESSOR_ARCHITECTURE_NUMBER%&release=latest&type=jdk"
 set "JAVA_DOWNLOAD_URL=https://api.adoptopenjdk.net/v2/binary/releases/openjdk%jdkVersion%?openjdk_impl=%JAVA_OPENJDK_IMPL%&os=windows&arch=x%PROCESSOR_ARCHITECTURE_NUMBER%&release=latest&type=jdk"
-echo %LINE%>> %LOGFILE%
-echo -Install java version %jdkVersion% & echo -Install java version %jdkVersion%>> %LOGFILE%
+echo %LINE%>> "%LOGFILE%"
+echo -Install java version %jdkVersion% & echo -Install java version %jdkVersion%>> "%LOGFILE%"
 %CB_BIN%\%WGET_CMD% -O %TMPFILE% %WGET_SECURITY_CREDENTIALS% -q "%JAVA_INFO_DOWNLOAD_URL%"
 powershell -command "$json = (Get-Content "%TMPFILE%" -Raw) | ConvertFrom-Json; $json.binaries.binary_name" > %CB_LOGS%\javaFile.json
 set /p jdkFilename= < %CB_LOGS%\javaFile.json
 del %CB_LOGS%\javaFile.json >nul 2>nul
 move %TMPFILE% %DEV_REPOSITORY%\%jdkFilename%.json >nul 2>nul
-echo %CB_BIN%\%WGET_CMD% -O %DEV_REPOSITORY%\%jdkFilename% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "%JAVA_DOWNLOAD_URL%">> %LOGFILE%
+echo %CB_BIN%\%WGET_CMD% -O %DEV_REPOSITORY%\%jdkFilename% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "%JAVA_DOWNLOAD_URL%">> "%LOGFILE%"
 %CB_BIN%\%WGET_CMD% -O %DEV_REPOSITORY%\%jdkFilename% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "%JAVA_DOWNLOAD_URL%"
 :INSTALL_JDK_END
 for %%A in (%DEV_REPOSITORY%\%jdkFilename%) do if %%~zA==0 del %DEV_REPOSITORY%\%jdkFilename% >nul 2>nul
-echo %LINE%>> %LOGFILE%
+echo %LINE%>> "%LOGFILE%"
 if .%2==.java (set CB_PKG_FILTER=%jdkFilename% & goto EXTRACT_ARCHIVES)
 
 :: gradle
@@ -486,14 +487,14 @@ if .%gradleVersion%==. set gradleVersion=%CB_GRADLE_VERSION%
 set GRADLE_DOWNLOAD_URL=https://downloads.gradle-dn.com/distributions
 set GRADLE_DOWNLOAD_PACKAGENAME=gradle-%gradleVersion%-bin.zip
 set GRADLE_DOWNLOAD_PACKAGE_URL=%GRADLE_DOWNLOAD_URL%/%GRADLE_DOWNLOAD_PACKAGENAME%
-echo %LINE%>> %LOGFILE%
-echo -Install gradle version %gradleVersion% & echo -Install gradle version %gradleVersion%>> %LOGFILE%
+echo %LINE%>> "%LOGFILE%"
+echo -Install gradle version %gradleVersion% & echo -Install gradle version %gradleVersion%>> "%LOGFILE%"
 if exist %DEVTOOLS%\gradle-%gradleVersion% goto INSTALL_GRADLE_END
-echo %CB_BIN%\%WGET_CMD% -O%DEV_REPOSITORY%\%GRADLE_DOWNLOAD_PACKAGENAME% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "%GRADLE_DOWNLOAD_PACKAGE_URL%">> %LOGFILE%
+echo %CB_BIN%\%WGET_CMD% -O%DEV_REPOSITORY%\%GRADLE_DOWNLOAD_PACKAGENAME% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "%GRADLE_DOWNLOAD_PACKAGE_URL%">> "%LOGFILE%"
 %CB_BIN%\%WGET_CMD% -O%DEV_REPOSITORY%\%GRADLE_DOWNLOAD_PACKAGENAME% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "%GRADLE_DOWNLOAD_PACKAGE_URL%"
 :INSTALL_GRADLE_END
 for %%A in (%DEV_REPOSITORY%\%GRADLE_DOWNLOAD_PACKAGENAME%) do if %%~zA==0 del %DEV_REPOSITORY%\%GRADLE_DOWNLOAD_PACKAGENAME% >nul 2>nul
-echo %LINE%>> %LOGFILE%
+echo %LINE%>> "%LOGFILE%"
 if .%2==.gradle (set CB_PKG_FILTER=%GRADLE_DOWNLOAD_PACKAGENAME% & goto EXTRACT_ARCHIVES)
 goto INSTALL_PACKAGES
 
@@ -506,13 +507,13 @@ if exist %DEVTOOLS%\maven-%mavenVersion% goto INSTALL_MAVEN_END
 set MAVEN_DOWNLOAD_URL=https://archive.apache.org/dist/maven/maven-3/%mavenVersion%/binaries
 set MAVEN_DOWNLOAD_PACKAGENAME=apache-maven-%mavenVersion%-bin.zip
 set MAVEN_DOWNLOAD_PACKAGE_URL=%MAVEN_DOWNLOAD_URL%/%MAVEN_DOWNLOAD_PACKAGENAME%
-echo %LINE%>> %LOGFILE%
-echo -Install maven version %mavenVersion% & echo -Install maven version %mavenVersion%>> %LOGFILE%
-echo %CB_BIN%\%WGET_CMD% -O%DEV_REPOSITORY%\%MAVEN_DOWNLOAD_PACKAGENAME% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "%MAVEN_DOWNLOAD_PACKAGE_URL%">> %LOGFILE%
+echo %LINE%>> "%LOGFILE%"
+echo -Install maven version %mavenVersion% & echo -Install maven version %mavenVersion%>> "%LOGFILE%"
+echo %CB_BIN%\%WGET_CMD% -O%DEV_REPOSITORY%\%MAVEN_DOWNLOAD_PACKAGENAME% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "%MAVEN_DOWNLOAD_PACKAGE_URL%">> "%LOGFILE%"
 %CB_BIN%\%WGET_CMD% -O%DEV_REPOSITORY%\%MAVEN_DOWNLOAD_PACKAGENAME% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "%MAVEN_DOWNLOAD_PACKAGE_URL%"
 :INSTALL_MAVEN_END
 for %%A in (%DEV_REPOSITORY%\%MAVEN_DOWNLOAD_PACKAGENAME%) do if %%~zA==0 del %DEV_REPOSITORY%\%MAVEN_DOWNLOAD_PACKAGENAME% >nul 2>nul
-echo %LINE%>> %LOGFILE%
+echo %LINE%>> "%LOGFILE%"
 if .%2==.maven (set "CB_PKG_FILTER=%MAVEN_DOWNLOAD_PACKAGENAME%" & goto EXTRACT_ARCHIVES)
 
 :: ant
@@ -524,13 +525,13 @@ if exist %DEVTOOLS%\ant-%antVersion% goto INSTALL_ANT_END
 set ANT_DOWNLOAD_URL=https://downloads.apache.org/ant/binaries
 set ANT_DOWNLOAD_PACKAGENAME=apache-ant-%antVersion%-bin.zip
 set ANT_DOWNLOAD_PACKAGE_URL=%ANT_DOWNLOAD_URL%/%ANT_DOWNLOAD_PACKAGENAME%
-echo %LINE%>> %LOGFILE%
-echo -Install ant version %antVersion% & echo -Install ant version %antVersion%>> %LOGFILE%
-echo %CB_BIN%\%WGET_CMD% -O%DEV_REPOSITORY%\%ANT_DOWNLOAD_PACKAGENAME% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "%ANT_DOWNLOAD_PACKAGE_URL%">> %LOGFILE%
+echo %LINE%>> "%LOGFILE%"
+echo -Install ant version %antVersion% & echo -Install ant version %antVersion%>> "%LOGFILE%"
+echo %CB_BIN%\%WGET_CMD% -O%DEV_REPOSITORY%\%ANT_DOWNLOAD_PACKAGENAME% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "%ANT_DOWNLOAD_PACKAGE_URL%">> "%LOGFILE%"
 %CB_BIN%\%WGET_CMD% -O%DEV_REPOSITORY%\%ANT_DOWNLOAD_PACKAGENAME% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_PARAM% %WGET_LOG% "%ANT_DOWNLOAD_PACKAGE_URL%"
 :INSTALL_ANT_END
 for %%A in (%DEV_REPOSITORY%\%ANT_DOWNLOAD_PACKAGENAME%) do if %%~zA==0 del %DEV_REPOSITORY%\%ANT_DOWNLOAD_PACKAGENAME% >nul 2>nul
-echo %LINE%>> %LOGFILE%
+echo %LINE%>> "%LOGFILE%"
 if .%2==.ant (set "CB_PKG_FILTER=%ANT_DOWNLOAD_PACKAGENAME%" & goto EXTRACT_ARCHIVES)
 
 :: packages
@@ -538,39 +539,45 @@ if .%2==.ant (set "CB_PKG_FILTER=%ANT_DOWNLOAD_PACKAGENAME%" & goto EXTRACT_ARCH
 if not defined CB_PACKAGE_URL goto EXTRACT_ARCHIVES
 set WGET_USER_CREDENTIALS=
 if [%CB_PACKAGE_USER%] equ [] (set /p CB_PACKAGE_USER=Please enter user credentials, e.g. %CB_USER%: )
-if [%CB_PACKAGE_USER%] equ [] (set CB_PACKAGE_USER=%CB_USER%)
+if [%CB_PACKAGE_USER%] equ [] (set "CB_PACKAGE_USER=%CB_USER%")
 if [%CB_PACKAGE_PASSWORD%] equ [ask] (set WGET_USER_CREDENTIALS=--ask-password --user %CB_PACKAGE_USER%)
 set WGET_RECURSIVE_PARAM=-r -np -nH --timestamping
 set WGET_FILTER=--exclude-directories=_deprecated -R "index.*"
-echo %LINE%>> %LOGFILE%
-echo -Install packages from %CB_PACKAGE_URL% & echo -Install packages from %CB_PACKAGE_URL%>> %LOGFILE%
+echo %LINE%>> "%LOGFILE%"
+echo -Install packages from %CB_PACKAGE_URL% & echo -Install packages from %CB_PACKAGE_URL%>> "%LOGFILE%"
 cd %DEV_REPOSITORY%
-echo %CB_BIN%\%WGET_CMD% %CB_PACKAGE_URL% %WGET_PARAM% %WGET_RECURSIVE_PARAM% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_USER_CREDENTIALS% %WGET_FILTER% %WGET_LOG%>> %LOGFILE%
+echo %CB_BIN%\%WGET_CMD% %CB_PACKAGE_URL% %WGET_PARAM% %WGET_RECURSIVE_PARAM% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_USER_CREDENTIALS% %WGET_FILTER% %WGET_LOG%>> "%LOGFILE%"
 %CB_BIN%\%WGET_CMD% %CB_PACKAGE_URL% %WGET_PARAM% %WGET_RECURSIVE_PARAM% %WGET_SECURITY_CREDENTIALS% %WGET_PROGRESSBAR% %WGET_USER_CREDENTIALS% %WGET_FILTER% %WGET_LOG%
 cd %CURRENT_PATH%
 if not %ERRORLEVEL% equ 6 goto INSTALL_PACKAGES_END
-echo ERROR: Invalid credentials, give up. >> %LOGFILE%
+echo ERROR: Invalid credentials, give up. >> "%LOGFILE%"
 echo %LINE%
 echo ERROR: Invalid credentials, give up.
 echo %LINE%
 goto INSTALL_CB_END
 :INSTALL_PACKAGES_END
-echo %LINE%>> %LOGFILE%
+echo %LINE%>> "%LOGFILE%"
 if .%2==.pkg goto EXTRACT_ARCHIVES	
 
 :: extract
 :EXTRACT_ARCHIVES
-::if exist %CB_BIN%\cleanup-installation.bat (echo -Cleanup old packages... >> %LOGFILE% 
-::	call %CB_BIN%\cleanup-installation >> %LOGFILE% 2>/nul)
+::if exist %CB_BIN%\cleanup-installation.bat (echo -Cleanup old packages... >> "%LOGFILE%" 
+::	call %CB_BIN%\cleanup-installation >> "%LOGFILE%" 2>/nul)
 
-echo %LINE%>> %LOGFILE%
-echo -Extract files in %DEVTOOLS%... & echo -Extract files in %DEVTOOLS%... >> %LOGFILE%
+echo %LINE%>> "%LOGFILE%"
+echo -Extract files in %DEVTOOLS%... & echo -Extract files in %DEVTOOLS%... >> "%LOGFILE%"
 ::dir %DEV_REPOSITORY%\%SERVER_PATH%\%DEVTOOLS_NAME%\*.zip /b/s --> unzip
-FOR /F %%i IN ('dir %DEV_REPOSITORY%\%CB_PKG_FILTER% /b/s') DO (echo -Extract package %%i>> %LOGFILE% & powershell -command "Expand-Archive -Force '%%i' '%DEVTOOLS%'" >> %LOGFILE% 2>nul)
-echo %LINE%>> %LOGFILE%
+FOR /F %%i IN ('dir %DEV_REPOSITORY%\%CB_PKG_FILTER% /b/s') DO (echo -Extract package %%i>> "%LOGFILE%" & powershell -command "Expand-Archive -Force '%%i' '%DEVTOOLS%'" >> "%LOGFILE%" 2>nul)
+echo %LINE%>> "%LOGFILE%"
 
 :INSTALL_CB_SUCCESS_END
-echo .
+echo.
+if not exist %CB_HOME%\VERSION goto READ_VERSION_END
+( set "major.number=" & set /p "major.number="
+  set "minor.number=" & set /p "minor.number="
+  set "revision.number=" & set /p "revision.number="
+  set "qualifier=" & set /p "qualifier=" ) < %CB_HOME%\VERSION
+set CB_VERSION=%major.number:~22%.%minor.number:~22%.%revision.number:~22%
 echo %LINE%
 echo Successfully installed common-build %CB_VERSION% und %CB_HOME%. The user %%PATH%% is 
 echo already extended and you can start working with it with the command cb!
@@ -583,7 +590,7 @@ set "HH=%dt:~8,2%" & set "Min=%dt:~10,2%" & set "Sec=%dt:~12,2%"
 set "USER_FRIENDLY_DATESTAMP=%DD%.%MM%.%YYYY%" 
 set "USER_FRIENDLY_TIMESTAMP=%HH%:%Min%:%Sec%" 
 set "USER_FRIENDLY_FULLTIMESTAMP=%USER_FRIENDLY_DATESTAMP% %USER_FRIENDLY_TIMESTAMP%"
-echo End common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%>> %LOGFILE%
+echo End common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%>> "%LOGFILE%"
 ::exit /b 1
 
 set "TOUPPER=" & set "DEV_REPOSITORY=" & set "PROCESSOR_ARCHITECTURE_NUMBER=" & set "CURRENT_DRIVE=" & set "CURRENT_PATH="
