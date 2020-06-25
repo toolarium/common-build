@@ -19,8 +19,13 @@ Install the latest windows cli to `c:\devtools` and add this directory to User P
 ```powershell
 powershell -Command "iwr https://git.io/Jfx5G -OutFile ${env:TEMP}/cb.bat" & %TEMP%\cb.bat --install
 ```
+or with full link
+```powershell
+powershell -Command "iwr https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb.bat -OutFile ${env:TEMP}/cb.bat" & %TEMP%\cb.bat --install
+```
 
-**Linux**
+
+**Linux** (coming soon)
 
 Install the latest linux cli to `/usr/local/bin`
 
@@ -28,7 +33,7 @@ Install the latest linux cli to `/usr/local/bin`
 curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb.sh | /bin/bash
 ```
 
-**MacOS**
+**MacOS** (coming soon)
 
 Install the latest darwin Dapr CLI to `/usr/local/bin`
 
