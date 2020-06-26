@@ -22,7 +22,7 @@ set CB_LINE=--------------------------------------------------------------------
 set PN=%~nx0
 set "CB_CURRENT_PATH=%CD%"
 set "CB_SCRIPT_PATH=%~dp0"
-set "CB_SCRIPT_DRIVE=%~dI0"
+set "CB_SCRIPT_DRIVE=%~d0"
 
 SET CB_PROCESSOR_ARCHITECTURE_NUMBER=64
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:32=%" SET CB_PROCESSOR_ARCHITECTURE_NUMBER=32
