@@ -30,13 +30,13 @@ powershell -Command "iwr https://raw.githubusercontent.com/toolarium/common-buil
 Install the latest linux cli to `$HOME/devtools`
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install.sh | /bin/bash
+curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash
 ```
 
-**MacOS** (coming soon)
+**MacOS** (please support me for testing)
 
-Install the latest darwin Dapr CLI to `/usr/local/bin`
+Install the latest mac cli to `$HOME/devtools`
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install.sh | /bin/bash
+curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash
 ```
