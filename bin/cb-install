@@ -2,7 +2,7 @@
 
 #########################################################################
 #
-# cb-install.sh
+# cb-install
 #
 # Copyright by toolarium, all rights reserved.
 # MIT License: https://mit-license.org
@@ -25,6 +25,7 @@ PN_BASE="${PN%*.sh}"
 CB_FORCE_INSALL=false
 CB_INSTALLER_VERSION=1.0.0
 CB_RELEASE_URL=https://api.github.com/repos/toolarium/common-build/releases
+FULLTIMESTAMP="date '+%Y%d%m%H%M%S'"
 USER_FRIENDLY_FULLTIMESTAMP="date '+%d.%m.%Y %H:%M:%S'"
 cbErrorTemp=/tmp/toolarium-common-build_error.txt
 
@@ -122,14 +123,14 @@ checkHttpRequestCLI() {
 #########################################################################
 getLatestRelease() {
     if [ "$HTTP_REQUEST_CLI" = "curl" ]; then	
-		CMD="curl -s $CB_RELEASE_URL"
+		CMD="curl -fsSL $CB_RELEASE_URL"
     else
 		CMD="wget -q --header=\"Accept: application/json\" -O - $CB_RELEASE_URL"
     fi
 
 	CMD="$CMD 2>$cbErrorTemp | grep \"tag_name\" | awk '{print \$2}' |  sed -n 's/\"\(.*\)\",/\1/p'"
-	eval $CMD
-	
+	version=$(eval $CMD)
+	[ $? -eq 0 ] && echo $version || echo ""
 	[ -r $cbErrorTemp ] && [ $(stat -c %s $cbErrorTemp) -eq 0 ] && rm -f $cbErrorTemp >/dev/null 2>&1
 }
 
@@ -139,14 +140,14 @@ getLatestRelease() {
 #########################################################################
 getReleaseDownloadUrl() {
     if [ "$HTTP_REQUEST_CLI" = "curl" ]; then
-		CMD="curl -s $CB_RELEASE_URL"
+		CMD="curl -fsSL $CB_RELEASE_URL"
     else
 		CMD="wget -q --header=\"Accept: application/json\" -O - $CB_RELEASE_URL"
 	fi
 
 	CMD="$CMD 2>$cbErrorTemp | grep \"tarball_url\" | awk '{print \$2}' |  sed -n 's/\"\(.*\)\",/\1/p'"
-	eval $CMD
-	
+	downloadUrl=$(eval $CMD)
+	[ $? -eq 0 ] && echo $downloadUrl || echo ""
 	[ -r $cbErrorTemp ] && [ $(stat -c %s $cbErrorTemp) -eq 0 ] && rm -f $cbErrorTemp >/dev/null 2>&1
 }
 
@@ -234,13 +235,15 @@ else
 
 	# in case we donwload a new version we also extract new!
 	! [ -r $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz ] && installationFailed "Could not download v$releaseVersion!"
-	[ $(stat -c %s $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz) -le 0 ] && rm -rf $CB_DEVTOOLS/$CB_VERSION_NAME >/dev/null 2>&1
+	[ $(stat -c %s $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz) -gt 0 ] && rm -rf $CB_DEVTOOLS/$CB_VERSION_NAME >/dev/null 2>&1
 fi
 
 if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then 
-	tar -zxf $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz -C $CB_DEV_REPOSITORY/
+	echo "-Extract $CB_VERSION_NAME.tgz in $CB_DEVTOOLS..."
+
+	tar -zxf $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz -C $CB_DEV_REPOSITORY/ >/dev/null 2>&1 
 	tarContentName=$(find $CB_DEV_REPOSITORY/* -type d -name toolarium-common-build-* -print 2>/dev/null)
-	mv  $tarContentName $CB_DEVTOOLS/$CB_VERSION_NAME
+	mv  $tarContentName $CB_DEVTOOLS/$CB_VERSION_NAME >/dev/null 2>&1
 		
 	# remove unecessary files
 	rm $CB_DEVTOOLS/$CB_VERSION_NAME/.gitattributes >/dev/null 2>&1
@@ -253,6 +256,8 @@ if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 		cp $CB_DEVTOOLS/$CB_VERSION_NAME/src/main/cli/* $CB_DEVTOOLS/$CB_VERSION_NAME/bin/ >/dev/null 2>&1
 		rm -rf $CB_DEVTOOLS/$CB_VERSION_NAME/src >/dev/null 2>&1
 	fi
+	
+	chmod -R +x $CB_DEVTOOLS/$CB_VERSION_NAME/bin/* >/dev/null 2>&1
 fi
 
 if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
@@ -261,9 +266,26 @@ if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 
 	shellProfile="$HOME/.bashrc"
 	if [ -w $shellProfile ]; then
-		echo "" >> $shellProfile
-		echo "# toolarium-common-build support" >> $shellProfile
-		echo "export CB_HOME=$CB_HOME && export PATH=\"\$CB_HOME/bin:\$PATH\"" >> $shellProfile
+		if [ -z "$(cat $shellProfile | grep 'toolarium-common-build support')" ]; then
+			echo "-Modify file $shellProfile" 
+			echo "" >> $shellProfile
+			echo "# toolarium-common-build support" >> $shellProfile
+			echo "export CB_HOME=$CB_HOME && export PATH=\"\$CB_HOME/bin:\$PATH\"" >> $shellProfile
+		else
+			timestamp=$(eval $FULLTIMESTAMP)
+			newFileName="${shellProfile}_cb-new"
+			backupFileName="${shellProfile}_cb-$timestamp"
+			rm -f $newFileName >/dev/null 2>&1
+			cp $shellProfile $backupFileName >/dev/null 2>&1
+			chmod +r+w $backupFileName >/dev/null 2>&1
+
+			#TEST: CB_HOME="$CB_HOME/aa"
+			CB_HOME_ESCAPED=$(echo $CB_HOME | sed 's/\//\\\//g')
+			echo "-Update file $shellProfile" 
+			cat $shellProfile | sed "s/CB_HOME\=.*\&/CB_HOME\=$CB_HOME_ESCAPED\ \&\&/g" > $newFileName
+			chmod --reference=$shellProfile $newFileName >/dev/null 2>&1
+			chmod +r+w $newFileName >/dev/null 2>&1
+		fi
 	fi
 fi
 
