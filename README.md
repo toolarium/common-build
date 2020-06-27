@@ -17,20 +17,20 @@ by corresponding environment variables.
 Install the latest windows cli to `c:\devtools` and add this directory to User PATH environment variable.
 
 ```powershell
-powershell -Command "iwr https://git.io/Jfx5G -OutFile ${env:TEMP}/cb.bat" & %TEMP%\cb.bat --install
+powershell -Command "iwr https://git.io/JJenc -OutFile ${env:TEMP}/cb-install.bat" & %TEMP%\cb-install.bat
 ```
 or with full link
 ```powershell
-powershell -Command "iwr https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb.bat -OutFile ${env:TEMP}/cb.bat" & %TEMP%\cb.bat --install
+powershell -Command "iwr https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install.bat -OutFile ${env:TEMP}/cb-install.bat" & %TEMP%\cb-install.bat
 ```
 
 
 **Linux** (coming soon)
 
-Install the latest linux cli to `/usr/local/bin`
+Install the latest linux cli to `$HOME/devtools`
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb.sh | /bin/bash
+curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install.sh | /bin/bash
 ```
 
 **MacOS** (coming soon)
@@ -38,5 +38,5 @@ curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/src/m
 Install the latest darwin Dapr CLI to `/usr/local/bin`
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/src/main/cli/cb.sh | /bin/bash
+curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install.sh | /bin/bash
 ```
