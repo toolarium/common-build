@@ -26,6 +26,7 @@ set "CB_SCRIPT_PATH=%~dp0"
 set "CB_SCRIPT_DRIVE=%~d0"
 set CB_FORCE_INSALL=false
 set "CB_INSTALLER_VERSION=1.0.0"
+set "CB_RELEASE_URL=https://api.github.com/repos/toolarium/common-build/releases"
 
 SET CB_PROCESSOR_ARCHITECTURE_NUMBER=64
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:32=%" SET CB_PROCESSOR_ARCHITECTURE_NUMBER=32
@@ -79,13 +80,13 @@ if errorlevel 1 (set "ERROR_INFO=No internet connection detected!" & goto INSTAL
 set CB_REMOTE_VERSION= & set CB_DOWNLOAD_VERSION_URL= & set ERROR_DETAIL_INFO= & set ERROR_INFO=
 set cbInfoTemp=%TEMP%\toolarium-common-build_info.txt & set cbErrorTemp=%TEMP%\toolarium-common-build_error.txt
 echo -Check newest version of toolarium-common-build...
-powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "https://api.github.com/repos/toolarium/common-build/releases" | Select-Object -First 1; Split-Path -Path $releases.zipball_url -Leaf" 2>%cbErrorTemp% > %cbInfoTemp%
+powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%" | Select-Object -First 1; Split-Path -Path $releases.zipball_url -Leaf" 2>%cbErrorTemp% > %cbInfoTemp%
 if exist %cbInfoTemp% (set /pCB_REMOTE_VERSION=<%cbInfoTemp%)
 if .%CB_REMOTE_VERSION%==. set "ERROR_INFO=Could not get remote release information!" & goto INSTALL_FAILED
 set CB_REMOTE_VERSION=%CB_REMOTE_VERSION:~1%
 echo -Latest version of common-build is %CB_REMOTE_VERSION%, select download link
 del %cbInfoTemp% 2>nul & del %cbErrorTemp% 2>nul
-powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "https://api.github.com/repos/toolarium/common-build/releases" | Select-Object -First 1; Write-Output $releases.zipball_url" 2>%cbErrorTemp% > %cbInfoTemp%
+powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%" | Select-Object -First 1; Write-Output $releases.zipball_url" 2>%cbErrorTemp% > %cbInfoTemp%
 if exist %cbInfoTemp% (set /pCB_DOWNLOAD_VERSION_URL=<%cbInfoTemp%)
 if .%CB_DOWNLOAD_VERSION_URL%==. set "ERROR_INFO=Could not get download url of verison %CB_REMOTE_VERSION%!" & goto INSTALL_FAILED
 del %cbInfoTemp% 2>nul & del %cbErrorTemp% 2>nul
@@ -125,7 +126,6 @@ rmdir %CB_DEVTOOLS%\%CB_VERSION_NAME%\src /s /q >nul 2>nul
 :EXTRACT_CB_END
 
 if [%CB_HOME%] equ [%CB_DEVTOOLS%\%CB_VERSION_NAME%] goto SET_CBHOME_END
-set "CB_HOME=%CB_DEVTOOLS%\%CB_VERSION_NAME%" 
 echo -Set CB_HOME to %CB_DEVTOOLS%\%CB_VERSION_NAME%
 set "CB_HOME=%CB_DEVTOOLS%\%CB_VERSION_NAME%" 
 setx CB_HOME "%CB_DEVTOOLS%\%CB_VERSION_NAME%" >nul 2>nul
@@ -182,7 +182,7 @@ goto END
 :HELP
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %PN% - toolarium common build installer v%CB_INSTALLER_VERSION%
-echo usage: %PN% [OPTION] [TARGET]
+echo usage: %PN% [OPTION]
 echo.
 echo Overview of the available OPTIONs:
 echo  -h, --help                Show this help message.
