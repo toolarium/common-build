@@ -25,10 +25,15 @@ powershell -Command "iwr https://raw.githubusercontent.com/toolarium/common-buil
 ```
 
 
-**Linux** (coming soon)
+**Linux**
 
 Install the latest linux cli to `$HOME/devtools`
 
+```bash
+curl -fsSL https://git.io/JJezw | /bin/bash
+```
+
+or with full link
 ```bash
 curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash
 ```
@@ -37,6 +42,11 @@ curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/c
 
 Install the latest mac cli to `$HOME/devtools`
 
+```bash
+curl -fsSL https://git.io/JJezw | /bin/bash
+```
+
+or with full link
 ```bash
 curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash
 ```
