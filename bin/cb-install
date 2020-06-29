@@ -263,6 +263,7 @@ fi
 if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	echo "-Set CB_HOME to $CB_DEVTOOLS/$CB_VERSION_NAME"
 	CB_HOME="$CB_DEVTOOLS/$CB_VERSION_NAME"
+	#export CB_HOME=$CB_HOME && export PATH="$CB_HOME/bin:$PATH"
 
 	shellProfile="$HOME/.bashrc"
 	if [ -w $shellProfile ]; then
@@ -273,11 +274,11 @@ if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 			echo "export CB_HOME=$CB_HOME && export PATH=\"\$CB_HOME/bin:\$PATH\"" >> $shellProfile
 		else
 			timestamp=$(eval $FULLTIMESTAMP)
-			newFileName="${shellProfile}_cb-new"
-			backupFileName="${shellProfile}_cb-$timestamp"
+			newFileName="$HOME/${shellProfile}_cb-new"
+			backupFileName="$HOME/${shellProfile}_cb-$timestamp"
 			rm -f $newFileName >/dev/null 2>&1
 			cp $shellProfile $backupFileName >/dev/null 2>&1
-			chmod +r+w $backupFileName >/dev/null 2>&1
+			chmod +r $backupFileName >/dev/null 2>&1
 
 			#TEST: CB_HOME="$CB_HOME/aa"
 			CB_HOME_ESCAPED=$(echo $CB_HOME | sed 's/\//\\\//g')
@@ -285,6 +286,7 @@ if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 			cat $shellProfile | sed "s/CB_HOME\=.*\&/CB_HOME\=$CB_HOME_ESCAPED\ \&\&/g" > $newFileName
 			chmod --reference=$shellProfile $newFileName >/dev/null 2>&1
 			chmod +r+w $newFileName >/dev/null 2>&1
+			mv -f $newFileName $shellProfile >/dev/null 2>&1
 		fi
 	fi
 fi
