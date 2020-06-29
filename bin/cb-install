@@ -62,7 +62,7 @@ Version() {
 installationSuccess() {
 	echo ""
 	echo "$CB_LINE"
-	echo "Successfully installed toolarium-common-build v$releaseVersion"
+	echo "Successfully installed toolarium-common-build $releaseVersion"
 	echo "in folder $CB_HOME. "
 	echo ""
 	echo "The \$PATH is already extended and you can start working with it with the command cb!"
@@ -274,8 +274,8 @@ if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 			echo "export CB_HOME=$CB_HOME && export PATH=\"\$CB_HOME/bin:\$PATH\"" >> $shellProfile
 		else
 			timestamp=$(eval $FULLTIMESTAMP)
-			newFileName="$HOME/${shellProfile}_cb-new"
-			backupFileName="$HOME/${shellProfile}_cb-$timestamp"
+			newFileName="${shellProfile}_cb-new"
+			backupFileName="${shellProfile}_cb-$timestamp"
 			rm -f $newFileName >/dev/null 2>&1
 			cp $shellProfile $backupFileName >/dev/null 2>&1
 			chmod +r $backupFileName >/dev/null 2>&1
