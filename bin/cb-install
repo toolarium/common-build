@@ -263,7 +263,7 @@ fi
 if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	echo "-Set CB_HOME to $CB_DEVTOOLS/$CB_VERSION_NAME"
 	CB_HOME="$CB_DEVTOOLS/$CB_VERSION_NAME"
-	#export CB_HOME=$CB_HOME && export PATH="$CB_HOME/bin:$PATH"
+	export CB_HOME=$CB_HOME && export PATH="$CB_HOME/bin:$PATH"
 
 	shellProfile="$HOME/.bashrc"
 	if [ -w $shellProfile ]; then
