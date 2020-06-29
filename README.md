@@ -23,20 +23,31 @@ or with full link
 ```powershell
 powershell -Command "iwr https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install.bat -OutFile ${env:TEMP}/cb-install.bat" & %TEMP%\cb-install.bat
 ```
+The common-build supports also cygwi. Please just use the Linux installation.
 
 
-**Linux** (coming soon)
+**Linux**
 
 Install the latest linux cli to `$HOME/devtools`
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install.sh | /bin/bash
+curl -fsSL https://git.io/JJezw | /bin/bash
 ```
 
-**MacOS** (coming soon)
+or with full link
+```bash
+curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash
+```
 
-Install the latest darwin Dapr CLI to `/usr/local/bin`
+**MacOS** (please support me for testing)
+
+Install the latest mac cli to `$HOME/devtools`
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install.sh | /bin/bash
+curl -fsSL https://git.io/JJezw | /bin/bash
+```
+
+or with full link
+```bash
+curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash
 ```
