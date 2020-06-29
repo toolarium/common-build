@@ -62,7 +62,7 @@ Version() {
 installationSuccess() {
 	echo ""
 	echo "$CB_LINE"
-	echo "Successfully installed toolarium-common-build v$CB_REMOTE_VERSION"
+	echo "Successfully installed toolarium-common-build v$releaseVersion"
 	echo "in folder $CB_HOME. "
 	echo ""
 	echo "The \$PATH is already extended and you can start working with it with the command cb!"
