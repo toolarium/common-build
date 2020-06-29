@@ -14,6 +14,7 @@ set CB_LINE=--------------------------------------------------------------------
 set PATH_BACKUP=%PATH%
 set PN=%~nx0
 set PN_FULL=%0
+set "CB_SCRIPT_PATH=%~dp0"
 
 if not defined CB_PACKAGE_URL (set "CB_PACKAGE_URL=")
 if not defined CB_INSTALL_SILENT (set "CB_INSTALL_SILENT=false")
@@ -29,11 +30,11 @@ del %CB_JAVA_VERSION_FILE% 2>nul
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: read version
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-if not exist %CB_HOME%\VERSION goto READ_VERSION_END
+if not exist %CB_SCRIPT_PATH%\..\VERSION goto READ_VERSION_END
 ( set "major.number=" & set /p "major.number="
   set "minor.number=" & set /p "minor.number="
   set "revision.number=" & set /p "revision.number="
-  set "qualifier=" & set /p "qualifier=" ) < %CB_HOME%\VERSION
+  set "qualifier=" & set /p "qualifier=" ) < %CB_SCRIPT_PATH%\..\VERSION
 set CB_VERSION=%major.number:~22%.%minor.number:~22%.%revision.number:~22%
 set major.number= & set minor.number= & set revision.number= & set qualifier=
 ::if [%qualifier%] equ [] set CB_VERSION=%CB_VERSION%-%qualifier:~22%
@@ -86,7 +87,7 @@ goto CHECK_PARAMETER
 :VERSION
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %CB_LINE%
-echo common build %CB_VERSION%
+echo toolarium-common-build %CB_VERSION%
 echo %CB_LINE%
 echo.
 goto END
@@ -364,7 +365,6 @@ set "CB_WGET_SECURITY_CREDENTIALS=--trust-server-names --no-check-certificate"
 set "CB_WGET_PROGRESSBAR=--show-progress"
 set "CB_WGET_LOG=-a %CB_LOGFILE%"
 set "CB_WGET_PARAM=-c"
-set "CB_SCRIPT_PATH=%~dp0"
 set "CB_SCRIPT_DRIVE=%~d0"
 set CB_PKG_FILTER=
 
