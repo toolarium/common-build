@@ -23,6 +23,7 @@ or with full link
 ```powershell
 powershell -Command "iwr https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install.bat -OutFile ${env:TEMP}/cb-install.bat" & %TEMP%\cb-install.bat
 ```
+The common-build supports also cygwi. Please just use the Linux installation.
 
 
 **Linux**
