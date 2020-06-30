@@ -10,6 +10,6 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 set "CB_PACKAGE_VERSION="
-set "CB_PACKAGE_DOWNLOAD_URL=https://download.docker.com/win/stable"
+set "CB_PACKAGE_BASE_URL=https://download.docker.com/win/stable"
 set "CB_PACKAGE_DOWNLOAD_NAME=Docker%%20Desktop%%20Installer.exe"
 ::set "CB_PACKAGE_VERSION_NAME="

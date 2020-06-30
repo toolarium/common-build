@@ -36,13 +36,13 @@ if not defined CB_JAVA_VENDOR set "CB_JAVA_VENDOR=openjdk"
 ::  jdk, valhalla, metropolis, jfr
 if not defined CB_JAVA_PROJECT set "CB_JAVA_PROJECT=jdk"
 
-::set "CB_DOWNLOAD_PACKAGE_URL_V3=https://api.adoptopenjdk.net/v3/binary/version/%CB_JAVA_RELEASENAME%/%CB_JAVA_OS%/%CB_JAVA_ARCH%/%CB_JAVA_IMAGE_TYPE%/%CB_JAVA_JVM_IMPL%/%CB_JAVA_HEAP_SIZE%/%CB_JAVA_VENDOR%"
-set "CB_DOWNLOAD_PACKAGE_URL_V3_LATEST=https://api.adoptopenjdk.net/v3/binary/latest/%CB_JAVA_FEATURE_VERSION%/%CB_JAVA_RELEASE_TYPE%/%CB_JAVA_OS%/%CB_JAVA_ARCH%/%CB_JAVA_IMAGE_TYPE%/%CB_JAVA_JVM_IMPL%/%CB_JAVA_HEAP_SIZE%/%CB_JAVA_VENDOR%"
+::set "CB_PACKAGE_DOWNLOAD_URL_V3=https://api.adoptopenjdk.net/v3/binary/version/%CB_JAVA_RELEASENAME%/%CB_JAVA_OS%/%CB_JAVA_ARCH%/%CB_JAVA_IMAGE_TYPE%/%CB_JAVA_JVM_IMPL%/%CB_JAVA_HEAP_SIZE%/%CB_JAVA_VENDOR%"
+set "CB_PACKAGE_DOWNLOAD_URL_V3_LATEST=https://api.adoptopenjdk.net/v3/binary/latest/%CB_JAVA_FEATURE_VERSION%/%CB_JAVA_RELEASE_TYPE%/%CB_JAVA_OS%/%CB_JAVA_ARCH%/%CB_JAVA_IMAGE_TYPE%/%CB_JAVA_JVM_IMPL%/%CB_JAVA_HEAP_SIZE%/%CB_JAVA_VENDOR%"
 set "CB_JAVA_INFO_DOWNLOAD_URL_V3_LATEST=https://api.adoptopenjdk.net/v3/assets/latest/%CB_JAVA_FEATURE_VERSION%/%CB_JAVA_JVM_IMPL%"
-set "CB_DOWNLOAD_PACKAGE_URL_V2_LATEST=https://api.adoptopenjdk.net/v2/binary/releases/openjdk%CB_JAVA_FEATURE_VERSION%?openjdk_impl=%CB_JAVA_JVM_IMPL%&os=windows&arch=x%CB_PROCESSOR_ARCHITECTURE_NUMBER%&release=latest&type=jdk"
+set "CB_PACKAGE_DOWNLOAD_URL_V2_LATEST=https://api.adoptopenjdk.net/v2/binary/releases/openjdk%CB_JAVA_FEATURE_VERSION%?openjdk_impl=%CB_JAVA_JVM_IMPL%&os=windows&arch=x%CB_PROCESSOR_ARCHITECTURE_NUMBER%&release=latest&type=jdk"
 set "CB_JAVA_INFO_DOWNLOAD_URL_V2_LATEST=https://api.adoptopenjdk.net/v2/info/releases/openjdk%CB_JAVA_FEATURE_VERSION%?openjdk_impl=%CB_JAVA_JVM_IMPL%&os=windows&arch=x%CB_PROCESSOR_ARCHITECTURE_NUMBER%&release=latest&type=jdk"
 
-set CB_PACKAGE_DOWNLOAD_URL=
+set CB_PACKAGE_BASE_URL=
 set CB_PACKAGE_DOWNLOAD_NAME=
 set CB_PACKAGE_VERSION_NAME=
 set CB_PACKAGE_VERSION_HASH=
@@ -74,7 +74,7 @@ set /p CB_PACKAGE_VERSION= < "%CB_JAVA_JSON_INFO%"
 powershell -command "$json = (Get-Content "%TMPFILE%" -Raw) | ConvertFrom-Json; $json.binary.package.name" > "%CB_JAVA_JSON_INFO%"
 set /p CB_PACKAGE_DOWNLOAD_NAME= < "%CB_JAVA_JSON_INFO%"
 powershell -command "$json = (Get-Content "%TMPFILE%" -Raw) | ConvertFrom-Json; $json.binary.package.link" > "%CB_JAVA_JSON_INFO%"
-set /p CB_DOWNLOAD_PACKAGE_URL= < "%CB_JAVA_JSON_INFO%"
+set /p CB_PACKAGE_DOWNLOAD_URL= < "%CB_JAVA_JSON_INFO%"
 powershell -command "$json = (Get-Content "%TMPFILE%" -Raw) | ConvertFrom-Json; $json.binary.package.checksum_link" > "%CB_JAVA_JSON_INFO%"
 set /p CB_PACKAGE_VERSION_HASH= < "%CB_JAVA_JSON_INFO%"
 
