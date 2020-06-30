@@ -20,6 +20,12 @@ set CB_DOWNLOAD_PACKAGE_URL=
 set CB_WGET_CMD=wget.exe
 
 if not exist %CB_SCRIPT_PATH%\packages\%CB_PACKAGE_NAME%\%CB_PACKAGE_NAME%.bat goto DOWNLOAD_PACKAGE_NOTFOUND_ERROR
+:: we expecte:
+:: 1) the CB_PACKAGE_VERSION contains the version which will be installed (optional)
+:: 2) the CB_PACKAGE_DOWNLOAD_NAME contains the package name which will be downloaded; at the end of the download we have this file (mandatory)
+:: 3) the CB_PACKAGE_DOWNLOAD_URL contains the base package url to download; if this is defined then the CB_DOWNLOAD_PACKAGE_URL can be empty
+:: 4) the CB_DOWNLOAD_PACKAGE_URL contains the package url to download; in case we have the CB_PACKAGE_DOWNLOAD_URL then this is not necessary
+
 
 :: call package specific settings
 call %CB_SCRIPT_PATH%\packages\%CB_PACKAGE_NAME%\%CB_PACKAGE_NAME%.bat %2 
@@ -30,7 +36,7 @@ if .%CB_LOGFILE%==. (set "CB_ERROR_INFO=%%CB_LOGFILE%%" & goto DOWNLOAD_ENVIRONM
 if .%CB_DEVTOOLS%==. (set "CB_ERROR_INFO=%%CB_DEVTOOLS%%" & goto DOWNLOAD_ENVIRONMENT_ERROR)
 if .%CB_DEV_REPOSITORY%==. (set "CB_ERROR_INFO=%%CB_DEV_REPOSITORY%%" & goto DOWNLOAD_ENVIRONMENT_ERROR)
 if .%CB_WGET_CMD%==. (set "CB_ERROR_INFO=%%CB_WGET_CMD%%" & goto DOWNLOAD_ENVIRONMENT_ERROR)
-if .%CB_PACKAGE_VERSION%==. (set "CB_ERROR_INFO=%%CB_PACKAGE_VERSION%%" & goto DOWNLOAD_ENVIRONMENT_ERROR)
+::if .%CB_PACKAGE_VERSION%==. (set "CB_ERROR_INFO=%%CB_PACKAGE_VERSION%%" & goto DOWNLOAD_ENVIRONMENT_ERROR)
 if .%CB_PACKAGE_DOWNLOAD_NAME%==. (set "CB_ERROR_INFO=%%CB_PACKAGE_DOWNLOAD_NAME%%" & goto DOWNLOAD_ENVIRONMENT_ERROR)
 if ".%CB_DOWNLOAD_PACKAGE_URL%"=="." goto SET_CB_DOWNLOAD_PACKAGE_URL 
 goto DOWNLOAD_START

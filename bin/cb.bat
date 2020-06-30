@@ -15,6 +15,7 @@ set PATH_BACKUP=%PATH%
 set PN=%~nx0
 set PN_FULL=%0
 set "CB_SCRIPT_PATH=%~dp0"
+set "CB_CURRENT_PATH=%CD%"
 
 if not defined CB_PACKAGE_URL (set "CB_PACKAGE_URL=")
 if not defined CB_INSTALL_SILENT (set "CB_INSTALL_SILENT=false")
@@ -25,6 +26,12 @@ set "CB_JAVA_VERSION_FILE=.java-version"
 set "CB_JAVA_VERSION_FILE=.cb-java-version"
 set CB_PARAMETERS=
 del %CB_JAVA_VERSION_FILE% 2>nul
+
+if defined CB_DEVTOOLS goto SET_DEVTOOLS_END
+cd /D %CB_HOME%\..
+set "CB_DEVTOOLS=%CD%"
+cd /D %LAST%
+:SET_DEVTOOLS_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -65,9 +72,11 @@ call %CB_CUSTOM_SETTING% %1 %2 %3 %4 %5 %6 %7 2>nul
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CHECK_PARAMETER
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+set CB_FORCE=false
 set CB_OPTIONAL_PARAMETER=%2
 if %0X==X goto COMMON_BUILD
 if .%1==.--silent shift & set "CB_INSTALL_USER_COMMIT=false" & set "CB_INSTALL_SILENT=true"
+if .%1==.--force set CB_FORCE=true
 if .%1==.-h goto HELP
 if .%1==.--help goto HELP
 if .%1==.-v goto VERSION
@@ -87,7 +96,7 @@ goto CHECK_PARAMETER
 :VERSION
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %CB_LINE%
-echo toolarium-common-build %CB_VERSION%
+echo toolarium common build %CB_VERSION%
 echo %CB_LINE%
 echo.
 goto END
@@ -342,14 +351,19 @@ if [%CB_INSTALL_SILENT%] equ [false] (echo %CB_LINE%
 		echo %CB_LINE%)
 
 :: create directories
-if not exist %CB_DEVTOOLS% mkdir %CB_DEVTOOLS% >nul 2>nul && set CB_NEW_INSTALLATION=true
-if not exist %CB_HOME% mkdir %CB_HOME% >nul 2>nul && set CB_NEW_INSTALLATION=true
+if not exist %CB_DEVTOOLS% mkdir %CB_DEVTOOLS% >nul 2>nul 
+set CB_NEW_INSTALLATION=true
+if not exist %CB_HOME% mkdir %CB_HOME% >nul 2>nul 
+set CB_NEW_INSTALLATION=true
 set "CB_BIN=%CB_HOME%\bin" 
-if not exist %CB_BIN% mkdir %CB_BIN% >nul 2>nul && set CB_NEW_INSTALLATION=true
+if not exist %CB_BIN% mkdir %CB_BIN% >nul 2>nul
+set CB_NEW_INSTALLATION=true
 set "CB_LOGS=%CB_HOME%\logs" 
-if not exist %CB_LOGS% mkdir %CB_LOGS% >nul 2>nul && set CB_NEW_INSTALLATION=true
+if not exist %CB_LOGS% mkdir %CB_LOGS% >nul 2>nul 
+set CB_NEW_INSTALLATION=true
 set "CB_DEV_REPOSITORY=%CB_DEVTOOLS%\.repository" 
-if not exist %CB_DEV_REPOSITORY% mkdir %CB_DEV_REPOSITORY% >nul 2>nul && set CB_NEW_INSTALLATION=true
+if not exist %CB_DEV_REPOSITORY% mkdir %CB_DEV_REPOSITORY% >nul 2>nul
+set CB_NEW_INSTALLATION=true
 
 set "CB_LOGFILE=%CB_LOGS%\%FULLTIMESTAMP%-%CB_USER%.log"
 ::if [%CB_INSTALL_SILENT%] equ [false] (echo -The installation log file can be found here "%CB_LOGFILE%")
@@ -367,6 +381,7 @@ set "CB_WGET_LOG=-a %CB_LOGFILE%"
 set "CB_WGET_PARAM=-c"
 set "CB_SCRIPT_DRIVE=%~d0"
 set CB_PKG_FILTER=
+set CB_PKG_FILTER_WILDCARD=false
 
 SET CB_PROCESSOR_ARCHITECTURE_NUMBER=64
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:32=%" SET CB_PROCESSOR_ARCHITECTURE_NUMBER=32
@@ -376,15 +391,17 @@ if .%2==. goto INSTALL_DEFAULT_PACKAGES
 if .%2==.pkg goto INSTALL_PACKAGES
 call %CB_SCRIPT_PATH%\include\download.bat %2 %3 
 if not .%CB_PACKAGE_DOWNLOAD_NAME%==. set "CB_PKG_FILTER=%CB_PACKAGE_DOWNLOAD_NAME%" 
-goto EXTRACT_ARCHIVES 
+goto CHECK_EXTRACT_ARCHIVES 
 
 :INSTALL_DEFAULT_PACKAGES
 :: TODO
-goto EXTRACT_ARCHIVES 
+set CB_PKG_FILTER=*.zip
+set CB_PKG_FILTER_WILDCARD=true
+goto CHECK_EXTRACT_ARCHIVES 
 
 :: packages
 :INSTALL_PACKAGES
-if not defined CB_PACKAGE_URL goto EXTRACT_ARCHIVES
+if not defined CB_PACKAGE_URL goto CHECK_EXTRACT_ARCHIVES
 set CB_WGET_USER_CREDENTIALS=
 if [%CB_PACKAGE_USER%] equ [] (set /p CB_PACKAGE_USER=Please enter user credentials, e.g. %CB_USER%: )
 if [%CB_PACKAGE_USER%] equ [] (set "CB_PACKAGE_USER=%CB_USER%")
@@ -394,7 +411,6 @@ set CB_WGET_FILTER=--exclude-directories=_deprecated -R "index.*"
 echo %CB_LINE%>> "%CB_LOGFILE%"
 echo -Install packages from %CB_PACKAGE_URL% & echo -Install packages from %CB_PACKAGE_URL%>> "%CB_LOGFILE%"
 
-set "CB_CURRENT_PATH=%CD%"
 cd %CB_DEV_REPOSITORY%
 echo %CB_BIN%\%CB_WGET_CMD% %CB_PACKAGE_URL% %CB_WGET_PARAM% %CB_WGET_RECURSIVE_PARAM% %CB_WGET_SECURITY_CREDENTIALS% %CB_WGET_PROGRESSBAR% %CB_WGET_USER_CREDENTIALS% %CB_WGET_FILTER% %CB_WGET_LOG%>> "%CB_LOGFILE%"
 %CB_BIN%\%CB_WGET_CMD% %CB_PACKAGE_URL% %CB_WGET_PARAM% %CB_WGET_RECURSIVE_PARAM% %CB_WGET_SECURITY_CREDENTIALS% %CB_WGET_PROGRESSBAR% %CB_WGET_USER_CREDENTIALS% %CB_WGET_FILTER% %CB_WGET_LOG%
@@ -407,19 +423,30 @@ echo %CB_LINE%
 goto INSTALL_CB_END
 :INSTALL_PACKAGES_END
 echo %CB_LINE%>> "%CB_LOGFILE%"
-if .%2==.pkg goto EXTRACT_ARCHIVES	
+if .%2==.pkg goto CHECK_EXTRACT_ARCHIVES	
 
 :: extract
-:EXTRACT_ARCHIVES
+:CHECK_EXTRACT_ARCHIVES
 ::if exist %CB_BIN%\cleanup-installation.bat (echo -Cleanup old packages... >> "%CB_LOGFILE%" 
 ::	call %CB_BIN%\cleanup-installation >> "%CB_LOGFILE%" 2>/nul)
-::echo -FITLER %CB_PKG_FILTER%
-if .%CB_PKG_FILTER%==. set CB_PKG_FILTER=*.zip
+if not defined CB_PKG_FILTER goto EXTRACT_ARCHIVES_END
+if [%CB_PKG_FILTER_WILDCARD%] equ [true] (goto EXTRACT_ARCHIVES_START)
+if not exist %CB_DEV_REPOSITORY%\%CB_PKG_FILTER% goto EXTRACT_ARCHIVES_FAILED
+
+::EXTRACT_ARCHIVES_START
 echo %CB_LINE%>> "%CB_LOGFILE%"
 echo -Extract %CB_PKG_FILTER% in %CB_DEVTOOLS%... & echo -Extract %CB_PKG_FILTER% in %CB_DEVTOOLS%... >> "%CB_LOGFILE%"
 FOR /F %%i IN ('dir %CB_DEV_REPOSITORY%\%CB_PKG_FILTER% /b/s') DO (
-	echo -Extract package %%i>> "%CB_LOGFILE%" & powershell -command "Expand-Archive -Force '%%i' '%CB_DEVTOOLS%'" >> "%CB_LOGFILE%" 2>nul)
+	echo -Extract package %%i>> "%CB_LOGFILE%" 
+	powershell -command "Expand-Archive -Force '%%i' '%CB_DEVTOOLS%'" >> "%CB_LOGFILE%" 2>nul)
 echo %CB_LINE%>> "%CB_LOGFILE%"
+goto EXTRACT_ARCHIVES_END
+
+:EXTRACT_ARCHIVES_FAILED
+echo -No package found %CB_PACKAGE_VERSION_NAME%
+goto EXTRACT_ARCHIVES_END
+
+:EXTRACT_ARCHIVES_END
 goto INSTALL_CB_SUCCESS_END
 
 :: extract

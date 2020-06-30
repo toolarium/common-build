@@ -8,7 +8,9 @@
 :: MIT License: https://mit-license.org
 ::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-if not defined CB_GRADLE_VERSION (set "CB_GRADLE_VERSION=6.5")
+
+
+if not defined CB_GRADLE_VERSION set "CB_GRADLE_VERSION=6.5"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_GRADLE_VERSION%"
 set "CB_PACKAGE_DOWNLOAD_URL=https://downloads.gradle-dn.com/distributions"

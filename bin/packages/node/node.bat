@@ -10,7 +10,7 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-if not defined CB_NODE_VERSION (set CB_NODE_VERSION=12.18.1)
+if .%CB_NODE_VERSION%==. set "CB_NODE_VERSION=12.18.1"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_NODE_VERSION%"
 set "CB_PACKAGE_DOWNLOAD_URL=https://nodejs.org/dist/v%CB_PACKAGE_VERSION%"

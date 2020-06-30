@@ -125,25 +125,63 @@ copy %CB_DEVTOOLS%\%CB_VERSION_NAME%\src\main\cli\*.bat %CB_DEVTOOLS%\%CB_VERSIO
 rmdir %CB_DEVTOOLS%\%CB_VERSION_NAME%\src /s /q >nul 2>nul
 :EXTRACT_CB_END
 
+:: read previous version
+set CB_PREVIOUS_VERSION_NAME=
+set previousversion=
+set "TMPFILE=%TEMP%\toolarium-common-version.txt"
+call cb --version > "%TMPFILE%" 2>nul
+for %%R in ("%TMPFILE%") do if %%~zR lss 1 del "%TMPFILE%" 2>nul & goto SET_COMMON_BUILD_IN_PATH_END
+( set /p "ignoreline=" & set "previousversion=" & set /p "previousversion=" ) < "%TMPFILE%"
+del "%TMPFILE%" 2>nul
+set CB_PREVIOUS_VERSION_NAME=%previousversion%
+::echo -Found previous version %CB_PREVIOUS_VERSION_NAME% in PATH
+:: split by space
+for /f "tokens=4" %%A in ("%CB_PREVIOUS_VERSION_NAME%") do (set CB_PREVIOUS_VERSION_NAME=toolarium-common-build-%%A)
+for /f "tokens=3" %%A in ("%CB_PREVIOUS_VERSION_NAME%") do (set CB_PREVIOUS_VERSION_NAME=toolarium-common-build-%%A)
+::echo -Check %CB_PREVIOUS_VERSION_NAME%
+:SET_COMMON_BUILD_IN_PATH_END
+
 if [%CB_HOME%] equ [%CB_DEVTOOLS%\%CB_VERSION_NAME%] goto SET_CBHOME_END
 echo -Set CB_HOME to %CB_DEVTOOLS%\%CB_VERSION_NAME%
 set "CB_HOME=%CB_DEVTOOLS%\%CB_VERSION_NAME%" 
 setx CB_HOME "%CB_DEVTOOLS%\%CB_VERSION_NAME%" >nul 2>nul
+:SET_CBHOME_END
 
-:: add to path
+:: read path
 set "SystemPath=" & set "UserPath="
 for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKLM\System\CurrentControlSet\Control\Session Manager\Environment" /v "Path" 2^>nul') do (if /I "%%N" == "Path" (set "SystemPath=%%P" & goto GET_USER_PATH_FROM_REGISTRY))
 :GET_USER_PATH_FROM_REGISTRY
 for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKCU\Environment" /v "Path" 2^>nul') do (if /I "%%N" == "Path" (set "UserPath=%%P" & goto GET_USER_PATH_FROM_REGISTRY_END))
 :GET_USER_PATH_FROM_REGISTRY_END
-if /I [%CB_DEVTOOLS_DRIVE%] NEQ [%CB_USER_DRIVE%] (%CB_DEVTOOLS_DRIVE%)
-cd %CB_HOME%
-WHERE cb >nul 2>nul
-if %ERRORLEVEL% NEQ 0 (echo -Set %%CB_HOME%% to path. & setx PATH "%CB_HOME%\bin;%UserPath%" >nul 2>nul)
+
+:: upate path
+if not [%CB_PREVIOUS_VERSION_NAME%] equ [%CB_VERSION_NAME%] goto CB_ADD_PATH
+echo -Found previous version %CB_PREVIOUS_VERSION_NAME% in PATH, don't change PATH variable
+goto SET_PATH_END
+
+:: replace in %UserPath% %CB_PREVIOUS_VERSION_NAME% with %CB_VERSION_NAME%
+::set "NewUserPath=%UserPath:CB_PREVIOUS_VERSION_NAME=CB_VERSION_NAME%"
+::if [%NewUserPath%] EQU [%UserPath%] goto CB_SYSTEM_PATH
+::echo -Update CB_HOME in user PATH environment
+::setx PATH "%NewUserPath%" >nul 2>nul
+::set "PATH=%PATH:CB_PREVIOUS_VERSION_NAME=CB_VERSION_NAME%"
+::goto SET_PATH_END
+
+:::CB_SYSTEM_PATH
+::set NewSystemPath=%SystemPath:CB_PREVIOUS_VERSION_NAME=CB_VERSION_NAME%
+::if [%NewSystemPath%] EQU [%SystemPath%] goto CB_ADD_PATH
+::echo -Update CB_HOME in system PATH environment
+::setx -m PATH "%NewSystemPath%" >nul 2>nul
+::set "PATH=%PATH:CB_PREVIOUS_VERSION_NAME=CB_VERSION_NAME%"
+::goto SET_PATH_END
+
+:CB_ADD_PATH
+echo -Add CB_HOME to user PATH environment
+setx PATH "%CB_HOME%\bin;%UserPath%" >nul 2>nul
 set "PATH=%CB_HOME%\bin;%PATH%"
-if /I [%CB_DEVTOOLS_DRIVE%] NEQ [%CB_USER_DRIVE%] (%CB_USER_DRIVE%)
-cd %CB_CURRENT_PATH%
-:SET_CBHOME_END
+goto SET_PATH_END
+
+:SET_PATH_END
 
 set "CB_BIN=%CB_HOME%\bin" 
 if not exist %CB_BIN% (mkdir %CB_BIN% >nul 2>nul)
