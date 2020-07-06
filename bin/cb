@@ -1,0 +1,155 @@
+#!/bin/sh
+
+#########################################################################
+#
+# cb
+#
+# Copyright by toolarium, all rights reserved.
+# MIT License: https://mit-license.org
+#
+#########################################################################
+
+
+LINE="----------------------------------------------------------------------------------------"
+STARLINE="****************************************************************************************"
+CB_URL="https://c/"
+PATH_BACKUP=${PATH}
+PN=`basename "$0"`
+
+[ -z "`echo $OSTYPE | sed 's/cygwin.*//'`" ] && CLASSSEP=";" || CLASSSEP=":"
+[ -z "$DEVTOOLS" ] && DEVTOOLS="/cygdrive/c/devtools" && export DEVTOOLS
+[ -z "$CB_HOME" ] && CB_HOME="$DEVTOOLS/cb" && export CB_HOME
+PATH=$CB_HOME\bin$CLASSSEP$PATH
+CB_OS=linux
+CB_OS=darwin
+windows
+
+
+#########################################################################
+# Usage
+#########################################################################
+Usage() {
+	echo "$PN - common build"
+	echo "usage: $PN [OPTION] [TARGET]"
+	echo ""
+	echo "Overview of the available OPTIONs:"
+	echo " -h, --help                Help"
+	echo " -new                      Create a new project"
+	echo " -exp, --explore           Starts in Windows environment a new explorer"
+	echo " -p                        List all project targets"
+
+	if [ -r build.xml ]
+	then
+		echo ""
+		echo "Overview of the available TARGETs:"
+		cb -p
+	else
+		echo ""
+		echo "No build.xml is available in the current directory."
+		echo "The TARGET depends on the build.xml file!"
+	fi
+	exit 1
+}
+
+
+#########################################################################
+# install
+#########################################################################
+install() {
+	! [ -r "$DEVTOOLS" ] && mkdir $DEVTOOLS 2>/dev/null
+	! [ -r "$CB_HOME" ] && mkdir $CB_HOME 2>/dev/null
+	! [ -r "$CB_HOME" ] && mkdir $CB_HOME 2>/dev/null
+
+	DEV_REPOSITORY=$DEVTOOLS\.repository
+	! [ -r "$DEV_REPOSITORY" ] && mkdir $DEV_REPOSITORY 2>/dev/null
+	
+	if ! which "wget" > /dev/null 2>&1
+	then
+	
+	fi
+	
+	CB_URL
+}
+
+
+
+#########################################################################
+# projectWizard
+#########################################################################
+projectWizard() {
+    projectWizardFile="${CB_ENVIRONMENT}/projectWizard.xml"
+    CB_WIZARD_PARAMETERS="$*"
+    
+    export CB_WIZARD_PARAMETERS
+    ant -f ${projectWizardFile}
+    
+    if [ -f cb-new-project.tmp ]
+    then
+        echo create project
+        SHORTNAME="`cat cb-new-project.tmp`"
+        rm cb-new-project.tmp
+        cd $SHORTNAME
+        ant
+    else
+        echo "$LINE"
+        echo "ERROR: Could not call ant on the new created project!"
+        echo "$LINE"
+    fi
+}
+
+
+#########################################################################
+# exploreProject
+#########################################################################
+exploreProject()
+{
+    currentWindowDirectory="`pwd|sed s'/\\/cygdrive\\/c\\//c:\\\\/g'|sed s'/\\/cygdrive\\/d\\//d:\\\\/g'|sed s'/\\/cygdrive\\/e\\//e:\\\\/g'|sed s'/\\//\\\\/g'`"
+    explorerPath=`which explorer.exe 2>/dev/null`
+    if [ -x $explorerPath ]
+    then
+        $explorerPath $currentWindowDirectory
+    else
+        echo "$LINE"
+        echo "ERROR: Could not found explorer.exe!"
+        echo "$LINE"
+    fi
+}
+
+
+
+#########################################################################
+#  runProgram
+#########################################################################
+runProgram()
+{
+    eval "$*"
+}
+
+
+#########################################################################
+# main
+#########################################################################
+while [ $# -gt 0 ]
+do
+    case "$1" in
+	-h)	Usage; exit 1;;
+	--help)	Usage; exit 1;;
+	-new)	shift; projectWizard $*; exit 0;;
+	--new)	shift; projectWizard $*; exit 0;;
+	-exp)	shift; exploreProject; exit 0;;	
+	--explore)	shift; exploreProject; exit 0;;	
+	*)	break;;
+    esac
+    shift
+done
+
+# call ant
+cb $*
+
+# reset
+PATH=$PATH_BACKUP
+
+
+#########################################################################
+#  EOF
+#########################################################################

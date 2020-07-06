@@ -50,7 +50,7 @@ if .%CB_PACKAGE_VERSION_NAME%==. (set "CB_PACKAGE_VERSION_NAME=%CB_PACKAGE_DOWNL
 if exist %CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME% goto DOWNLOAD_END
 
 :: download and log
-echo -Download %CB_PACKAGE_NAME% version %CB_PACKAGE_VERSION% & echo -Install %CB_PACKAGE_NAME% version %CB_PACKAGE_VERSION%>> "%CB_LOGFILE%"
+echo %CB_LINEHEADER%Download %CB_PACKAGE_NAME% version %CB_PACKAGE_VERSION% & echo %CB_LINEHEADER%Install %CB_PACKAGE_NAME% version %CB_PACKAGE_VERSION%>> "%CB_LOGFILE%"
 echo %CB_BIN%\%CB_WGET_CMD% -O%CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME% %CB_WGET_SECURITY_CREDENTIALS% %CB_WGET_PROGRESSBAR% %CB_WGET_PARAM% %CB_WGET_LOG% "%CB_PACKAGE_DOWNLOAD_URL%">> "%CB_LOGFILE%"
 %CB_BIN%\%CB_WGET_CMD% -O%CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME% %CB_WGET_SECURITY_CREDENTIALS% %CB_WGET_PROGRESSBAR% %CB_WGET_PARAM% %CB_WGET_LOG% "%CB_PACKAGE_DOWNLOAD_URL%"
 
@@ -59,15 +59,15 @@ for %%A in (%CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME%) do if %%~zA==0 del %
 goto DOWNLOAD_END
 
 :DOWNLOAD_PACKAGE_ERROR
-echo -Error occured in download: %CB_ERROR_INFO% & echo -Error occured in download: %CB_ERROR_INFO%>> "%CB_LOGFILE%"
+echo %CB_LINEHEADER%Error occured in download: %CB_ERROR_INFO% & echo %CB_LINEHEADER%Error occured in download: %CB_ERROR_INFO%>> "%CB_LOGFILE%"
 goto DOWNLOAD_END
 
 :DOWNLOAD_PACKAGE_NOTFOUND_ERROR
-echo -Package %CB_PACKAGE_NAME% is currently not supported! & echo -Package %CB_PACKAGE_NAME% is currently not supported!>> "%CB_LOGFILE%"
+echo %CB_LINEHEADER%Package %CB_PACKAGE_NAME% is currently not supported! & echo %CB_LINEHEADER%Package %CB_PACKAGE_NAME% is currently not supported!>> "%CB_LOGFILE%"
 goto DOWNLOAD_END
 
 :DOWNLOAD_ENVIRONMENT_ERROR
-echo -Could not found expected environment variable %CB_ERROR_INFO% & echo -Could not found expected environment variable %CB_ERROR_INFO%>> "%CB_LOGFILE%"
+echo %CB_LINEHEADER%Could not found expected environment variable %CB_ERROR_INFO% & echo %CB_LINEHEADER%Could not found expected environment variable %CB_ERROR_INFO%>> "%CB_LOGFILE%"
 goto DOWNLOAD_END
 
 :DOWNLOAD_END

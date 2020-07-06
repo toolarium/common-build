@@ -18,6 +18,7 @@ if .%CB_WGET_VERSION%==. set "CB_WGET_VERSION=1.20.3"
 if .%CB_WGET_DOWNLOAD_URL%==. set "CB_WGET_DOWNLOAD_URL=https://eternallybored.org/misc/wget/"
 
 :: define parameters
+set "CB_LINEHEADER=.: "
 set CB_LINE=----------------------------------------------------------------------------------------
 set PN=%~nx0
 set "CB_CURRENT_PATH=%CD%"
@@ -67,7 +68,7 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %CB_LINE%
 echo Started toolarium-common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%
-echo -Use %CB_DEVTOOLS% path as devtools folder
+echo %CB_LINEHEADER%Use %CB_DEVTOOLS% path as devtools folder
 echo %CB_LINE%
 pause
 echo.
@@ -79,12 +80,12 @@ if errorlevel 1 (set "ERROR_INFO=No internet connection detected!" & goto INSTAL
 :: get the list of release from GitHub
 set CB_REMOTE_VERSION= & set CB_DOWNLOAD_VERSION_URL= & set ERROR_DETAIL_INFO= & set ERROR_INFO=
 set cbInfoTemp=%TEMP%\toolarium-common-build_info.txt & set cbErrorTemp=%TEMP%\toolarium-common-build_error.txt
-echo -Check newest version of toolarium-common-build...
+echo %CB_LINEHEADER%Check newest version of toolarium-common-build...
 powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%" | Select-Object -First 1; Split-Path -Path $releases.zipball_url -Leaf" 2>%cbErrorTemp% > %cbInfoTemp%
 if exist %cbInfoTemp% (set /pCB_REMOTE_VERSION=<%cbInfoTemp%)
 if .%CB_REMOTE_VERSION%==. set "ERROR_INFO=Could not get remote release information!" & goto INSTALL_FAILED
 set CB_REMOTE_VERSION=%CB_REMOTE_VERSION:~1%
-echo -Latest version of common-build is %CB_REMOTE_VERSION%, select download link
+echo %CB_LINEHEADER%Latest version of common-build is %CB_REMOTE_VERSION%, select download link
 del %cbInfoTemp% 2>nul & del %cbErrorTemp% 2>nul
 powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%" | Select-Object -First 1; Write-Output $releases.zipball_url" 2>%cbErrorTemp% > %cbInfoTemp%
 if exist %cbInfoTemp% (set /pCB_DOWNLOAD_VERSION_URL=<%cbInfoTemp%)
@@ -93,21 +94,21 @@ del %cbInfoTemp% 2>nul & del %cbErrorTemp% 2>nul
 set "CB_VERSION_NAME=toolarium-common-build-%CB_REMOTE_VERSION%"
 
 :: create directories
-if not exist %CB_DEVTOOLS% mkdir %CB_DEVTOOLS% >nul 2>nul & echo -Create directory %CB_DEVTOOLS%
+if not exist %CB_DEVTOOLS% mkdir %CB_DEVTOOLS% >nul 2>nul & echo %CB_LINEHEADER%Create directory %CB_DEVTOOLS%
 set "CB_DEV_REPOSITORY=%CB_DEVTOOLS%\.repository" 
 if not exist %CB_DEV_REPOSITORY% mkdir %CB_DEV_REPOSITORY% >nul 2>nul
 
 :: download toolarium-common-build
 if .%CB_FORCE_INSALL%==.true (del %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip 2>nul)
-if exist %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip (echo -Found already downloaded version, %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip & goto DOWNLOAD_CB_END)
-echo -Install %CB_VERSION_NAME%
+if exist %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip (echo %CB_LINEHEADER%Found already downloaded version, %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip & goto DOWNLOAD_CB_END)
+echo %CB_LINEHEADER%Install %CB_VERSION_NAME%
 powershell -Command "iwr $start_time = Get-Date;Invoke-WebRequest -Uri '%CB_DOWNLOAD_VERSION_URL%' -OutFile '%CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip';Write-Output 'Time taken: $((Get-Date).Subtract($start_time).Seconds) seconds' 2>nul | iex 2>nul" 2>nul
 :: in case we donwload a new version we also extract new!
 rmdir %CB_DEVTOOLS%\%CB_VERSION_NAME% /s /q >nul 2>nul
 :DOWNLOAD_CB_END
 
 if exist %CB_DEVTOOLS%\%CB_VERSION_NAME% goto EXTRACT_CB_END
-echo -Extract %CB_VERSION_NAME%.zip in %CB_DEVTOOLS%... 
+echo %CB_LINEHEADER%Extract %CB_VERSION_NAME%.zip in %CB_DEVTOOLS%... 
 if /I [%CB_DEVTOOLS_DRIVE%] NEQ [%CB_USER_DRIVE%] (%CB_DEVTOOLS_DRIVE%)
 powershell -command "Expand-Archive -Force %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip %CB_DEV_REPOSITORY%"
 move %CB_DEV_REPOSITORY%\toolarium-common-build-???????? %CB_DEVTOOLS%\%CB_VERSION_NAME% >nul
@@ -134,15 +135,15 @@ for %%R in ("%TMPFILE%") do if %%~zR lss 1 del "%TMPFILE%" 2>nul & goto SET_COMM
 ( set /p "ignoreline=" & set "previousversion=" & set /p "previousversion=" ) < "%TMPFILE%"
 del "%TMPFILE%" 2>nul
 set CB_PREVIOUS_VERSION_NAME=%previousversion%
-::echo -Found previous version %CB_PREVIOUS_VERSION_NAME% in PATH
+::echo %CB_LINEHEADER%Found previous version %CB_PREVIOUS_VERSION_NAME% in PATH
 :: split by space
 for /f "tokens=4" %%A in ("%CB_PREVIOUS_VERSION_NAME%") do (set CB_PREVIOUS_VERSION_NAME=toolarium-common-build-%%A)
 for /f "tokens=3" %%A in ("%CB_PREVIOUS_VERSION_NAME%") do (set CB_PREVIOUS_VERSION_NAME=toolarium-common-build-%%A)
-::echo -Check %CB_PREVIOUS_VERSION_NAME%
+::echo %CB_LINEHEADER%Check %CB_PREVIOUS_VERSION_NAME%
 :SET_COMMON_BUILD_IN_PATH_END
 
 if [%CB_HOME%] equ [%CB_DEVTOOLS%\%CB_VERSION_NAME%] goto SET_CBHOME_END
-echo -Set CB_HOME to %CB_DEVTOOLS%\%CB_VERSION_NAME%
+echo %CB_LINEHEADER%Set CB_HOME to %CB_DEVTOOLS%\%CB_VERSION_NAME%
 set "CB_HOME=%CB_DEVTOOLS%\%CB_VERSION_NAME%" 
 setx CB_HOME "%CB_DEVTOOLS%\%CB_VERSION_NAME%" >nul 2>nul
 :SET_CBHOME_END
@@ -156,13 +157,13 @@ for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKCU\E
 
 :: upate path
 if not [%CB_PREVIOUS_VERSION_NAME%] equ [%CB_VERSION_NAME%] goto CB_ADD_PATH
-echo -Found previous version %CB_PREVIOUS_VERSION_NAME% in PATH, don't change PATH variable
+echo %CB_LINEHEADER%Found previous version %CB_PREVIOUS_VERSION_NAME% in PATH, don't change PATH variable
 goto SET_PATH_END
 
 :: replace in %UserPath% %CB_PREVIOUS_VERSION_NAME% with %CB_VERSION_NAME%
 ::set "NewUserPath=%UserPath:CB_PREVIOUS_VERSION_NAME=CB_VERSION_NAME%"
 ::if [%NewUserPath%] EQU [%UserPath%] goto CB_SYSTEM_PATH
-::echo -Update CB_HOME in user PATH environment
+::echo %CB_LINEHEADER%Update CB_HOME in user PATH environment
 ::setx PATH "%NewUserPath%" >nul 2>nul
 ::set "PATH=%PATH:CB_PREVIOUS_VERSION_NAME=CB_VERSION_NAME%"
 ::goto SET_PATH_END
@@ -170,13 +171,13 @@ goto SET_PATH_END
 :::CB_SYSTEM_PATH
 ::set NewSystemPath=%SystemPath:CB_PREVIOUS_VERSION_NAME=CB_VERSION_NAME%
 ::if [%NewSystemPath%] EQU [%SystemPath%] goto CB_ADD_PATH
-::echo -Update CB_HOME in system PATH environment
+::echo %CB_LINEHEADER%Update CB_HOME in system PATH environment
 ::setx -m PATH "%NewSystemPath%" >nul 2>nul
 ::set "PATH=%PATH:CB_PREVIOUS_VERSION_NAME=CB_VERSION_NAME%"
 ::goto SET_PATH_END
 
 :CB_ADD_PATH
-echo -Add CB_HOME to user PATH environment
+echo %CB_LINEHEADER%Add CB_HOME to user PATH environment
 setx PATH "%CB_HOME%\bin;%UserPath%" >nul 2>nul
 set "PATH=%CB_HOME%\bin;%PATH%"
 goto SET_PATH_END
@@ -192,7 +193,7 @@ if not exist %CB_LOGS% (mkdir %CB_LOGS% >nul 2>nul)
 set CB_WGET_CMD=wget.exe
 if exist %CB_BIN%\%CB_WGET_CMD% goto DOWNLOAD_WGET_END
 set "CB_WGET_PACKAGE_URL=%CB_WGET_DOWNLOAD_URL%/%CB_WGET_VERSION%/%CB_PROCESSOR_ARCHITECTURE_NUMBER%/%CB_WGET_CMD%"
-echo -Install %CB_BIN%\%CB_WGET_CMD%
+echo %CB_LINEHEADER%Install %CB_BIN%\%CB_WGET_CMD%
 powershell -Command "iwr $start_time = Get-Date;Invoke-WebRequest -Uri '%CB_WGET_PACKAGE_URL%' -OutFile %CB_BIN%\%CB_WGET_CMD%;Write-Output 'Time taken: $((Get-Date).Subtract($start_time).Seconds) seconds' 2>nul | iex 2>nul" 2>nul
 :DOWNLOAD_WGET_END
 goto INSTALL_SUCCESSFULL_END
