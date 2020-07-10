@@ -167,7 +167,7 @@ downloadRelease() {
 # error handler
 #########################################################################
 errorhandler() {
-    [ -n "$DEBUG" ] && echo "ERROR on line #$LINENO, last command: $BASH_COMMAND"
+    [ -n "$DEBUG" ] && echo "${CB_LINEHEADER}ERROR on line #$LINENO, last command: $BASH_COMMAND"
     exithandler
 }
 
@@ -201,8 +201,8 @@ do
 done
 
 echo "$CB_LINE"
-echo "Started toolarium-common-build installation on `hostname`, `eval $USER_FRIENDLY_FULLTIMESTAMP`"
-echo "-Use $CB_DEVTOOLS path as devtools folder"
+echo "${CB_LINEHEADER}Started toolarium-common-build installation on `hostname`, `eval $USER_FRIENDLY_FULLTIMESTAMP`"
+echo "${CB_LINEHEADER}Use $CB_DEVTOOLS path as devtools folder"
 echo "$CB_LINE"
 read -p "Press any key to continue..." input
 echo ""
@@ -211,26 +211,26 @@ HTTP_REQUEST_CLI=$(checkHttpRequestCLI)
 [ -n "$releaseVersion" ] && installationFailed "Either curl or wget is required.!\nPlease install curl package (e.g. sudo apt install curl)" && exit 1
 
 checkInternetConnection
-echo "-Check newest version of toolarium-common-build..."
+echo "${CB_LINEHEADER}Check newest version of toolarium-common-build..."
 releaseVersion=$(getLatestRelease)
 [ -z "$releaseVersion" ] && installationFailed "Could not get remote release information!" && exit 1
-echo "-Latest version of common-build is $releaseVersion, select download link"
+echo "${CB_LINEHEADER}Latest version of common-build is $releaseVersion, select download link"
 downloadUrl=$(getReleaseDownloadUrl)
 [ -z "$downloadUrl" ] && installationFailed "Could not get download url of verison $releaseVersion!" && exit 1
 rm -f $cbErrorTemp >/dev/null 2>&1
 CB_VERSION_NAME="toolarium-common-build-$releaseVersion"
 
 # create directories
-! [ -d $CB_DEVTOOLS ] && mkdir $CB_DEVTOOLS >/dev/null 2>&1 && echo "-Create directory $CB_DEVTOOLS"
+! [ -d $CB_DEVTOOLS ] && mkdir $CB_DEVTOOLS >/dev/null 2>&1 && echo "${CB_LINEHEADER}Create directory $CB_DEVTOOLS"
 CB_DEV_REPOSITORY="$CB_DEVTOOLS/.repository" 
 ! [ -d $CB_DEV_REPOSITORY ] && mkdir $CB_DEV_REPOSITORY >/dev/null 2>&1
 
 # download toolarium-common-build
 [ "$CB_FORCE_INSALL" = "true" ] && rm -f $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz >/dev/null 2>&1
 if [ -r $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz ]; then
-	echo "-Found already downloaded version, $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" 
+	echo "${CB_LINEHEADER}Found already downloaded version, $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" 
 else
-	echo "-Install $CB_VERSION_NAME"
+	echo "${CB_LINEHEADER}Install $CB_VERSION_NAME"
 	downloadRelease $downloadUrl $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz
 
 	# in case we donwload a new version we also extract new!
@@ -239,7 +239,7 @@ else
 fi
 
 if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then 
-	echo "-Extract $CB_VERSION_NAME.tgz in $CB_DEVTOOLS..."
+	echo "${CB_LINEHEADER}Extract $CB_VERSION_NAME.tgz in $CB_DEVTOOLS..."
 
 	tar -zxf $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz -C $CB_DEV_REPOSITORY/ >/dev/null 2>&1 
 	tarContentName=$(find $CB_DEV_REPOSITORY/* -type d -name toolarium-common-build-* -print 2>/dev/null)
@@ -261,14 +261,14 @@ if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 fi
 
 if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
-	echo "-Set CB_HOME to $CB_DEVTOOLS/$CB_VERSION_NAME"
+	echo "${CB_LINEHEADER}Set CB_HOME to $CB_DEVTOOLS/$CB_VERSION_NAME"
 	CB_HOME="$CB_DEVTOOLS/$CB_VERSION_NAME"
 	export CB_HOME=$CB_HOME && export PATH="$CB_HOME/bin:$PATH"
 
 	shellProfile="$HOME/.bashrc"
 	if [ -w $shellProfile ]; then
 		if [ -z "$(cat $shellProfile | grep 'toolarium-common-build support')" ]; then
-			echo "-Modify file $shellProfile" 
+			echo "${CB_LINEHEADER}Modify file $shellProfile" 
 			echo "" >> $shellProfile
 			echo "# toolarium-common-build support" >> $shellProfile
 			echo "export CB_HOME=$CB_HOME && export PATH=\"\$CB_HOME/bin:\$PATH\"" >> $shellProfile
@@ -282,7 +282,7 @@ if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 
 			#TEST: CB_HOME="$CB_HOME/aa"
 			CB_HOME_ESCAPED=$(echo $CB_HOME | sed 's/\//\\\//g')
-			echo "-Update file $shellProfile" 
+			echo "${CB_LINEHEADER}Update file $shellProfile" 
 			cat $shellProfile | sed "s/CB_HOME\=.*\&/CB_HOME\=$CB_HOME_ESCAPED\ \&\&/g" > $newFileName
 			chmod --reference=$shellProfile $newFileName >/dev/null 2>&1
 			chmod +r+w $newFileName >/dev/null 2>&1
