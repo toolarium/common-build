@@ -128,7 +128,7 @@ getLatestRelease() {
 		CMD="wget -q --header=\"Accept: application/json\" -O - $CB_RELEASE_URL"
     fi
 
-	CMD="$CMD 2>$cbErrorTemp | grep \"tag_name\" | awk '{print \$2}' |  sed -n 's/\"\(.*\)\",/\1/p'"
+	CMD="$CMD 2>$cbErrorTemp | grep \"tag_name\" | awk '{print \$2}' |  sed -n 's/\"\(.*\)\",/\1/p' | head -1 2>/dev/null"
 	version=$(eval $CMD)
 	[ $? -eq 0 ] && echo $version || echo ""
 	[ -r $cbErrorTemp ] && [ $(stat -c %s $cbErrorTemp) -eq 0 ] && rm -f $cbErrorTemp >/dev/null 2>&1
@@ -145,7 +145,7 @@ getReleaseDownloadUrl() {
 		CMD="wget -q --header=\"Accept: application/json\" -O - $CB_RELEASE_URL"
 	fi
 
-	CMD="$CMD 2>$cbErrorTemp | grep \"tarball_url\" | awk '{print \$2}' |  sed -n 's/\"\(.*\)\",/\1/p'"
+	CMD="$CMD 2>$cbErrorTemp | grep \"tarball_url\" | awk '{print \$2}' |  sed -n 's/\"\(.*\)\",/\1/p' | head -1 2>/dev/null"
 	downloadUrl=$(eval $CMD)
 	[ $? -eq 0 ] && echo $downloadUrl || echo ""
 	[ -r $cbErrorTemp ] && [ $(stat -c %s $cbErrorTemp) -eq 0 ] && rm -f $cbErrorTemp >/dev/null 2>&1
