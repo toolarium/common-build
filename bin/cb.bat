@@ -10,15 +10,15 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-set "CB_LINEHEADER=.: "
 set CB_LINE=----------------------------------------------------------------------------------------
-set PATH_BACKUP=%PATH%
+set "CB_LINEHEADER=.: "
 set PN=%~nx0
 set PN_FULL=%0
 set "CB_SCRIPT_PATH=%~dp0"
 set "CB_CURRENT_PATH=%CD%"
 set "CB_INSTALL_SILENT=false"
 
+if not defined CB_HOME (echo %CB_LINE% & echo %CB_LINEHEADER%Missing CB_HOME environment variable! Please install with the cb-install.bat! & echo %CB_LINE% & goto END_WITH_ERROR)
 if not defined CB_PACKAGE_URL (set "CB_PACKAGE_URL=")
 if not defined CB_INSTALL_USER_COMMIT (set "CB_INSTALL_USER_COMMIT=true")
 if not defined CB_USER (set "CB_USER=%USERNAME%")
@@ -149,21 +149,7 @@ echo  -Install specific gradle version: cb --install gradle 6.5
 echo  -Install specific maven version: cb --install maven 3.6.3
 echo  -Install specific ant version: cb --install ant 1.10.8
 echo.
-goto END
-
-
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:COMMON_BUILD_HELP
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %PN% - common build
-echo.
-echo ERROR: There seems to be an installation failure. Some tools and environment variable
-echo        are not properly available. Please call the following command to install properly: 
-echo.
-echo        %PN_FULL% --install 
-echo.
-echo Additional help can be found by the --help command. Otherwise please check
-echo the homepage for more information: https://github.com/toolarium/common-build
+echo Please check the homepage for more information: https://github.com/toolarium/common-build
 echo.
 goto END
 
@@ -171,7 +157,7 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :COMMON_BUILD
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-set "CB_LOGS=%CB_HOME%\logs" & set "cbJavaVersion=" & set "cbJavaVersionFilter=*" & set "cbJavaVersionAvailable=" & set "cbSetJavaHome=" & set "CB_JAVA_HOME_RUNTIME="
+set "cbJavaVersion=" & set "cbJavaVersionFilter=*" & set "cbJavaVersionAvailable=" & set "cbSetJavaHome=" & set "CB_JAVA_HOME_RUNTIME="
 
 :: check connection
 ping 8.8.8.8 -n 1 -w 1000 >nul 2>nul
@@ -196,12 +182,9 @@ if not defined CB_JAVA_HOME set "cbSetJavaHome=true"
 :COMMON_BUILD_VERIFY_JAVA_INSTALLATION
 if defined cbJavaVersion set "cbJavaVersionFilter=%cbJavaVersion%*"
 set /a "cbJavaMajorVersion=%cbJavaVersion%" 2>nul
-echo a $cbJavaMajorVersion
-::if not %cbJavaMajorVersion% == %cbJavaVersion% (echo %CB_LINEHEADER%Invalid java version paramter %cbJavaVersion%)
-echo b
-::if not %cbJavaMajorVersion% == %cbJavaVersion% echo %CB_LINEHEADER%Invalid java version paramter %cbJavaVersion% (only major version can be referenced, e.g. 11, 12...)
-::if not %cbJavaMajorVersion% == %cbJavaVersion% goto END_WITH_ERROR
-set "TMPFILE=%CB_LOGS%\cb-java-home.tmp"
+if not %cbJavaMajorVersion% == %cbJavaVersion% echo %CB_LINEHEADER%Invalid java version paramter %cbJavaVersion% (only major version can be referenced, e.g. 11, 12...)
+if not %cbJavaMajorVersion% == %cbJavaVersion% goto END_WITH_ERROR
+set "TMPFILE=%CB_CURRENT_PATH%\cb-java-home.tmp"
 if not defined CB_DEVTOOLS_JAVA_PREFIX set "CB_DEVTOOLS_JAVA_PREFIX=*"
 if defined cbJavaVersion dir %CB_DEVTOOLS%\%CB_DEVTOOLS_JAVA_PREFIX%%cbJavaVersionFilter% /O-D/b 2>nul | findstr/n ^^ | findstr 1:> "%TMPFILE%"
 if defined cbJavaVersion for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install java %cbJavaVersion%
@@ -222,7 +205,8 @@ if defined cbSetJavaHome setx CB_JAVA_HOME "%CB_JAVA_HOME_RUNTIME%" >nul 2>nul &
 echo %CB_JAVA_HOME_RUNTIME% | findstr /I %CB_DEVTOOLS% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%CB_JAVA_HOME is not set to a java version in devtools (%CB_DEVTOOLS%): %CB_JAVA_HOME_RUNTIME%! & goto END_WITH_ERROR
 set JAVA_HOME=%CB_JAVA_HOME_RUNTIME%
-set "PATH=%CB_JAVA_HOME_RUNTIME%\bin;%PATH%"
+echo %PATH% | findstr /C:"%CB_JAVA_HOME_RUNTIME%\bin" >nul 2>nul
+if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Set %CB_JAVA_HOME_RUNTIME% to path! & set "PATH=%CB_JAVA_HOME_RUNTIME%\bin;%PATH%"
 WHERE javac >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find java version in path! & goto END_WITH_ERROR
 
@@ -236,7 +220,7 @@ if exist build.xml goto COMMON_BUILD_ANT
 set GRADLE_EXEC=gradle
 if exist gradlew.bat set "GRADLE_EXEC=gradlew" & goto COMMON_BUILD_GRADLE_EXEC
 if defined CB_GRADLE_HOME goto COMMON_BUILD_VERIFY_GRADLE
-set "TMPFILE=%CB_LOGS%\cb-gradle-home.tmp"
+set "TMPFILE=%CB_CURRENT_PATH%\cb-gradle-home.tmp"
 dir %CB_DEVTOOLS%\*gradle* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> "%TMPFILE%"
 for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install gradle
 dir %CB_DEVTOOLS%\*gradle* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> "%TMPFILE%"
@@ -246,7 +230,8 @@ set "CB_GRADLE_HOME=%CB_DEVTOOLS%\%CB_GRADLE_HOME:~2%"
 :COMMON_BUILD_VERIFY_GRADLE
 echo %CB_GRADLE_HOME% | findstr /I %CB_DEVTOOLS% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%CB_GRADLE_HOME is not set to a gradle version in devtools (%CB_DEVTOOLS%): %CB_GRADLE_HOME%! & goto END_WITH_ERROR
-set "PATH=%CB_GRADLE_HOME%\bin;%PATH%"
+echo %PATH% | findstr /C:"%CB_GRADLE_HOME%\bin" >nul 2>nul
+if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Set %CB_GRADLE_HOME% to path! & set "PATH=%CB_GRADLE_HOME%\bin;%PATH%"
 WHERE %GRADLE_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find gradle version in path! & goto END_WITH_ERROR
 :COMMON_BUILD_GRADLE_EXEC
@@ -260,7 +245,7 @@ goto END
 set MAVEN_EXEC=mvn
 if exist mvnw.bat set "MAVEN_EXEC=mvn" & goto COMMON_BUILD_MAVEN_EXEC
 if defined CB_MAVEN_HOME goto COMMON_BUILD_VERIFY_MAVEN
-set "TMPFILE=%CB_LOGS%\cb-maven-home.tmp"
+set "TMPFILE=%CB_CURRENT_PATH%\cb-maven-home.tmp"
 dir %CB_DEVTOOLS%\*maven* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> "%TMPFILE%"
 for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install maven
 dir %CB_DEVTOOLS%\*maven* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> "%TMPFILE%"
@@ -270,7 +255,8 @@ set "CB_MAVEN_HOME=%CB_DEVTOOLS%\%CB_MAVEN_HOME:~2%"
 :COMMON_BUILD_VERIFY_MAVEN
 echo %CB_MAVEN_HOME% | findstr /I %CB_DEVTOOLS%  >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%CB_MAVEN_HOME is not set to a maven version in devtools (%CB_DEVTOOLS%): %CB_MAVEN_HOME%! & goto END_WITH_ERROR
-set "PATH=%CB_MAVEN_HOME%\bin;%PATH%"
+echo %PATH% | findstr /C:"%CB_MAVEN_HOME%\bin" >nul 2>nul
+if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Set %CB_MAVEN_HOME% to path! & set "PATH=%CB_MAVEN_HOME%\bin;%PATH%"
 WHERE %MAVEN_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find maven version in path! & goto END_WITH_ERROR
 :COMMON_BUILD_MAVEN_EXEC
@@ -281,7 +267,7 @@ goto END
 :: ant
 :COMMON_BUILD_ANT
 set ANT_EXEC=ant
-set "TMPFILE=%CB_LOGS%\cb-ant-home.tmp"
+set "TMPFILE=%CB_CURRENT_PATH%\cb-ant-home.tmp"
 if defined ABT_HOME goto COMMON_BUILD_VERIFY_ANT
 dir %CB_DEVTOOLS%\*ant* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> "%TMPFILE%"
 for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install ant
@@ -292,7 +278,8 @@ set "CB_ANT_HOME=%CB_DEVTOOLS%\%CB_ANT_HOME:~2%"
 :COMMON_BUILD_VERIFY_ANT
 echo %CB_ANT_HOME% | findstr /I %CB_DEVTOOLS% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%CB_ANT_HOME is not set to a maven version in devtools (%CB_DEVTOOLS%): %CB_ANT_HOME%! & goto END_WITH_ERROR
-set "PATH=%CB_ANT_HOME%\bin;%PATH%"
+echo %PATH% | findstr /C:"%CB_ANT_HOME%\bin" >nul 2>nul
+if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Set %CB_ANT_HOME% to path! & set "PATH=%CB_ANT_HOME%\bin;%PATH%"
 WHERE %ANT_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find ant version in path! & goto END_WITH_ERROR
 :COMMON_BUILD_ANT_EXEC

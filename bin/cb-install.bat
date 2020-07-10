@@ -67,7 +67,7 @@ goto END
 :COMMON_BUILD_INSTALL
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %CB_LINE%
-echo Started toolarium-common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%
+echo %CB_LINEHEADER%Started toolarium-common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%
 echo %CB_LINEHEADER%Use %CB_DEVTOOLS% path as devtools folder
 echo %CB_LINE%
 pause
