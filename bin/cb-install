@@ -17,6 +17,7 @@
 
 # define parameters
 CB_LINE="----------------------------------------------------------------------------------------"
+CB_LINEHEADER=".: "
 PN=`basename "$0"`
 REL_PROG_PATH="${0%/*}"
 ABS_PROG_PATH=$(cd -- "`dirname $0`" && pwd)
