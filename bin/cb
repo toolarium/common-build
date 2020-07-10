@@ -10,67 +10,380 @@
 #########################################################################
 
 
-LINE="----------------------------------------------------------------------------------------"
-STARLINE="****************************************************************************************"
-CB_URL="https://c/"
-PATH_BACKUP=${PATH}
+CB_LINE="----------------------------------------------------------------------------------------"
+CB_LINEHEADER=".: "
 PN=`basename "$0"`
 
-[ -z "`echo $OSTYPE | sed 's/cygwin.*//'`" ] && CLASSSEP=";" || CLASSSEP=":"
-[ -z "$DEVTOOLS" ] && DEVTOOLS="/cygdrive/c/devtools" && export DEVTOOLS
-[ -z "$CB_HOME" ] && CB_HOME="$DEVTOOLS/cb" && export CB_HOME
-PATH=$CB_HOME\bin$CLASSSEP$PATH
-CB_OS=linux
-CB_OS=darwin
-windows
+CB_SCRIPT_PATH=$(dirname "$0")
+CB_CURRENT_PATH=$PWD
+CB_INSTALL_SILENT=false
+CB_OS=$OSTYPE
+selectDirectories='ls -d */ | xargs -l basename'
 
-
-#########################################################################
-# Usage
-#########################################################################
-Usage() {
-	echo "$PN - common build"
-	echo "usage: $PN [OPTION] [TARGET]"
-	echo ""
-	echo "Overview of the available OPTIONs:"
-	echo " -h, --help                Help"
-	echo " -new                      Create a new project"
-	echo " -exp, --explore           Starts in Windows environment a new explorer"
-	echo " -p                        List all project targets"
-
-	if [ -r build.xml ]
-	then
-		echo ""
-		echo "Overview of the available TARGETs:"
-		cb -p
-	else
-		echo ""
-		echo "No build.xml is available in the current directory."
-		echo "The TARGET depends on the build.xml file!"
-	fi
+if [ -z "$CB_HOME" ]; then
+	echo $CB_LINE 
+	echo "$CB_LINEHEADERMissing CB_HOME environment variable! Please install with the cb-install!" 
+	echo "$%CB_LINE" 
 	exit 1
+fi
+
+[ "$OSTYPE" = "cygwin" ] && CB_HOME=$(cygpath $CB_HOME 2>/dev/null) && CB_SCRIPT_PATH=$(cygpath $CB_SCRIPT_PATH 2>/dev/null) && CB_CURRENT_PATH=$(cygpath $CB_CURRENT_PATH 2>/dev/null)
+[ -z "$CB_PACKAGE_URL" ] && CB_PACKAGE_URL=""
+[ -z "$CB_INSTALL_USER_COMMIT" ] && CB_INSTALL_USER_COMMIT=true
+[ -z "$CB_USER" ] && CB_USER=$USERNAME
+[ -z "$CB_PACKAGE_PASSWORD" ] && CB_PACKAGE_PASSWORD=""
+[ -z "$CB_DEVTOOLS_JAVA_PREFIX" ] && CB_DEVTOOLS_JAVA_PREFIX="*jdk-"
+CB_PROJECT_JAVA_VERSION_FILE=".java-version"
+CB_JAVA_VERSION_FILE=".cb-java-version"
+rm -f $CB_JAVA_VERSION_FILE >/dev/null 2>&1
+[ -z "$CB_DEVTOOLS" ] && CB_DEVTOOLS=$(cd $CB_HOME/..; echo $PWD) && export CB_DEVTOOLS
+[ "$OSTYPE" = "cygwin" ] && CB_DEVTOOLS=$(cygpath $CB_DEVTOOLS)
+[ -z "`echo $OSTYPE | sed 's/cygwin.*//'`" ] && CLASSSEP=";" || CLASSSEP=":"
+
+
+#########################################################################
+# read the common build version number
+#########################################################################
+readVersion() {
+	if [ -r $CB_SCRIPT_PATH/../VERSION ]; then
+		majorNumber=$(cat $CB_SCRIPT_PATH/../VERSION | grep major.number | awk '{print $3}')
+		minorNumber=$(cat $CB_SCRIPT_PATH/../VERSION | grep minor.number | awk '{print $3}')
+		revisionNumber=$(cat $CB_SCRIPT_PATH/../VERSION | grep revision.number | awk '{print $3}')
+		qualifier=$(cat $CB_SCRIPT_PATH/../VERSION | grep qualifier | awk '{print $3}')
+
+		CB_VERSION=$majorNumber.$minorNumber.$revisionNumber
+		[ -n "$qualifier" ] && CB_VERSION=$CB_VERSION-$qualifier
+	fi
 }
 
 
 #########################################################################
-# install
+# Execute custom initialisation
 #########################################################################
-install() {
+executeCustomSettings() {
+	if [ -n "$CB_CUSTOM_SETTING" ]; then	
+		if [ -x $CB_CUSTOM_SETTING ]; then
+			#echo Custom settings $CB_CUSTOM_SETTING
+			. $CB_CUSTOM_SETTING $@ 2>/dev/null
+		else
+			echo $CB_LINE
+			echo "${CB_LINEHEADER}Could not find custom scrpit, see $CB_CUSTOM_SETTING:"
+			echo $CB_CUSTOM_SETTING
+			echo $CB_LINE
+		fi
+	fi
+}
+
+
+#########################################################################
+# printVersion
+#########################################################################
+printVersion() {
+	echo $CB_LINE
+	echo toolarium common build $CB_VERSION
+	echo $CB_LINE
+}
+
+
+#########################################################################
+# printUsage
+#########################################################################
+printUsage() {
+	echo "$PN - common build v$CB_VERSION"
+	echo "usage: $PN [OPTION]"
+	echo ""
+	echo "Overview of the available OPTIONs:"
+	echo " -h, --help           Show this help message."
+	echo " -v, --version        Print version information."
+	echo " --new                Create a new project."
+	echo " -exp, --explore      Starts in Windows environment a new explorer."
+	echo " --java [version]     Set a different java version for this run, e.g. --java 14."
+	echo " --silent             Suppress the console output from the common-build."
+	echo " --install            Install the common build environment."
+	echo " --setenv             Set all environment variable and stop execution."
+	echo ""
+	echo "Environment variable:"
+	echo " CB_DEVTOOLS          Defines the devtools directory, default \$HOME/devtools."
+	echo " CB_HOME              Defines the home environment, default CB_DEVTOOLS/cb."
+	echo " CB_JAVA_HOME         Defines the java version (it must be installed in a sub folder"
+	echo "                      of CB_DEVTOOLS, default is empty to choose the default)"
+	echo " CB_GRADLE_HOME       Defines the gradle version (similar CB_JAVA_HOME)"
+	echo " CB_MAVEN_HOME        Defines the maven version (similar CB_JAVA_HOME)"
+	echo " CB_ANT_HOME          Defines ant version (similar CB_JAVA_HOME)"
+	echo " CB_NODE_HOME         Defines node / npm version (similar CB_JAVA_HOME)"
+	echo " CB_PACKAGE_URL       Url where additional zip packages to install are available (default, no url)."
+	echo " CB_PACKAGE_USER      The user for the access to the CB_PACKAGE_URL."
+	echo " CB_PACKAGE_PASSWORD  In case the value is ask, the password can be entered securely "
+	echo "                      on the command line."
+	echo " CB_CUSTOM_SETTING    Can be use to reference to an own start script."
+	echo ""
+	echo "Special files:"
+	echo " .java-version        Can be used to reference to a specific java version (only major"
+	echo "                      version, e.g. 11)"
+	echo ""
+	echo "Example:"
+	echo " -Install specific java version: cb --install java 14"
+	echo " -Install specific gradle version: cb --install gradle 6.5"
+	echo " -Install specific maven version: cb --install maven 3.6.3"
+	echo " -Install specific ant version: cb --install ant 1.10.8"
+	echo ""
+	echo "Please check the homepage for more information: https://github.com/toolarium/common-build"
+	echo ""
+}
+
+
+#########################################################################
+# checkInternetConnection
+#########################################################################
+checkInternetConnection() {
+	if [ "$OSTYPE" = "linux"* ]; then
+		ping 8.8.8.8 -c 1 -w 1 >/dev/null 2>&1
+	elif [ "$OSTYPE" = "cygwin" ]; then
+		ping 8.8.8.8 1 1 >/dev/null 2>&1
+	elif [ "$OSTYPE" = "win32" ]; then
+		ping 8.8.8.8 -n 1 -w 1000 >/dev/null 2>&1
+	#elif [ "$OSTYPE" = "darwin"* ]; then
+	#	echo "" > /dev/null
+	else
+		echo "" > /dev/null
+	fi
+	
+	if ! [ $? -eq 0 ]; then 
+		CB_OFFLINE=true
+	fi
+}
+
+
+#########################################################################
+# commonBuildGradle
+#########################################################################
+commonBuildGradle() {
+	CB_PARAMETERS="$@"
+	GRADLE_EXEC=gradle
+	if [ -x gradlew ]; then
+		GRADLE_EXEC=./gradlew
+	else
+		if [ -z $CB_GRADLE_HOME ]; then	
+			cbInstalledGradleVersion=$(ls -d $CB_DEVTOOLS/*gradle* 2>/dev/null | head -1 2>/dev/null | xargs -l basename 2>/dev/null)
+			
+			if [ -z $cbInstalledGradleVersion ]; then
+				$PN_FULL --silent --install gradle
+				cbInstalledGradleVersion=$(ls -d $CB_DEVTOOLS/*gradle* 2>/dev/null | head -1 2>/dev/null | xargs -l basename 2>/dev/null)
+			fi
+			
+			[ -z $cbInstalledGradleVersion ] && echo ${CB_LINEHEADER}Can not find common-build gradle version, give up! && exit 1
+			CB_GRADLE_HOME="$CB_DEVTOOLS/$cbInstalledGradleVersion"
+			
+			if [ -z "$(echo $CB_GRADLE_HOME | grep $CB_DEVTOOLS 2>/dev/null)" ]; then
+				echo "${CB_LINEHEADER}CB_GRADLE_HOME is not set to a gradle version in devtools ($CB_DEVTOOLS): $CB_GRADLE_HOME!"
+				exit 1
+			fi
+
+			[ "$(echo ${PATH#*$CB_GRADLE_HOME/bin*})" == "$(echo $PATH)" ] && PATH="$CB_GRADLE_HOME/bin:$PATH" && export PATH 
+			which $GRADLE_EXEC > /dev/null 2>&1
+			if [ "$?" -ne 0 ]; then
+				echo ${CB_LINEHEADER}Could not find gradle version in path!
+				exit 1
+			fi
+		fi
+	fi
+
+	[ "$CB_SETENV" = "true" ] && endPrintVariable gradle
+	[ "$CB_OFFLINE" = "true" ] && CB_PARAMETERS="--offline $CB_PARAMETERS" && echo ${CB_LINEHEADER}Offline build!
+
+    eval $GRADLE_EXEC $CB_PARAMETERS
+	errorCode=$?	
+}
+
+
+#########################################################################
+# commonBuildMaven
+#########################################################################
+commonBuildMaven() {
+	CB_PARAMETERS="$@"
+	MAVEN_EXEC=mvn
+	if [ -x mvnw ]; then
+		MAVEN_EXEC=./mvnw
+	else
+		if [ -z $CB_MAVEN_HOME ]; then	
+			cbInstalledMavenVersion=$(ls -d $CB_DEVTOOLS/*maven* 2>/dev/null | head -1 2>/dev/null | xargs -l basename 2>/dev/null)
+			
+			if [ -z $cbInstalledMavenVersion ]; then
+				$PN_FULL --silent --install maven
+				cbInstalledMavenVersion=$(ls -d $CB_DEVTOOLS/*maven* 2>/dev/null | head -1 2>/dev/null | xargs -l basename 2>/dev/null)
+			fi
+			
+			[ -z $cbInstalledMavenVersion ] && echo ${CB_LINEHEADER}Can not find common-build maven version, give up! && exit 1
+			CB_MAVEN_HOME="$CB_DEVTOOLS/$cbInstalledMavenVersion"
+			
+			if [ -z "$(echo $CB_MAVEN_HOME | grep $CB_DEVTOOLS 2>/dev/null)" ]; then
+				"echo ${CB_LINEHEADER}CB_MAVEN_HOME is not set to a maven version in devtools ($CB_DEVTOOLS): $CB_MAVEN_HOME!"
+				exit 1
+			fi
+			
+			[ "$(echo ${PATH#*$CB_MAVEN_HOME/bin*})" == "$(echo $PATH)" ] && PATH="$CB_MAVEN_HOME/bin:$PATH" && export PATH 
+			which $MAVEN_EXEC > /dev/null 2>&1
+			if [ "$?" -ne 0 ]; then
+				echo ${CB_LINEHEADER}Could not find maven version in path!
+				exit 1
+			fi
+		fi
+	fi
+
+	[ "$CB_SETENV" = "true" ] && endPrintVariable maven
+	#[ "$CB_OFFLINE" = "true" ] && CB_PARAMETERS="--offline $CB_PARAMETERS" && echo ${CB_LINEHEADER}Offline build!
+	
+    eval $MAVEN_EXEC $CB_PARAMETERS
+	errorCode=$?	
+}
+
+
+#########################################################################
+# commonBuildAnt
+#########################################################################
+commonBuildAnt() {
+	CB_PARAMETERS="$@"
+	ANT_EXEC=ant
+	if [ -z $CB_ANT_HOME ]; then	
+		cbInstalledAntVersion=$(ls -d $CB_DEVTOOLS/*ant* 2>/dev/null | head -1 2>/dev/null | xargs -l basename 2>/dev/null)
+		
+		if [ -z $cbInstalledAntVersion ]; then
+			$PN_FULL --silent --install ant
+			cbInstalledAntVersion=$(ls -d $CB_DEVTOOLS/*ant* 2>/dev/null | head -1 2>/dev/null | xargs -l basename 2>/dev/null)
+		fi
+		
+		[ -z $cbInstalledAntVersion ] && echo ${CB_LINEHEADER}Can not find common-build ant version, give up! && exit 1
+		CB_ANT_HOME="$CB_DEVTOOLS/$cbInstalledAntVersion"
+				
+		if [ -z "$(echo $CB_ANT_HOME | grep $CB_DEVTOOLS 2>/dev/null)" ]; then
+			echo "${CB_LINEHEADER}CB_ANT_HOME is not set to a ant version in devtools ($CB_DEVTOOLS): $CB_ANT_HOME!"
+			exit 1
+		fi
+		
+		[ "$(echo ${PATH#*$CB_ANT_HOME/bin*})" == "$(echo $PATH)" ] && PATH="$CB_ANT_HOME/bin:$PATH" && export PATH 
+		which $ANT_EXEC > /dev/null 2>&1
+		if [ "$?" -ne 0 ]; then
+			echo ${CB_LINEHEADER}Could not find ant version in path!
+			exit 1
+		fi
+	fi
+
+	[ "$CB_SETENV" = "true" ] && endPrintVariable ant
+	#[ "$CB_OFFLINE" = "true" ] && CB_PARAMETERS="--offline $CB_PARAMETERS" && echo ${CB_LINEHEADER}Offline build!
+	
+	eval $ANT_EXEC $CB_PARAMETERS
+	errorCode=$?	
+}
+
+
+#########################################################################
+# commonBuild
+#########################################################################
+commonBuild() {
+	cbJavaVersion=
+	cbJavaVersionFilter="*"
+	cbJavaVersionAvailable= 
+	cbSetJavaHome=
+	CB_JAVA_HOME_RUNTIME=
+
+	checkInternetConnection()
+
+	if [ -r $CB_JAVA_VERSION_FILE ]; then
+		#current run java switch
+		cbJavaVersion=$(cat $CB_JAVA_VERSION_FILE 2>/dev/null | awk '{print $1}' 2>/dev/null)
+		rm -f $CB_JAVA_VERSION_FILE >/dev/null 2>&1
+		[ -n "$cbJavaVersion" ] && echo "${CB_LINEHEADER}Set java version $cbJavaVersion (by command line --java $cbJavaVersion)"
+	elif [ -r $CB_PROJECT_JAVA_VERSION_FILE ]; then
+		# project specific java switch
+		cbJavaVersion=$(cat $CB_PROJECT_JAVA_VERSION_FILE 2>/dev/null | awk '{print $1}' 2>/dev/null)
+		[ -n "$cbJavaVersion" ] && echo "${CB_LINEHEADER}Set project java version $cbJavaVersion (from .java-version)"
+	fi
+
+	# check CB_JAVA_HOME, if java is set of CB_DEVTOOLS do nothing set!
+	[ -n "$CB_JAVA_HOME" ]
+	if [ -n "$CB_JAVA_HOME" ]; then
+		[ "$OSTYPE" = "cygwin" ] && CB_JAVA_HOME=$(cygpath $CB_JAVA_HOME)
+		CB_JAVA_HOME_RUNTIME=$CB_JAVA_HOME
+		export CB_JAVA_HOME_RUNTIME
+	else
+		[ -n "$cbJavaVersion" ] && cbJavaVersionFilter="$cbJavaVersion*" || cbJavaVersionFilter="*"
+		[ -z "${cbJavaVersion##*[!0-9]*}" ] && echo "${CB_LINEHEADER}Invalid java version paramter $cbJavaVersion (only major version can be referenced, e.g. 11, 12...)" && exit 1
+		TMPFILE="$CB_CURRENT_PATH/cb-java-home.tmp"
+		[ -z $CB_DEVTOOLS_JAVA_PREFIX ] && CB_DEVTOOLS_JAVA_PREFIX="*"
+
+		cbInstalledJavaVersion=$(ls -d $CB_DEVTOOLS/$CB_DEVTOOLS_JAVA_PREFIX$cbJavaVersionFilter 2>/dev/null | head -1 2>/dev/null | xargs -l basename 2>/dev/null)
+		if [ -z $cbInstalledJavaVersion ]; then
+			if [ -n "$cbJavaVersion" ]; then
+				$PN_FULL --silent --install java $cbJavaVersion 
+			else
+				$PN_FULL --silent --install java 
+			fi
+		fi
+
+		if [ -z $cbInstalledJavaVersion ]; then
+			cbInstalledJavaVersion=$(ls -d $CB_DEVTOOLS/$CB_DEVTOOLS_JAVA_PREFIX$cbJavaVersionFilter 2>/dev/null | head -1 2>/dev/null | xargs -l basename 2>/dev/null)
+			[ -z $cbInstalledJavaVersion ] echo ${CB_LINEHEADER}Can not find common-build java version $versionInformation give up! && exit 1
+		else
+			versionInformation="$cbJavaVersion,"
+		fi
+		
+		shellProfile="$HOME/.bashrc"
+		if [ -w $shellProfile ]; then
+			CB_JAVA_HOME_RUNTIME="$CB_DEVTOOLS/$cbInstalledJavaVersion"
+			echo "${CB_LINEHEADER}Set CB_JAVA_HOME to $CB_JAVA_HOME_RUNTIME!"
+			CB_JAVA_HOME=$CB_JAVA_HOME_RUNTIME
+			export CB_JAVA_HOME CB_JAVA_HOME_RUNTIME
+		
+			echo "${CB_LINEHEADER}Modify file $shellProfile" 
+			echo "" >> $shellProfile
+			echo "# toolarium-common-build / default java version support" >> $shellProfile
+			echo "export CB_JAVA_HOME=$CB_JAVA_HOME" >> $shellProfile
+		else
+			echo "${CB_LINEHEADER}Can not set CB_JAVA_HOME in $shellProfile, it's write protected!"
+		fi
+	fi
+
+	if [ -z "$(echo $CB_JAVA_HOME_RUNTIME | grep $CB_DEVTOOLS 2>/dev/null)" ]; then
+		echo "${CB_LINEHEADER}CB_JAVA_HOME is not set to a java version in devtools ($CB_DEVTOOLS): $CB_JAVA_HOME_RUNTIME!"
+		exit 1
+	fi
+	
+	JAVA_HOME=$CB_JAVA_HOME_RUNTIME
+	export JAVA_HOME
+	[ "$(echo ${PATH#*$CB_JAVA_HOME_RUNTIME/bin*})" == "$(echo $PATH)" ] && PATH="$CB_JAVA_HOME_RUNTIME/bin:$PATH" && export PATH 
+	#&& echo ${CB_LINEHEADER}Set $CB_JAVA_HOME_RUNTIME to path! 
+	
+	which javac> /dev/null 2>&1
+	if [ "$?" -ne 0 ]; then
+		echo ${CB_LINEHEADER}Could not find java version in path!
+		exit 1
+	fi
+	
+	# decide which build tool to use
+	[ -r $CB_CURRENT_PATH/build.gradle ] && commonBuildGradle $@ && exit 0
+	[ -r $CB_CURRENT_PATH/pom.xml ] && commonBuildMaven $@ && exit 0
+	[ -r $CB_CURRENT_PATH/build.xml ] && commonBuildAnt $@ && exit 0
+	
+	commonBuildGradle $@ && exit 0
+}
+
+
+#########################################################################
+# installCb
+#########################################################################
+installCb() {
 	! [ -r "$DEVTOOLS" ] && mkdir $DEVTOOLS 2>/dev/null
 	! [ -r "$CB_HOME" ] && mkdir $CB_HOME 2>/dev/null
 	! [ -r "$CB_HOME" ] && mkdir $CB_HOME 2>/dev/null
 
-	DEV_REPOSITORY=$DEVTOOLS\.repository
+	DEV_REPOSITORY=$DEVTOOLS/.repository
 	! [ -r "$DEV_REPOSITORY" ] && mkdir $DEV_REPOSITORY 2>/dev/null
 	
-	if ! which "wget" > /dev/null 2>&1
-	then
+	#if ! which "wget" > /dev/null 2>&1
+	#then
 	
-	fi
-	
-	CB_URL
+	#fi
 }
-
 
 
 #########################################################################
@@ -103,7 +416,7 @@ projectWizard() {
 #########################################################################
 exploreProject()
 {
-    currentWindowDirectory="`pwd|sed s'/\\/cygdrive\\/c\\//c:\\\\/g'|sed s'/\\/cygdrive\\/d\\//d:\\\\/g'|sed s'/\\/cygdrive\\/e\\//e:\\\\/g'|sed s'/\\//\\\\/g'`"
+    currentWindowDirectory="`pwd|sed s'/\\/cygdrive\\/c\\//c:\\\\/g'|sed s'/\\/cygdrive\\/d\\//d:\\\\/g'|sed s'/\\/cygdrive\\/e\\//e:\\\\/g'|sed s'/\\//\\\\/g'`"	
     explorerPath=`which explorer.exe 2>/dev/null`
     if [ -x $explorerPath ]
     then
@@ -116,38 +429,34 @@ exploreProject()
 }
 
 
-
-#########################################################################
-#  runProgram
-#########################################################################
-runProgram()
-{
-    eval "$*"
-}
-
-
 #########################################################################
 # main
 #########################################################################
+CB_SETENV=false
+CB_PARAMETERS=""
+
 while [ $# -gt 0 ]
 do
     case "$1" in
-	-h)	Usage; exit 1;;
-	--help)	Usage; exit 1;;
+	--silent) CB_INSTALL_USER_COMMIT=false; CB_INSTALL_SILENT=true;;
+	-h)	readVersion; printUsage; exit 1;;
+	--help)	readVersion; printUsage; exit 1;;
+	-v) readVersion; printVersion; exit 0;;
+	--version) readVersion; printVersion; exit 0;;
 	-new)	shift; projectWizard $*; exit 0;;
 	--new)	shift; projectWizard $*; exit 0;;
 	-exp)	shift; exploreProject; exit 0;;	
 	--explore)	shift; exploreProject; exit 0;;	
-	*)	break;;
+	--install)	shift; installCb $*; exit 0;;	
+	--java)	shift; exploreProject; exit 0;;	
+	--setenv)	shift; CB_SETENV=true;;	
+	*)	CB_PARAMETERS="$CB_PARAMETERS $1";;
     esac
     shift
 done
 
-# call ant
-cb $*
-
-# reset
-PATH=$PATH_BACKUP
+executeCustomSettings
+commonBuild $CB_PARAMETERS
 
 
 #########################################################################
