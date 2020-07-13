@@ -382,8 +382,8 @@ commonBuild() {
 		exit 1
 	fi
 	
-	if ! [ -d "$CB_JAVA_HOME_RUNTIME" ]; then
-		echo "${CB_LINEHEADER}CB_JAVA_HOME is not set to a java version in devtools ($CB_DEVTOOLS): $CB_JAVA_HOME_RUNTIME!"
+	if ! [ -x "$CB_JAVA_HOME_RUNTIME/bin/javac" ]; then
+		echo "${CB_LINEHEADER}CB_JAVA_HOME entry could not be found: $CB_JAVA_HOME_RUNTIME!"
 		exit 1
 	fi
 	
