@@ -77,14 +77,13 @@ call %CB_CUSTOM_SETTING% %1 %2 %3 %4 %5 %6 %7 2>nul
 
 
 set "CB_SETENV="
-set CB_FORCE=false
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CHECK_PARAMETER
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 set CB_OPTIONAL_PARAMETER=%2
 if %0X==X goto COMMON_BUILD
 if .%1==.--silent shift & set "CB_INSTALL_USER_COMMIT=false" & set "CB_INSTALL_SILENT=true"
-if .%1==.--force set CB_FORCE=true
+if .%1==.--force set "CB_INSTALL_OVERWRITE=true"
 if .%1==.-h goto HELP
 if .%1==.--help goto HELP
 if .%1==.-v goto VERSION
@@ -94,10 +93,16 @@ if .%1==.--new goto PROJECT_WIZARD
 if .%1==.-exp goto PROJECT_EXPLORE
 if .%1==.--explore goto PROJECT_EXPLORE
 if .%1==.--install goto INSTALL_CB
-if .%1==.--java (echo %2 > %CB_JAVA_VERSION_FILE% & shift)
+if .%1==.--java goto SET_JAVA_PARAM
 if .%1==.--setenv (set CB_SETENV=true)
 set CB_PARAMETERS=%CB_PARAMETERS% %~1
 shift
+goto CHECK_PARAMETER
+
+:SET_JAVA_PARAM
+echo %2 > %CB_JAVA_VERSION_FILE% 
+shift 
+shift 
 goto CHECK_PARAMETER
 
 
@@ -162,7 +167,7 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :COMMON_BUILD
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-set "cbJavaVersion=" & set "cbJavaVersionFilter=*" & set "cbJavaVersionAvailable=" & set "cbSetJavaHome=" & set "CB_JAVA_HOME_RUNTIME="
+set "cbJavaVersion=" & set "cbJavaMajorVersion=" & set "cbJavaVersionFilter=*" & set "cbJavaVersionAvailable=" & set "cbSetJavaHome=" & set "CB_JAVA_HOME_RUNTIME="
 
 :: check connection
 ping 8.8.8.8 -n 1 -w 1000 >nul 2>nul
@@ -209,6 +214,8 @@ if defined cbSetJavaHome setx CB_JAVA_HOME "%CB_JAVA_HOME_RUNTIME%" >nul 2>nul &
 :COMMON_BUILD_VERIFY_JAVA
 echo %CB_JAVA_HOME_RUNTIME% | findstr /I %CB_DEVTOOLS% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%CB_JAVA_HOME is not set to a java version in devtools (%CB_DEVTOOLS%): %CB_JAVA_HOME_RUNTIME%! & goto END_WITH_ERROR
+dir %CB_JAVA_HOME_RUNTIME%\bin\javac* >nul 2>nul
+if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%CB_JAVA_HOME entry could not be found: %CB_JAVA_HOME_RUNTIME%! & goto END_WITH_ERROR
 set JAVA_HOME=%CB_JAVA_HOME_RUNTIME%
 echo %PATH% | findstr /C:"%CB_JAVA_HOME_RUNTIME%\bin" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 set "PATH=%CB_JAVA_HOME_RUNTIME%\bin;%PATH%"
@@ -366,7 +373,7 @@ set "USER_FRIENDLY_TIMESTAMP=%HH%:%Min%:%Sec%"
 set "USER_FRIENDLY_FULLTIMESTAMP=%USER_FRIENDLY_DATESTAMP% %USER_FRIENDLY_TIMESTAMP%"
 
 if [%CB_INSTALL_SILENT%] equ [false] (echo %CB_LINE%
-		echo %CB_LINEHEADER%Start common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%:
+		echo %CB_LINEHEADER%Start common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%
 		echo %CB_LINEHEADER%Use %CB_DEVTOOLS% path as devtools folder
 		echo %CB_LINE%)
 
@@ -383,8 +390,9 @@ if not exist %CB_DEV_REPOSITORY% mkdir %CB_DEV_REPOSITORY% >nul 2>nul
 set "CB_LOGFILE=%CB_LOGS%\%FULLTIMESTAMP%-%CB_USER%.log"
 ::if [%CB_INSTALL_SILENT%] equ [false] (echo %CB_LINEHEADER%The installation log file can be found here "%CB_LOGFILE%")
 echo %CB_LINE%>> "%CB_LOGFILE%"
-echo Started common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%>> "%CB_LOGFILE%"
-echo common-build: %CB_HOME%, devtools: %CB_DEVTOOLS%>> "%CB_LOGFILE%"
+echo Start common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%>> "%CB_LOGFILE%"
+echo common-build: %CB_HOME%>> "%CB_LOGFILE%"
+echo devtools: %CB_DEVTOOLS%>> "%CB_LOGFILE%"
 ::echo wget: %CB_WGET_VERSION%, gradle: %CB_GRADLE_VERSION%, java: %CB_JAVA_VERSION%>> "%CB_LOGFILE%"
 echo %CB_LINE%>> "%CB_LOGFILE%"
 
@@ -455,8 +463,8 @@ if .%CB_INSTALL_OVERWRITE%==.true set "CB_UNZIP_PARAM=-o"
 echo %CB_LINEHEADER%Extract %CB_PKG_FILTER% in %CB_DEVTOOLS%... & echo %CB_LINEHEADER%Extract %CB_PKG_FILTER% in %CB_DEVTOOLS%... >> "%CB_LOGFILE%"
 FOR /F %%i IN ('dir %CB_DEV_REPOSITORY%\%CB_PKG_FILTER% /b/s') DO (
 	echo %CB_LINEHEADER%Extract package %%i>> "%CB_LOGFILE%" 
-	if exist %CB_BIN%\%CB_UNZIP_CMD% %CB_UNZIP_PARAM% %%i >> "%CB_LOGFILE%" 2>nul
-	if not exist powershell -nologo -command "Expand-Archive -Force '%%i' '%CB_DEVTOOLS%'" >> "%CB_LOGFILE%" 2>nul)
+	if exist %CB_BIN%\%CB_UNZIP_CMD% %CB_BIN%\%CB_UNZIP_CMD% %CB_UNZIP_PARAM% %%i >> "%CB_LOGFILE%" 2>nul
+	if not exist %CB_BIN%\%CB_UNZIP_CMD% powershell -nologo -command "Expand-Archive -Force '%%i' '%CB_DEVTOOLS%'" >> "%CB_LOGFILE%" 2>nul)
 echo %CB_LINE%>> "%CB_LOGFILE%"
 cd /D %CB_CURRENT_PATH%
 goto EXTRACT_ARCHIVES_END
