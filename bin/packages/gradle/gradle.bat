@@ -13,7 +13,6 @@
 if not defined CB_GRADLE_VERSION set "CB_GRADLE_VERSION=6.5.1"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_GRADLE_VERSION%"
-::set "CB_PACKAGE_BASE_URL=https://downloads.gradle-dn.com/distributions"
 set "CB_PACKAGE_BASE_URL=https://services.gradle.org/distributions"
 ::set "CB_PACKAGE_DOWNLOAD_URL=https://gradle.org/next-steps/?version=%CB_PACKAGE_VERSION%&format=bin"
 set "CB_PACKAGE_DOWNLOAD_NAME=gradle-%CB_PACKAGE_VERSION%-bin.zip"
