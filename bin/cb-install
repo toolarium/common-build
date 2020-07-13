@@ -18,10 +18,10 @@
 # define parameters
 CB_LINE="----------------------------------------------------------------------------------------"
 CB_LINEHEADER=".: "
-PN=`basename "$0"`
-REL_PROG_PATH="${0%/*}"
-ABS_PROG_PATH=$(cd -- "`dirname $0`" && pwd)
-PN_BASE="${PN%*.sh}"
+PN=$(basename "$0")
+#REL_PROG_PATH="${0%/*}"
+#ABS_PROG_PATH=$(cd -- "`dirname $0`" && pwd)
+#PN_BASE="${PN%*.sh}"
 
 CB_FORCE_INSALL=false
 CB_INSTALLER_VERSION=1.0.0
@@ -29,6 +29,21 @@ CB_RELEASE_URL=https://api.github.com/repos/toolarium/common-build/releases
 FULLTIMESTAMP="date '+%Y%d%m%H%M%S'"
 USER_FRIENDLY_FULLTIMESTAMP="date '+%d.%m.%Y %H:%M:%S'"
 cbErrorTemp=/tmp/toolarium-common-build_error.txt
+
+CB_OS="$(uname | tr '[:upper:]' '[:lower:]')"
+CB_OS=$(echo "$CB_OS" | awk '{print substr($0, 0, 7)}')
+case $CB_OS in
+	'linux') CB_OS="linux";;
+	'freebsd') CB_OS="freebsd";;
+	'windows') CB_OS="windows";;
+	'mac') CB_OS="mac";;
+	'darwin') CB_OS="mac";;
+	'sunos') CB_OS="solaris";;
+	'cygwin') CB_OS="cygwin";;
+	'cygwin_') CB_OS="cygwin";;
+	'aix') CB_OS="aix";;
+	*) ;;
+esac
 
 
 #########################################################################
@@ -66,7 +81,8 @@ installationSuccess() {
 	echo "Successfully installed toolarium-common-build $releaseVersion"
 	echo "in folder $CB_HOME. "
 	echo ""
-	echo "The \$PATH is already extended and you can start working with it with the command cb!"
+	echo "The \$PATH is extended and you can start working with the command cb!"
+	echo "Please re-login or type in . $1, before you start."
 	echo "$CB_LINE"
 }
 
@@ -87,13 +103,13 @@ installationFailed() {
 # checkInternetConnection
 #########################################################################
 checkInternetConnection() {
-	if [ "$OSTYPE" = "linux"* ]; then
+	if [ "$CB_OS" = "linux" ]; then
 		ping 8.8.8.8 -c 1 -w 1 >/dev/null 2>&1
-	elif [ "$OSTYPE" = "cygwin" ]; then
+	elif [ "$CB_OS" = "cygwin" ]; then
 		ping 8.8.8.8 1 1 >/dev/null 2>&1
-	elif [ "$OSTYPE" = "win32" ]; then
+	elif [ "$CB_OS" = "windows" ]; then
 		ping 8.8.8.8 -n 1 -w 1000 >/dev/null 2>&1
-	#elif [ "$OSTYPE" = "darwin"* ]; then
+	#elif [ "$CB_OS" = "mac" ]; then
 	#	echo "" > /dev/null
 	else
 		echo "" > /dev/null
@@ -130,9 +146,9 @@ getLatestRelease() {
     fi
 
 	CMD="$CMD 2>$cbErrorTemp | grep \"tag_name\" | awk '{print \$2}' |  sed -n 's/\"\(.*\)\",/\1/p' | head -1 2>/dev/null"
-	version=$(eval $CMD)
+	version=$(eval "$CMD")
 	[ $? -eq 0 ] && echo $version || echo ""
-	[ -r $cbErrorTemp ] && [ $(stat -c %s $cbErrorTemp) -eq 0 ] && rm -f $cbErrorTemp >/dev/null 2>&1
+	[ -r "$cbErrorTemp" ] && [ $(stat -c %s $cbErrorTemp) -eq 0 ] && rm -f "$cbErrorTemp" >/dev/null 2>&1
 }
 
 
@@ -147,9 +163,9 @@ getReleaseDownloadUrl() {
 	fi
 
 	CMD="$CMD 2>$cbErrorTemp | grep \"tarball_url\" | awk '{print \$2}' |  sed -n 's/\"\(.*\)\",/\1/p' | head -1 2>/dev/null"
-	downloadUrl=$(eval $CMD)
+	downloadUrl=$(eval "$CMD")
 	[ $? -eq 0 ] && echo $downloadUrl || echo ""
-	[ -r $cbErrorTemp ] && [ $(stat -c %s $cbErrorTemp) -eq 0 ] && rm -f $cbErrorTemp >/dev/null 2>&1
+	[ -r "$cbErrorTemp" ] && [ $(stat -c %s $cbErrorTemp) -eq 0 ] && rm -f "$cbErrorTemp" >/dev/null 2>&1
 }
 
 
@@ -158,9 +174,9 @@ getReleaseDownloadUrl() {
 #########################################################################
 downloadRelease() {
     if [ "$HTTP_REQUEST_CLI" = "curl" ]; then
-        curl -SsL "$1" -o "$2" 2>$cbErrorTemp
+        curl -SsL "$1" -o "$2" 2>"$cbErrorTemp"
     else
-        wget -q -O "$2" "$1" 2>$cbErrorTemp
+        wget -q -O "$2" "$1" 2>"$cbErrorTemp"
     fi
 }
 
@@ -177,7 +193,7 @@ errorhandler() {
 # exit handler
 #########################################################################
 exithandler() {
-	rm -f $cbErrorTemp >/dev/null 2>&1
+	rm -f "$cbErrorTemp" >/dev/null 2>&1
 }
 
 
@@ -202,7 +218,7 @@ do
 done
 
 echo "$CB_LINE"
-echo "${CB_LINEHEADER}Started toolarium-common-build installation on `hostname`, `eval $USER_FRIENDLY_FULLTIMESTAMP`"
+echo "${CB_LINEHEADER}Started toolarium-common-build installation on $(hostname), $(eval "$USER_FRIENDLY_FULLTIMESTAMP")"
 echo "${CB_LINEHEADER}Use $CB_DEVTOOLS path as devtools folder"
 echo "$CB_LINE"
 read -p "Press any key to continue..." input
@@ -218,81 +234,82 @@ releaseVersion=$(getLatestRelease)
 echo "${CB_LINEHEADER}Latest version of common-build is $releaseVersion, select download link"
 downloadUrl=$(getReleaseDownloadUrl)
 [ -z "$downloadUrl" ] && installationFailed "Could not get download url of verison $releaseVersion!" && exit 1
-rm -f $cbErrorTemp >/dev/null 2>&1
+rm -f "$cbErrorTemp" >/dev/null 2>&1
 CB_VERSION_NAME="toolarium-common-build-$releaseVersion"
 
 # create directories
-! [ -d $CB_DEVTOOLS ] && mkdir $CB_DEVTOOLS >/dev/null 2>&1 && echo "${CB_LINEHEADER}Create directory $CB_DEVTOOLS"
+! [ -d "$CB_DEVTOOLS" ] && mkdir "$CB_DEVTOOLS" >/dev/null 2>&1 && echo "${CB_LINEHEADER}Create directory $CB_DEVTOOLS"
 CB_DEV_REPOSITORY="$CB_DEVTOOLS/.repository" 
-! [ -d $CB_DEV_REPOSITORY ] && mkdir $CB_DEV_REPOSITORY >/dev/null 2>&1
+! [ -d "$CB_DEV_REPOSITORY" ] && mkdir "$CB_DEV_REPOSITORY" >/dev/null 2>&1
 
 # download toolarium-common-build
-[ "$CB_FORCE_INSALL" = "true" ] && rm -f $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz >/dev/null 2>&1
-if [ -r $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz ]; then
+[ "$CB_FORCE_INSALL" = "true" ] && rm -f "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" >/dev/null 2>&1
+if [ -r "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" ]; then
 	echo "${CB_LINEHEADER}Found already downloaded version, $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" 
 else
 	echo "${CB_LINEHEADER}Install $CB_VERSION_NAME"
-	downloadRelease $downloadUrl $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz
+	downloadRelease "$downloadUrl" "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz"
 
 	# in case we donwload a new version we also extract new!
-	! [ -r $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz ] && installationFailed "Could not download v$releaseVersion!"
-	[ $(stat -c %s $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz) -gt 0 ] && rm -rf $CB_DEVTOOLS/$CB_VERSION_NAME >/dev/null 2>&1
+	! [ -r "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" ] && installationFailed "Could not download v$releaseVersion!"
+	[ $(stat -c %s $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz) -gt 0 ] && rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME" >/dev/null 2>&1
 fi
 
 if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then 
 	echo "${CB_LINEHEADER}Extract $CB_VERSION_NAME.tgz in $CB_DEVTOOLS..."
 
-	tar -zxf $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz -C $CB_DEV_REPOSITORY/ >/dev/null 2>&1 
+	tar -zxf "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" -C "$CB_DEV_REPOSITORY/" >/dev/null 2>&1 
 	tarContentName=$(find $CB_DEV_REPOSITORY/* -type d -name toolarium-common-build-* -print 2>/dev/null)
-	mv  $tarContentName $CB_DEVTOOLS/$CB_VERSION_NAME >/dev/null 2>&1
+	mv "$tarContentName" "$CB_DEVTOOLS/$CB_VERSION_NAME" >/dev/null 2>&1
 		
 	# remove unecessary files
-	rm $CB_DEVTOOLS/$CB_VERSION_NAME/.gitattributes >/dev/null 2>&1
-	rm $CB_DEVTOOLS/$CB_VERSION_NAME/.gitignore >/dev/null 2>&1
-	rm $CB_DEVTOOLS/$CB_VERSION_NAME/README.md >/dev/null 2>&1
+	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/.gitattributes" >/dev/null 2>&1
+	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/.gitignore" >/dev/null 2>&1
+	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/README.md" >/dev/null 2>&1
 
 	# keep backward compatibility
-	if [ -d $CB_DEVTOOLS/$CB_VERSION_NAME/src ]; then
-		mkdir $CB_DEVTOOLS/$CB_VERSION_NAME/bin
-		cp $CB_DEVTOOLS/$CB_VERSION_NAME/src/main/cli/* $CB_DEVTOOLS/$CB_VERSION_NAME/bin/ >/dev/null 2>&1
-		rm -rf $CB_DEVTOOLS/$CB_VERSION_NAME/src >/dev/null 2>&1
+	if [ -d "$CB_DEVTOOLS/$CB_VERSION_NAME/src" ]; then
+		mkdir "$CB_DEVTOOLS/$CB_VERSION_NAME/bin"
+		cp "$CB_DEVTOOLS/$CB_VERSION_NAME/src/main/cli/*" "$CB_DEVTOOLS/$CB_VERSION_NAME/bin/" >/dev/null 2>&1
+		rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME/src" >/dev/null 2>&1
 	fi
 	
-	chmod -R +x $CB_DEVTOOLS/$CB_VERSION_NAME/bin/* >/dev/null 2>&1
+	chmod -R +x "$CB_DEVTOOLS/$CB_VERSION_NAME/bin/*" >/dev/null 2>&1
 fi
 
+shellProfile="$HOME/.bashrc"
 if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	echo "${CB_LINEHEADER}Set CB_HOME to $CB_DEVTOOLS/$CB_VERSION_NAME"
 	CB_HOME="$CB_DEVTOOLS/$CB_VERSION_NAME"
-	export CB_HOME=$CB_HOME && export PATH="$CB_HOME/bin:$PATH"
+	export CB_HOME="$CB_HOME" && export PATH="$CB_HOME/bin:$PATH"
 
-	shellProfile="$HOME/.bashrc"
-	if [ -w $shellProfile ]; then
+	if [ -w "$shellProfile" ]; then
+		backupFileName="${shellProfile}_cb-$(eval $FULLTIMESTAMP)"
+		cp "$shellProfile" "$backupFileName" >/dev/null 2>&1 && chmod +r "$backupFileName" >/dev/null 2>&1
+	
 		if [ -z "$(cat $shellProfile | grep 'toolarium-common-build support')" ]; then
 			echo "${CB_LINEHEADER}Modify file $shellProfile" 
-			echo "" >> $shellProfile
-			echo "# toolarium-common-build support" >> $shellProfile
-			echo "export CB_HOME=$CB_HOME && export PATH=\"\$CB_HOME/bin:\$PATH\"" >> $shellProfile
+			echo "" >> "$shellProfile"
+			echo "# toolarium-common-build support" >> "$shellProfile"
+			echo "export CB_HOME=$CB_HOME && export PATH=\"\$CB_HOME/bin:\$PATH\"" >> "$shellProfile"
 		else
-			timestamp=$(eval $FULLTIMESTAMP)
 			newFileName="${shellProfile}_cb-new"
-			backupFileName="${shellProfile}_cb-$timestamp"
-			rm -f $newFileName >/dev/null 2>&1
-			cp $shellProfile $backupFileName >/dev/null 2>&1
-			chmod +r $backupFileName >/dev/null 2>&1
+			rm -f "$newFileName" >/dev/null 2>&1
 
 			#TEST: CB_HOME="$CB_HOME/aa"
-			CB_HOME_ESCAPED=$(echo $CB_HOME | sed 's/\//\\\//g')
+			CB_HOME_ESCAPED=$(echo "$CB_HOME" | sed 's/\//\\\//g')
 			echo "${CB_LINEHEADER}Update file $shellProfile" 
-			cat $shellProfile | sed "s/CB_HOME\=.*\&/CB_HOME\=$CB_HOME_ESCAPED\ \&\&/g" > $newFileName
-			chmod --reference=$shellProfile $newFileName >/dev/null 2>&1
-			chmod +r+w $newFileName >/dev/null 2>&1
-			mv -f $newFileName $shellProfile >/dev/null 2>&1
+			cat "$shellProfile" | sed "s/CB_HOME\=.*\&/CB_HOME\=$CB_HOME_ESCAPED\ \&\&/g" > "$newFileName"
+			chmod --reference="$shellProfile $newFileName" >/dev/null 2>&1
+			chmod +r+w "$newFileName" >/dev/null 2>&1
+			mv -f "$newFileName" "$shellProfile" >/dev/null 2>&1
 		fi
+	else
+		echo "${CB_LINEHEADER}Can not set CB_HOME in $shellProfile, it's write protected!"
 	fi
 fi
 
-installationSuccess
+installationSuccess "$shellProfile"
 
 
 #########################################################################
