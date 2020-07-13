@@ -24,6 +24,9 @@ if not defined CB_INSTALL_USER_COMMIT (set "CB_INSTALL_USER_COMMIT=true")
 if not defined CB_USER (set "CB_USER=%USERNAME%")
 if not defined CB_PACKAGE_PASSWORD (set "CB_PACKAGE_PASSWORD=")
 if not defined CB_DEVTOOLS_JAVA_PREFIX (set "CB_DEVTOOLS_JAVA_PREFIX=*jdk-")
+if not defined CB_INSTALL_OVERWRITE (set "CB_INSTALL_OVERWRITE=false")
+set CB_WGET_CMD=wget.exe
+set CB_UNZIP_CMD=unzip.exe
 
 set "CB_PROJECT_JAVA_VERSION_FILE=.java-version"
 set "CB_JAVA_VERSION_FILE=.cb-java-version"
@@ -138,6 +141,7 @@ echo  CB_PACKAGE_USER      The user for the access to the CB_PACKAGE_URL.
 echo  CB_PACKAGE_PASSWORD  In case the value is ask, the password can be entered securely 
 echo                       on the command line.
 echo  CB_CUSTOM_SETTING    Can be use to reference to an own start script.
+echo  CB_INSTALL_OVERWRITE Defines if existing packages should be overwritten (default false).
 echo.
 echo Special files:
 echo  .java-version        Can be used to reference to a specific java version (only major 
@@ -148,6 +152,7 @@ echo  -Install specific java version: cb --install java 14
 echo  -Install specific gradle version: cb --install gradle 6.5
 echo  -Install specific maven version: cb --install maven 3.6.3
 echo  -Install specific ant version: cb --install ant 1.10.8
+echo  -Install default node version: cb --install node
 echo.
 echo Please check the homepage for more information: https://github.com/toolarium/common-build
 echo.
@@ -198,7 +203,7 @@ set "versionInformation=,"
 if defined cbJavaVersion set "versionInformation=%cbJavaVersion%,"
 if not defined cbJavaVersionAvailable echo %CB_LINEHEADER%Can not find common-build java version %versionInformation% give up! & goto END_WITH_ERROR
 set "CB_JAVA_HOME_RUNTIME=%CB_DEVTOOLS%\%cbJavaVersion%"
-if defined cbSetJavaHome echo %CB_LINEHEADER%Set CB_JAVA_HOME to %CB_JAVA_HOME_RUNTIME%!
+if defined cbSetJavaHome echo %CB_LINEHEADER%Set CB_JAVA_HOME to %CB_JAVA_HOME_RUNTIME% as default!
 if defined cbSetJavaHome setx CB_JAVA_HOME "%CB_JAVA_HOME_RUNTIME%" >nul 2>nul & set "CB_JAVA_HOME=%CB_JAVA_HOME_RUNTIME%"
 
 :COMMON_BUILD_VERIFY_JAVA
@@ -359,7 +364,6 @@ set "FULLTIMESTAMP=%DATESTAMP%-%TIMESTAMP%"
 set "USER_FRIENDLY_DATESTAMP=%DD%.%MM%.%YYYY%" 
 set "USER_FRIENDLY_TIMESTAMP=%HH%:%Min%:%Sec%" 
 set "USER_FRIENDLY_FULLTIMESTAMP=%USER_FRIENDLY_DATESTAMP% %USER_FRIENDLY_TIMESTAMP%"
-set CB_NEW_INSTALLATION=false
 
 if [%CB_INSTALL_SILENT%] equ [false] (echo %CB_LINE%
 		echo %CB_LINEHEADER%Start common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%:
@@ -368,24 +372,19 @@ if [%CB_INSTALL_SILENT%] equ [false] (echo %CB_LINE%
 
 :: create directories
 if not exist %CB_DEVTOOLS% mkdir %CB_DEVTOOLS% >nul 2>nul 
-set CB_NEW_INSTALLATION=true
 if not exist %CB_HOME% mkdir %CB_HOME% >nul 2>nul 
-set CB_NEW_INSTALLATION=true
 set "CB_BIN=%CB_HOME%\bin" 
 if not exist %CB_BIN% mkdir %CB_BIN% >nul 2>nul
-set CB_NEW_INSTALLATION=true
 set "CB_LOGS=%CB_HOME%\logs" 
 if not exist %CB_LOGS% mkdir %CB_LOGS% >nul 2>nul 
-set CB_NEW_INSTALLATION=true
 set "CB_DEV_REPOSITORY=%CB_DEVTOOLS%\.repository" 
 if not exist %CB_DEV_REPOSITORY% mkdir %CB_DEV_REPOSITORY% >nul 2>nul
-set CB_NEW_INSTALLATION=true
 
 set "CB_LOGFILE=%CB_LOGS%\%FULLTIMESTAMP%-%CB_USER%.log"
 ::if [%CB_INSTALL_SILENT%] equ [false] (echo %CB_LINEHEADER%The installation log file can be found here "%CB_LOGFILE%")
 echo %CB_LINE%>> "%CB_LOGFILE%"
 echo Started common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%>> "%CB_LOGFILE%"
-echo common-build: %CB_HOME%, devtools: %CB_DEVTOOLS% (name: %CB_DEVTOOLS_NAME%, drive:%CB_DEVTOOLS_DRIVE%)>> "%CB_LOGFILE%"
+echo common-build: %CB_HOME%, devtools: %CB_DEVTOOLS%>> "%CB_LOGFILE%"
 ::echo wget: %CB_WGET_VERSION%, gradle: %CB_GRADLE_VERSION%, java: %CB_JAVA_VERSION%>> "%CB_LOGFILE%"
 echo %CB_LINE%>> "%CB_LOGFILE%"
 
@@ -394,7 +393,6 @@ set "CB_WGET_SECURITY_CREDENTIALS=--trust-server-names --no-check-certificate"
 set "CB_WGET_PROGRESSBAR=--show-progress"
 set "CB_WGET_LOG=-a %CB_LOGFILE%"
 set "CB_WGET_PARAM=-c"
-set "CB_SCRIPT_DRIVE=%~d0"
 set CB_PKG_FILTER=
 set CB_PKG_FILTER_WILDCARD=false
 
@@ -426,10 +424,10 @@ set CB_WGET_FILTER=--exclude-directories=_deprecated -R "index.*"
 echo %CB_LINE%>> "%CB_LOGFILE%"
 echo %CB_LINEHEADER%Install packages from %CB_PACKAGE_URL% & echo %CB_LINEHEADER%Install packages from %CB_PACKAGE_URL%>> "%CB_LOGFILE%"
 
-cd %CB_DEV_REPOSITORY%
+cd /D %CB_DEV_REPOSITORY%
 echo %CB_BIN%\%CB_WGET_CMD% %CB_PACKAGE_URL% %CB_WGET_PARAM% %CB_WGET_RECURSIVE_PARAM% %CB_WGET_SECURITY_CREDENTIALS% %CB_WGET_PROGRESSBAR% %CB_WGET_USER_CREDENTIALS% %CB_WGET_FILTER% %CB_WGET_LOG%>> "%CB_LOGFILE%"
 %CB_BIN%\%CB_WGET_CMD% %CB_PACKAGE_URL% %CB_WGET_PARAM% %CB_WGET_RECURSIVE_PARAM% %CB_WGET_SECURITY_CREDENTIALS% %CB_WGET_PROGRESSBAR% %CB_WGET_USER_CREDENTIALS% %CB_WGET_FILTER% %CB_WGET_LOG%
-cd %CB_CURRENT_PATH%
+cd /D %CB_CURRENT_PATH%
 if not %ERRORLEVEL% equ 6 goto INSTALL_PACKAGES_END
 echo ERROR: Invalid credentials, give up. >> "%CB_LOGFILE%"
 echo %CB_LINE%
@@ -448,17 +446,23 @@ if not defined CB_PKG_FILTER goto EXTRACT_ARCHIVES_END
 if [%CB_PKG_FILTER_WILDCARD%] equ [true] (goto EXTRACT_ARCHIVES_START)
 if not exist %CB_DEV_REPOSITORY%\%CB_PKG_FILTER% goto EXTRACT_ARCHIVES_FAILED
 
-::EXTRACT_ARCHIVES_START
+:EXTRACT_ARCHIVES_START
 echo %CB_LINE%>> "%CB_LOGFILE%"
+cd /D %CB_DEVTOOLS%
+set "CB_UNZIP_PARAM=-n"
+if .%CB_INSTALL_OVERWRITE%==.true set "CB_UNZIP_PARAM=-o"
+
 echo %CB_LINEHEADER%Extract %CB_PKG_FILTER% in %CB_DEVTOOLS%... & echo %CB_LINEHEADER%Extract %CB_PKG_FILTER% in %CB_DEVTOOLS%... >> "%CB_LOGFILE%"
 FOR /F %%i IN ('dir %CB_DEV_REPOSITORY%\%CB_PKG_FILTER% /b/s') DO (
 	echo %CB_LINEHEADER%Extract package %%i>> "%CB_LOGFILE%" 
-	powershell -nologo -command "Expand-Archive -Force '%%i' '%CB_DEVTOOLS%'" >> "%CB_LOGFILE%" 2>nul)
+	if exist %CB_BIN%\%CB_UNZIP_CMD% %CB_UNZIP_PARAM% %%i >> "%CB_LOGFILE%" 2>nul
+	if not exist powershell -nologo -command "Expand-Archive -Force '%%i' '%CB_DEVTOOLS%'" >> "%CB_LOGFILE%" 2>nul)
 echo %CB_LINE%>> "%CB_LOGFILE%"
+cd /D %CB_CURRENT_PATH%
 goto EXTRACT_ARCHIVES_END
 
 :EXTRACT_ARCHIVES_FAILED
-echo %CB_LINEHEADER%No package found %CB_PACKAGE_VERSION_NAME%
+echo %CB_LINEHEADER%No package found %CB_PACKAGE_VERSION_NAME% (%CB_PKG_FILTER%)
 goto EXTRACT_ARCHIVES_END
 
 :EXTRACT_ARCHIVES_END

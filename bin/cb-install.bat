@@ -16,6 +16,8 @@ if .%CB_DEVTOOLS_DRIVE%==.  set "CB_DEVTOOLS_DRIVE=c:"
 if .%CB_DEVTOOLS%==. set "CB_DEVTOOLS=%CB_DEVTOOLS_DRIVE%\%CB_DEVTOOLS_NAME%"
 if .%CB_WGET_VERSION%==. set "CB_WGET_VERSION=1.20.3"
 if .%CB_WGET_DOWNLOAD_URL%==. set "CB_WGET_DOWNLOAD_URL=https://eternallybored.org/misc/wget/"
+if .%CB_UNZIP_DOWNLOAD_URL%==. set "CB_UNZIP_DOWNLOAD_URL=http://stahlworks.com/dev/"
+
 
 :: define parameters
 set "CB_LINEHEADER=.: "
@@ -196,6 +198,13 @@ set "CB_WGET_PACKAGE_URL=%CB_WGET_DOWNLOAD_URL%/%CB_WGET_VERSION%/%CB_PROCESSOR_
 echo %CB_LINEHEADER%Install %CB_BIN%\%CB_WGET_CMD%
 powershell -Command "iwr $start_time = Get-Date;Invoke-WebRequest -Uri '%CB_WGET_PACKAGE_URL%' -OutFile %CB_BIN%\%CB_WGET_CMD%;Write-Output 'Time taken: $((Get-Date).Subtract($start_time).Seconds) seconds' 2>nul | iex 2>nul" 2>nul
 :DOWNLOAD_WGET_END
+
+set CB_UNZIP_CMD=unzip.exe
+if exist %CB_BIN%\%CB_UNZIP_CMD% goto DOWNLOAD_UNZIP_END
+set "CB_UNZIP_PACKAGE_URL=%CB_UNZIP_DOWNLOAD_URL%/%CB_UNZIP_CMD%"
+echo %CB_LINEHEADER%Install %CB_BIN%\%CB_UNZIP_CMD%
+powershell -Command "iwr $start_time = Get-Date;Invoke-WebRequest -Uri '%CB_UNZIP_PACKAGE_URL%' -OutFile %CB_BIN%\%CB_UNZIP_CMD%;Write-Output 'Time taken: $((Get-Date).Subtract($start_time).Seconds) seconds' 2>nul | iex 2>nul" 2>nul
+:DOWNLOAD_UNZIP_END
 goto INSTALL_SUCCESSFULL_END
 
 :INSTALL_FAILED
@@ -212,7 +221,7 @@ echo %CB_LINE%
 echo Successfully installed toolarium-common-build v%CB_REMOTE_VERSION%
 echo in folder %CB_HOME%. 
 echo.
-echo The %%PATH%% is already extended and you can start working with it with the command cb!
+echo The %%PATH%% is already extended and you can start working with the command cb!
 echo %CB_LINE%
 goto END
 
