@@ -15,7 +15,7 @@ CB_LINEHEADER=".: "
 PN=$(basename "$0")
 PN_FULL="$0"
 #REL_PROG_PATH="${0%/*}"
-#ABS_PROG_PATH=$(cd -- "`dirname $0`" && pwd)
+ABS_PROG_PATH=$(cd -- "`dirname $0`" && pwd)
 
 CB_SCRIPT_PATH=$(dirname "$0")
 CB_CURRENT_PATH=$PWD
@@ -40,6 +40,7 @@ case $CB_OS in
 esac
 CB_MACHINE="$(uname -m | tr '[:upper:]' '[:lower:]')"
 export CB_OS CB_MACHINE
+export CB_LINE CB_LINEHEADER
 
 if [ -z "$CB_HOME" ]; then
 	echo "$CB_LINE"
@@ -108,6 +109,19 @@ printVersion() {
 
 
 #########################################################################
+# printPackages
+#########################################################################
+printPackages() {
+	readVersion
+	printVersion
+	#echo "available modules:"
+	packages=$(cd $CB_HOME/bin/packages && find . -type f -name "*.sh" | awk -F/ '{print "  "$2}')
+	echo "$packages"
+	echo "$CB_LINE"
+}
+
+
+#########################################################################
 # printUsage
 #########################################################################
 printUsage() {
@@ -121,6 +135,7 @@ printUsage() {
 	echo " -exp, --explore      Starts in Windows environment a new explorer."
 	echo " --java [version]     Set a different java version for this run, e.g. --java 14."
 	echo " --silent             Suppress the console output from the common-build."
+	echo " --packages           Supported packages."
 	echo " --install            Install the common build environment."
 	echo " --setenv             Set all environment variable and stop execution."
 	echo ""
@@ -665,12 +680,9 @@ installCb() {
 # projectWizard
 #########################################################################
 projectWizard() {
-    projectWizardFile="${CB_ENVIRONMENT}/projectWizard.xml"
-    CB_WIZARD_PARAMETERS="$@"
-    
-    export CB_WIZARD_PARAMETERS
-    ant -f ${projectWizardFile}
-    
+	echo 1
+	eval $ABS_PROG_PATH/include/project-wizard.sh $@
+    echo ok
     if [ -f cb-new-project.tmp ]
     then
         echo "create project"
@@ -679,9 +691,9 @@ projectWizard() {
         cd "$SHORTNAME"
         ant
     else
-        echo "$LINE"
+        echo "$CB_LINE"
         echo "ERROR: Could not call ant on the new created project!"
-        echo "$LINE"
+        echo "$CB_LINE"
     fi
 }
 
@@ -691,16 +703,23 @@ projectWizard() {
 #########################################################################
 exploreProject()
 {
-    currentWindowDirectory="$(pwd|sed s'/\\/cygdrive\\/c\\//c:\\\\/g'|sed s'/\\/cygdrive\\/d\\//d:\\\\/g'|sed s'/\\/cygdrive\\/e\\//e:\\\\/g'|sed s'/\\//\\\\/g')"	
-    explorerPath=$(which explorer.exe 2>/dev/null)
-    if [ -x "$explorerPath" ]
-    then
-        $explorerPath "$currentWindowDirectory"
-    else
-        echo "$LINE"
-        echo "ERROR: Could not found explorer.exe!"
-        echo "$LINE"
-    fi
+	fileExplorer=
+	[ "$CB_OS" = "windows" ] && fileExplorer=$(which explorer.exe 2>/dev/null)
+	[ "$CB_OS" = "cygwin" ] && fileExplorer=$(which explorer.exe 2>/dev/null)
+
+	if [ -n "$fileExplorer" ]; then
+		if [ -x "$fileExplorer" ]
+		then
+			currentWindowDirectory="$(cygpath --windows $CB_CURRENT_PATH)"	
+			$fileExplorer "$currentWindowDirectory"
+		else
+			echo "$CB_LINE"
+			echo "${CB_LINEHEADER}Could not found explorer.exe!"
+			echo "$CB_LINE"
+		fi
+	else
+		echo "${CB_LINEHEADER}This functionality is not supported by this os ($CB_OS)!"	
+	fi
 }
 
 
@@ -718,13 +737,15 @@ do
 		--help)	readVersion; printUsage; exit 1;;
 		-v) readVersion; printVersion; exit 0;;
 		--version) readVersion; printVersion; exit 0;;
-		-new)	shift; projectWizard "$@"; exit 0;;
-		--new)	shift; projectWizard "$@"; exit 0;;
-		-exp)	shift; exploreProject; exit 0;;	
+		-new)		shift; projectWizard "$@"; exit 0;;
+		--new)		shift; projectWizard "$@"; exit 0;;
+		-exp)		shift; exploreProject; exit 0;;	
 		--explore)	shift; exploreProject; exit 0;;	
+		--force)	CB_INSTALL_OVERWRITE="true";;
 		--install)	shift; installCb "$@"; exit 0;;	
-		--java)	shift; exploreProject; exit 0;;	
-		--setenv)	shift; CB_SETENV=true;;	
+		--packages)	shift; printPackages "$@"; exit 0;;	
+		--java)		shift && echo $1 > $CB_JAVA_VERSION_FILE;;	
+		--setenv)	CB_SETENV=true;;	
 		*)	CB_PARAMETERS="$CB_PARAMETERS $1";;
     esac
     shift

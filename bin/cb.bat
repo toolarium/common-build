@@ -13,10 +13,11 @@
 set CB_LINE=----------------------------------------------------------------------------------------
 set "CB_LINEHEADER=.: "
 set PN=%~nx0
-set PN_FULL=%0
 set "CB_SCRIPT_PATH=%~dp0"
+set "PN_FULL=%CB_SCRIPT_PATH%%PN%"
 set "CB_CURRENT_PATH=%CD%"
 set "CB_INSTALL_SILENT=false"
+set CB_CUSTOM_SETTING_SCRIPT=
 
 if not defined CB_HOME (echo %CB_LINE% & echo %CB_LINEHEADER%Missing CB_HOME environment variable! Please install with the cb-install.bat! & echo %CB_LINE% & goto END_WITH_ERROR)
 if not defined CB_PACKAGE_URL (set "CB_PACKAGE_URL=")
@@ -62,18 +63,18 @@ if %ERRORLEVEL% EQU 9009 (SET "PATH=%PATH%;%SystemRoot%\System32\")
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: custom initialisation
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-if [%CB_CUSTOM_SETTING%] equ [] goto CUSTOM_SETTINGS_END
-if exist %CB_CUSTOM_SETTING% goto CUSTOM_SETTINGS_START
+if .%CB_CUSTOM_SETTING% == . goto CUSTOM_SETTINGS_INIT_END_CALL
+if exist %CB_CUSTOM_SETTING% goto CUSTOM_SETTINGS_INIT_CALL
 echo %CB_LINE%
 echo %CB_LINEHEADER%Could not find custom scrpit, see %%CB_CUSTOM_SETTING%%: 
 echo %CB_CUSTOM_SETTING%
 echo %CB_LINE%
-goto CUSTOM_SETTINGS_END
+goto CUSTOM_SETTINGS_INIT_END_CALL
 
-:CUSTOM_SETTINGS_START
-::echo Custom settings %CB_CUSTOM_SETTING%
-call %CB_CUSTOM_SETTING% %1 %2 %3 %4 %5 %6 %7 2>nul
-:CUSTOM_SETTINGS_END
+:CUSTOM_SETTINGS_INIT_CALL
+set "CB_CUSTOM_SETTING_SCRIPT=%CB_CUSTOM_SETTING%"
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% start %1 %2 %3 %4 %5 %6 %7 2>nul
+:CUSTOM_SETTINGS_INIT_END_CALL
 
 
 set "CB_SETENV="
@@ -92,6 +93,7 @@ if .%1==.-new goto PROJECT_WIZARD
 if .%1==.--new goto PROJECT_WIZARD
 if .%1==.-exp goto PROJECT_EXPLORE
 if .%1==.--explore goto PROJECT_EXPLORE
+if .%1==.--packages goto PACKAGES
 if .%1==.--install goto INSTALL_CB
 if .%1==.--java goto SET_JAVA_PARAM
 if .%1==.--setenv (set CB_SETENV=true)
@@ -112,7 +114,17 @@ goto CHECK_PARAMETER
 echo %CB_LINE%
 echo toolarium common build %CB_VERSION%
 echo %CB_LINE%
-echo.
+goto END
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:PACKAGES
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo %CB_LINE%
+echo toolarium common build %CB_VERSION%
+echo %CB_LINE%
+dir /b %CB_HOME%\bin\packages\
+echo %CB_LINE%
 goto END
 
 
@@ -129,6 +141,7 @@ echo  --new                Create a new project.
 echo  -exp, --explore      Starts in Windows environment a new explorer.
 echo  --java [version]     Set a different java version for this run, e.g. --java 14.
 echo  --silent             Suppress the console output from the common-build.
+echo  --packages           Supported packages.
 echo  --install            Install the common build environment.
 echo  --setenv             Set all environment variable and stop execution.
 echo.
@@ -224,6 +237,7 @@ WHERE javac >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find java version in path! & goto END_WITH_ERROR
 
 :: decide which build tool to use
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-start %1 %2 %3 %4 %5 %6 %7 2>nul
 if exist build.gradle goto COMMON_BUILD_GRADLE
 if exist pom.xml goto COMMON_BUILD_MAVEN
 if exist build.xml goto COMMON_BUILD_ANT
@@ -232,6 +246,7 @@ if exist build.xml goto COMMON_BUILD_ANT
 :COMMON_BUILD_GRADLE
 set GRADLE_EXEC=gradle
 if exist gradlew.bat set "GRADLE_EXEC=gradlew" & goto COMMON_BUILD_GRADLE_EXEC
+if exist gradlew set "GRADLE_EXEC=gradlew" & goto COMMON_BUILD_GRADLE_EXEC
 if defined CB_GRADLE_HOME goto COMMON_BUILD_VERIFY_GRADLE
 set "TMPFILE=%CB_CURRENT_PATH%\cb-gradle-home.tmp"
 dir %CB_DEVTOOLS%\*gradle* /O-D/b 2>nul | findstr/n ^^ | findstr 1:> "%TMPFILE%"
@@ -251,7 +266,8 @@ if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find gradle version in path!
 :COMMON_BUILD_GRADLE_EXEC
 if defined CB_SETENV set "CB_SETENV=gradle" & goto END_PRINT_VAIRABLE
 if defined CB_OFFLINE set "CB_PARAMETERS=--offline %CB_PARAMETERS%" & echo %CB_LINEHEADER%Offline build!
-cmd /C %GRADLE_EXEC% %CB_PARAMETERS%
+cmd /C call %GRADLE_EXEC% %CB_PARAMETERS%
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END
 
 :: maven
@@ -276,7 +292,8 @@ WHERE %MAVEN_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find maven version in path! & goto END_WITH_ERROR
 :COMMON_BUILD_MAVEN_EXEC
 if defined CB_SETENV set "CB_SETENV=maven" & goto END_PRINT_VAIRABLE
-cmd /C %MAVEN_EXEC% %CB_PARAMETERS%
+cmd /C call %MAVEN_EXEC% %CB_PARAMETERS%
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END
 
 :: ant
@@ -300,7 +317,8 @@ WHERE %ANT_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find ant version in path! & goto END_WITH_ERROR
 :COMMON_BUILD_ANT_EXEC
 if defined CB_SETENV set "CB_SETENV=ant" & goto END_PRINT_VAIRABLE
-cmd /C %ANT_EXEC% %CB_PARAMETERS%
+cmd /C call %ANT_EXEC% %CB_PARAMETERS%
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END
 
 
@@ -309,7 +327,6 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 SHIFT
 SET CB_WIZARD_PARAMETERS=%CB_PARAMETERS%
-
 :CHECK_PARAMETER_WIZARD
 IF %0X==X GOTO START_WIZARD
 SET CB_WIZARD_PARAMETERS=%CB_WIZARD_PARAMETERS% %1
@@ -317,37 +334,16 @@ SHIFT
 GOTO CHECK_PARAMETER_WIZARD
 
 :START_WIZARD
-if not defined projectName (set projectName=my-project)
-set /p projectName=Please enter project name, e.g. [%projectName%]: 
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% new-start %CB_WIZARD_PARAMETERS% 2>nul
 
-if not defined projectRootPackageName (set projectRootPackageName=my.package.name)
-set /p projectRootPackageName=Please enter package name, e.g. [%projectRootPackageName%]: 
+call %CB_SCRIPT_PATH%\include\project-wizard.bat %CB_WIZARD_PARAMETERS%
+if not %ERRORLEVEL% equ 0 goto END_WITH_ERROR
 
-FOR /F "tokens=1,2 delims=-" %%i in ("%projectName%") do ( set "projectGroupId=%%i" )
-set /p projectGroupId=Please enter project group id, e.g. [%projectGroupId%]: 
-
-FOR /F "tokens=1,2 delims=-" %%i in ("%projectName%") do ( set "projectComponentId=%%i" )
-set /p projectComponentId=Please enter project component id, e.g. [%projectComponentId%]: 
-
-if not defined projectDescription (set projectDescription=The implementation of the %projectName%)
-set /p projectDescription=Please enter project description [%projectDescription%]: 
-
-echo.
-echo Project types:
-echo [1] java-library
-echo [2] config project
-set /p projectTypeId=Please choose the project type [1]: 
-
-if [%projectTypeId%] equ [] set projectType=java-library
-if [%projectTypeId%] equ [1] set projectType=java-library
-if [%projectTypeId%] equ [2] set projectType=config
-
-mkdir %projectName% 2>nul
 cd %projectName%
-echo apply from: "https://git.io/JfDQT" > build.gradle
-::%PN_FULL% "-PprojectType=%projectType%" "-PprojectRootPackageName=%projectRootPackageName%" "-PprojectGroupId=%projectGroupId%" "-PprojectComponentId=%projectComponentId%" "-PprojectDescription=%projectDescription%"
-%PN_FULL% "-PprojectType=%projectType%" "-PprojectRootPackageName=%projectRootPackageName%" "-PprojectGroupId=%projectGroupId%" "-PprojectComponentId=%projectComponentId%" "-PprojectDescription="%projectDescription% ""
-cd ..
+set BACKUP_CB_CURRENT_PATH=%CB_CURRENT_PATH%
+call %PN_FULL% "-PprojectType=%projectType%" "-PprojectRootPackageName=%projectRootPackageName%" "-PprojectGroupId=%projectGroupId%" "-PprojectComponentId=%projectComponentId%" "-PprojectDescription="%projectDescription% ""
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% new-end %CB_WIZARD_PARAMETERS% 2>nul
+cd %BACKUP_CB_CURRENT_PATH%
 goto END
 
 
@@ -371,6 +367,9 @@ set "FULLTIMESTAMP=%DATESTAMP%-%TIMESTAMP%"
 set "USER_FRIENDLY_DATESTAMP=%DD%.%MM%.%YYYY%" 
 set "USER_FRIENDLY_TIMESTAMP=%HH%:%Min%:%Sec%" 
 set "USER_FRIENDLY_FULLTIMESTAMP=%USER_FRIENDLY_DATESTAMP% %USER_FRIENDLY_TIMESTAMP%"
+
+:: custom setting script
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-start %1 %2 %3 %4 %5 %6 %7 2>nul
 
 if [%CB_INSTALL_SILENT%] equ [false] (echo %CB_LINE%
 		echo %CB_LINEHEADER%Start common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%
@@ -437,9 +436,9 @@ echo %CB_BIN%\%CB_WGET_CMD% %CB_PACKAGE_URL% %CB_WGET_PARAM% %CB_WGET_RECURSIVE_
 %CB_BIN%\%CB_WGET_CMD% %CB_PACKAGE_URL% %CB_WGET_PARAM% %CB_WGET_RECURSIVE_PARAM% %CB_WGET_SECURITY_CREDENTIALS% %CB_WGET_PROGRESSBAR% %CB_WGET_USER_CREDENTIALS% %CB_WGET_FILTER% %CB_WGET_LOG%
 cd /D %CB_CURRENT_PATH%
 if not %ERRORLEVEL% equ 6 goto INSTALL_PACKAGES_END
-echo ERROR: Invalid credentials, give up. >> "%CB_LOGFILE%"
+echo %CB_LINEHEADER%ERROR: Invalid credentials, give up. >> "%CB_LOGFILE%"
 echo %CB_LINE%
-echo ERROR: Invalid credentials, give up.
+echo %CB_LINEHEADER%ERROR: Invalid credentials, give up.
 echo %CB_LINE%
 goto INSTALL_CB_END
 :INSTALL_PACKAGES_END
@@ -485,17 +484,21 @@ echo %CB_LINE%>> "%CB_LOGFILE%"
 goto INSTALL_CB_SUCCESS_END
 
 :INSTALL_CB_SUCCESS_END
-
 :INSTALL_CB_END
+
+:: custom setting script
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-end %1 %2 %3 %4 %5 %6 %7 2>nul
+
 if [%CB_INSTALL_SILENT%] equ [false] (echo %CB_LINE%)
-::exit /b 1
 goto END
+
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :END_WITH_ERROR
-::exit /b 1
-goto END
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% error %1 %2 %3 %4 %5 %6 %7 2>nul
+exit /b 1
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
 
 :END_PRINT_VAIRABLE
 echo %CB_LINE%
@@ -504,14 +507,14 @@ if [%CB_SETENV%] equ [gradle] echo    %%GRADLE_HOME%%: %GRADLE_HOME%
 if [%CB_SETENV%] equ [maven] echo    %%MAVEN_HOME%%: %MAVEN_HOME%
 if [%CB_SETENV%] equ [ant] echo    %%ANT_HOME%%: %ANT_HOME%
 if [%CB_SETENV%] equ [node] echo    %%NODE_HOME%%: %NODE_HOME%
-
-::echo    %%GRADLE_HOME%%: %GRADLE_HOME%, %%MAVEN_HOME%%: %MAVEN_HOME%, %%AND_HOME%%: %ANT_HOME%
 echo    %%JAVA_HOME%%: %JAVA_HOME%
-::echo    %%PATH%%: %PATH%
+:: custom setting script
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% print-variable %1 %2 %3 %4 %5 %6 %7 2>nul
 echo %CB_LINE%
 goto END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :END
+exit /b 0
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
