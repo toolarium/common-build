@@ -24,6 +24,8 @@ if .%1==.new-start goto CUSTOM_NEW_START
 if .%1==.new-end goto CUSTOM_NEW_END
 if .%1==.install-start goto CUSTOM_INSTALL_START
 if .%1==.install-end goto CUSTOM_INSTALL_END
+if .%1==.install-pkg-start goto CUSTOM_INSTALL_PKG_START
+if .%1==.install-pkg-end goto CUSTOM_INSTALL_PKG_END
 if .%1==.extract-archive-start goto CUSTOM_EXTRACT_ARCHIVE_START
 if .%1==.extract-archive-end goto CUSTOM_EXTRACT_ARCHIVE_END
 if .%1==.error-end goto CUSTOM_ERROR_END
@@ -85,6 +87,20 @@ goto CUSTOM_END
 :CUSTOM_INSTALL_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %CB_LINEHEADER%END CUSTOM INSTALL
+goto CUSTOM_END
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:CUSTOM_INSTALL_PKG_START
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo %CB_LINEHEADER%START CUSTOM PKG INSTALL 
+goto CUSTOM_END
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:CUSTOM_INSTALL_PKG_END
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo %CB_LINEHEADER%END CUSTOM PKG INSTALL
 goto CUSTOM_END
 
 

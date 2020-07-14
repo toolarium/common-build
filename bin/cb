@@ -232,7 +232,7 @@ commonBuildGradle() {
 
 	[ "$CB_SETENV" = "true" ] && endPrintVariable gradle
 	[ "$CB_OFFLINE" = "true" ] && CB_PARAMETERS="--offline $CB_PARAMETERS" && echo "${CB_LINEHEADER}Offline build!"
-
+	
     eval "$GRADLE_EXEC $CB_PARAMETERS"
 	errorCode=$?
 }
@@ -681,20 +681,12 @@ installCb() {
 #########################################################################
 projectWizard() {
 	echo 1
-	eval $ABS_PROG_PATH/include/project-wizard.sh $@
-    echo ok
-    if [ -f cb-new-project.tmp ]
-    then
-        echo "create project"
-        SHORTNAME="$(cat cb-new-project.tmp)"
-        rm cb-new-project.tmp
-        cd "$SHORTNAME"
-        ant
-    else
-        echo "$CB_LINE"
-        echo "ERROR: Could not call ant on the new created project!"
-        echo "$CB_LINE"
-    fi
+	if eval ". $ABS_PROG_PATH/include/project-wizard.sh $@"; then
+		eval "cd $projectName && $ABS_PROG_PATH/$PN -PprojectType=$projectType -PprojectRootPackageName=$projectRootPackageName -PprojectGroupId=$projectGroupId -PprojectComponentId=$projectComponentId -PprojectDescription='$projectDescription'"
+		#if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% new-end %CB_WIZARD_PARAMETERS%
+	else
+		exit 1
+	fi
 }
 
 
@@ -746,7 +738,7 @@ do
 		--packages)	shift; printPackages "$@"; exit 0;;	
 		--java)		shift && echo $1 > $CB_JAVA_VERSION_FILE;;	
 		--setenv)	CB_SETENV=true;;	
-		*)	CB_PARAMETERS="$CB_PARAMETERS $1";;
+		*)	CB_PARAMETERS="$CB_PARAMETERS \"$1\"";;
     esac
     shift
 done

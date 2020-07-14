@@ -414,14 +414,15 @@ if not .%CB_PACKAGE_DOWNLOAD_NAME%==. set "CB_PKG_FILTER=%CB_PACKAGE_DOWNLOAD_NA
 goto CHECK_EXTRACT_ARCHIVES 
 
 :INSTALL_DEFAULT_PACKAGES
-:: TODO
 set CB_PKG_FILTER=*.zip
 set CB_PKG_FILTER_WILDCARD=true
 goto CHECK_EXTRACT_ARCHIVES 
 
 :: packages
 :INSTALL_PACKAGES
-if not defined CB_PACKAGE_URL goto CHECK_EXTRACT_ARCHIVES
+:: custom setting script
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-pkg-start %1 %2 %3 %4 %5 %6 %7 2>nul
+if not defined CB_PACKAGE_URL echo %CB_LINEHEADER%No CB_PACKAGE_URL environment variable found! & goto INSTALL_CB_END
 set CB_WGET_USER_CREDENTIALS=
 if [%CB_PACKAGE_USER%] equ [] (set /p CB_PACKAGE_USER=Please enter user credentials, e.g. %CB_USER%: )
 if [%CB_PACKAGE_USER%] equ [] (set "CB_PACKAGE_USER=%CB_USER%")
@@ -441,14 +442,17 @@ echo %CB_LINE%
 echo %CB_LINEHEADER%ERROR: Invalid credentials, give up.
 echo %CB_LINE%
 goto INSTALL_CB_END
+
 :INSTALL_PACKAGES_END
+:: custom setting script
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-pkg-end %1 %2 %3 %4 %5 %6 %7 2>nul
 echo %CB_LINE%>> "%CB_LOGFILE%"
-if .%2==.pkg goto CHECK_EXTRACT_ARCHIVES	
 
 :: extract
 :CHECK_EXTRACT_ARCHIVES
-::if exist %CB_BIN%\cleanup-installation.bat (echo %CB_LINEHEADER%Cleanup old packages... >> "%CB_LOGFILE%" 
-::	call %CB_BIN%\cleanup-installation >> "%CB_LOGFILE%" 2>/nul)
+:: custom setting script
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% extract-archive-start %1 %2 %3 %4 %5 %6 %7 2>nul
+
 if not defined CB_PKG_FILTER goto EXTRACT_ARCHIVES_END
 if [%CB_PKG_FILTER_WILDCARD%] equ [true] (goto EXTRACT_ARCHIVES_START)
 if not exist %CB_DEV_REPOSITORY%\%CB_PKG_FILTER% goto EXTRACT_ARCHIVES_FAILED
@@ -461,9 +465,11 @@ if .%CB_INSTALL_OVERWRITE%==.true set "CB_UNZIP_PARAM=-o"
 
 echo %CB_LINEHEADER%Extract %CB_PKG_FILTER% in %CB_DEVTOOLS%... & echo %CB_LINEHEADER%Extract %CB_PKG_FILTER% in %CB_DEVTOOLS%... >> "%CB_LOGFILE%"
 FOR /F %%i IN ('dir %CB_DEV_REPOSITORY%\%CB_PKG_FILTER% /b/s') DO (
-	echo %CB_LINEHEADER%Extract package %%i>> "%CB_LOGFILE%" 
+	set "packageName=%%i" & set "packageName2=%packageName:'=%" & set packageName=%packageName2%
+	echo %CB_LINEHEADER%Extract package %packageName%>> "%CB_LOGFILE%" 
 	if exist %CB_BIN%\%CB_UNZIP_CMD% %CB_BIN%\%CB_UNZIP_CMD% %CB_UNZIP_PARAM% %%i >> "%CB_LOGFILE%" 2>nul
 	if not exist %CB_BIN%\%CB_UNZIP_CMD% powershell -nologo -command "Expand-Archive -Force '%%i' '%CB_DEVTOOLS%'" >> "%CB_LOGFILE%" 2>nul)
+	if not .%packageName:.exe=% == .%packageName% %packageName%
 echo %CB_LINE%>> "%CB_LOGFILE%"
 cd /D %CB_CURRENT_PATH%
 goto EXTRACT_ARCHIVES_END
@@ -473,17 +479,9 @@ echo %CB_LINEHEADER%No package found %CB_PACKAGE_VERSION_NAME% (%CB_PKG_FILTER%)
 goto EXTRACT_ARCHIVES_END
 
 :EXTRACT_ARCHIVES_END
-goto INSTALL_CB_SUCCESS_END
+:: custom setting script
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% extract-archive-end %1 %2 %3 %4 %5 %6 %7 2>nul
 
-:: extract
-:INSTALL_ARCHIVES
-echo %CB_LINE%>> "%CB_LOGFILE%"
-echo %CB_LINEHEADER%Execute installer %CB_PKG_FILTER%... & echo %CB_LINEHEADER%Execute installer %CB_PKG_FILTER%... >> "%CB_LOGFILE%"
-FOR /F %%i IN ('dir %CB_DEV_REPOSITORY%\%CB_PKG_FILTER% /b/s') DO (echo %CB_LINEHEADER%Extract package %%i>> "%CB_LOGFILE%" & %%i" >> "%CB_LOGFILE%" 2>nul)
-echo %CB_LINE%>> "%CB_LOGFILE%"
-goto INSTALL_CB_SUCCESS_END
-
-:INSTALL_CB_SUCCESS_END
 :INSTALL_CB_END
 
 :: custom setting script

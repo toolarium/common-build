@@ -41,15 +41,15 @@ set "projectDescription=%projectDescription% %1"
 shift
 goto CHECK_PROJECT_DESCRIPTION
 :SET_PROJECT_DESCRIPTION
-if not defined projectDescription (set projectDescription=The implementation of the %projectName%)
+if not defined projectDescription (set projectDescription=The implementation of the %projectName%.)
 set /p projectDescription=%CB_LINEHEADER%Please enter project description [%projectDescription%]: 
 
 echo.
 echo %CB_LINE%
 echo %CB_LINEHEADER%Project type:
 echo %CB_LINE%
-echo   [1] java-library
-echo   [2] config project
+echo    [1] java-library
+echo    [2] config project
 echo.
 set /p projectTypeId=%CB_LINEHEADER%Please choose the project type [1]: 
 

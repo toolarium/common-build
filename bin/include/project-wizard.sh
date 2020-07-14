@@ -36,37 +36,37 @@ projectComponentId=${projectName%%-*}
 read -p "${CB_LINEHEADER}Please enter project component id, e.g. [$projectComponentId]: " input
 [ -n "$input" ] && projectComponentId=$input
 
-[ -n "$1" ] && projectDescription=$*
-[ -z "$projectDescription" ] && projectDescription="The implementation of the $projectName"
+[ -n "$*" ] && projectDescription="$*"
+[ -z "$projectDescription" ] && projectDescription="The implementation of the $projectName."
+read -p "${CB_LINEHEADER}Please enter project description [$projectDescription]: " input
+[ -n "$input" ] && projectComponentId=$input
 
 echo ""
 echo "$CB_LINE"
 echo "${CB_LINEHEADER}Project type:"
 echo "$CB_LINE"
-echo "  [1] java-library"
-echo "  [2] config project"
+echo "   [1] java-library"
+echo "   [2] config project"
 echo ""
 read -p "${CB_LINEHEADER}Please choose the project type [1]: " input
 
+projectType=java-library
 if [ -n "$input" ]; then
-	case "$input" in
-		[1]) projectType=java-library
-		[2]) projectType=config
-		*) projectType=java-library
-	esac
+	[ "$input" = "2" ] && projectType=config
 fi
 
 echo ""
 echo "$CB_LINE"
-if ! [ -d "$projectName" ]; then
-	echo "${CB_LINEHEADER}Create project $projectName..."
-	mkdir -p "$projectName" 2>nul
-	echo "apply from: \"https://git.io/JfDQT\"" > "$projectName/\build.gradle"
-	echo "$CB_LINE"
-else
+
+if [ -r "$projectName" ]; then
 	echo "${CB_LINEHEADER}Project $projectName already exist, abort!"
 	echo "$CB_LINE"
-	return 0
+	exit 1
+else
+	echo "${CB_LINEHEADER}Create project $projectName..."
+	mkdir -p "$projectName" 2>/dev/null
+	echo "apply from: \"https://git.io/JfDQT\"" > "$projectName/\build.gradle"
+	echo "$CB_LINE"
 fi
 
 
