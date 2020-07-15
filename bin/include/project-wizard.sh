@@ -61,7 +61,7 @@ echo "$CB_LINE"
 if [ -r "$projectName" ]; then
 	echo "${CB_LINEHEADER}Project $projectName already exist, abort!"
 	echo "$CB_LINE"
-	exit 1
+	endWithError
 else
 	echo "${CB_LINEHEADER}Create project $projectName..."
 	mkdir -p "$projectName" 2>/dev/null

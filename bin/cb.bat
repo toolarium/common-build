@@ -84,19 +84,19 @@ set "CB_SETENV="
 set CB_OPTIONAL_PARAMETER=%2
 if %0X==X goto COMMON_BUILD
 if .%1==.--silent shift & set "CB_INSTALL_USER_COMMIT=false" & set "CB_INSTALL_SILENT=true"
-if .%1==.--force set "CB_INSTALL_OVERWRITE=true"
+if .%1==.--force shift & set "CB_INSTALL_OVERWRITE=true"
 if .%1==.-h goto HELP
 if .%1==.--help goto HELP
 if .%1==.-v goto VERSION
 if .%1==.--version goto VERSION
-if .%1==.-new goto PROJECT_WIZARD
-if .%1==.--new goto PROJECT_WIZARD
-if .%1==.-exp goto PROJECT_EXPLORE
-if .%1==.--explore goto PROJECT_EXPLORE
-if .%1==.--packages goto PACKAGES
-if .%1==.--install goto INSTALL_CB
+if .%1==.-new shift & goto PROJECT_WIZARD
+if .%1==.--new shift & goto PROJECT_WIZARD
+if .%1==.-exp shift & goto PROJECT_EXPLORE
+if .%1==.--explore shift & goto PROJECT_EXPLORE
+if .%1==.--packages shift & goto PACKAGES
+if .%1==.--install shift & goto INSTALL_CB
 if .%1==.--java goto SET_JAVA_PARAM
-if .%1==.--setenv (set CB_SETENV=true)
+if .%1==.--setenv shift & set CB_SETENV=true
 set CB_PARAMETERS=%CB_PARAMETERS% %~1
 shift
 goto CHECK_PARAMETER
@@ -264,7 +264,7 @@ if %ERRORLEVEL% NEQ 0 set "PATH=%CB_GRADLE_HOME%\bin;%PATH%"
 WHERE %GRADLE_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find gradle version in path! & goto END_WITH_ERROR
 :COMMON_BUILD_GRADLE_EXEC
-if defined CB_SETENV set "CB_SETENV=gradle" & goto END_PRINT_VAIRABLE
+if defined CB_SETENV set "CB_SETENV=gradle" & goto END_PRINT_VARIABLE
 if defined CB_OFFLINE set "CB_PARAMETERS=--offline %CB_PARAMETERS%" & echo %CB_LINEHEADER%Offline build!
 cmd /C call %GRADLE_EXEC% %CB_PARAMETERS%
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
@@ -291,7 +291,7 @@ if %ERRORLEVEL% NEQ 0 set "PATH=%CB_MAVEN_HOME%\bin;%PATH%"
 WHERE %MAVEN_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find maven version in path! & goto END_WITH_ERROR
 :COMMON_BUILD_MAVEN_EXEC
-if defined CB_SETENV set "CB_SETENV=maven" & goto END_PRINT_VAIRABLE
+if defined CB_SETENV set "CB_SETENV=maven" & goto END_PRINT_VARIABLE
 cmd /C call %MAVEN_EXEC% %CB_PARAMETERS%
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END
@@ -316,7 +316,7 @@ if %ERRORLEVEL% NEQ 0 set "PATH=%CB_ANT_HOME%\bin;%PATH%"
 WHERE %ANT_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find ant version in path! & goto END_WITH_ERROR
 :COMMON_BUILD_ANT_EXEC
-if defined CB_SETENV set "CB_SETENV=ant" & goto END_PRINT_VAIRABLE
+if defined CB_SETENV set "CB_SETENV=ant" & goto END_PRINT_VARIABLE
 cmd /C call %ANT_EXEC% %CB_PARAMETERS%
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END
@@ -325,7 +325,6 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :PROJECT_WIZARD
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-SHIFT
 SET CB_WIZARD_PARAMETERS=%CB_PARAMETERS%
 :CHECK_PARAMETER_WIZARD
 IF %0X==X GOTO START_WIZARD
@@ -334,7 +333,7 @@ SHIFT
 GOTO CHECK_PARAMETER_WIZARD
 
 :START_WIZARD
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% new-start %CB_WIZARD_PARAMETERS% 2>nul
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% new-project-start %CB_WIZARD_PARAMETERS% 2>nul
 
 call %CB_SCRIPT_PATH%\include\project-wizard.bat %CB_WIZARD_PARAMETERS%
 if not %ERRORLEVEL% equ 0 goto END_WITH_ERROR
@@ -342,7 +341,7 @@ if not %ERRORLEVEL% equ 0 goto END_WITH_ERROR
 cd %projectName%
 set BACKUP_CB_CURRENT_PATH=%CB_CURRENT_PATH%
 call %PN_FULL% "-PprojectType=%projectType%" "-PprojectRootPackageName=%projectRootPackageName%" "-PprojectGroupId=%projectGroupId%" "-PprojectComponentId=%projectComponentId%" "-PprojectDescription="%projectDescription% ""
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% new-end %CB_WIZARD_PARAMETERS% 2>nul
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% new-project-end %CB_WIZARD_PARAMETERS% 2>nul
 cd %BACKUP_CB_CURRENT_PATH%
 goto END
 
@@ -350,7 +349,6 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :PROJECT_EXPLORE
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-SHIFT
 explorer %CD%
 goto END
 
@@ -401,19 +399,21 @@ set "CB_WGET_PROGRESSBAR=--show-progress"
 set "CB_WGET_LOG=-a %CB_LOGFILE%"
 set "CB_WGET_PARAM=-c"
 set CB_PKG_FILTER=
+set CB_PACKAGE_DOWNLOAD_NAME=
 set CB_PKG_FILTER_WILDCARD=false
 
 SET CB_PROCESSOR_ARCHITECTURE_NUMBER=64
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:32=%" SET CB_PROCESSOR_ARCHITECTURE_NUMBER=32
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:64=%" SET CB_PROCESSOR_ARCHITECTURE_NUMBER=64
 
-if .%2==. goto INSTALL_DEFAULT_PACKAGES
-if .%2==.pkg goto INSTALL_PACKAGES
-call %CB_SCRIPT_PATH%\include\download.bat %2 %3 
+if .%1==. goto INSTALL_DEFAULT_PACKAGES
+if .%1==.pkg goto INSTALL_PACKAGES
+call %CB_SCRIPT_PATH%\include\download.bat %1 %2 
 if not .%CB_PACKAGE_DOWNLOAD_NAME%==. set "CB_PKG_FILTER=%CB_PACKAGE_DOWNLOAD_NAME%" 
 goto CHECK_EXTRACT_ARCHIVES 
 
 :INSTALL_DEFAULT_PACKAGES
+echo a %CB_PACKAGE_DOWNLOAD_NAME%
 set CB_PKG_FILTER=*.zip
 set CB_PKG_FILTER_WILDCARD=true
 goto CHECK_EXTRACT_ARCHIVES 
@@ -421,7 +421,7 @@ goto CHECK_EXTRACT_ARCHIVES
 :: packages
 :INSTALL_PACKAGES
 :: custom setting script
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-pkg-start %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-package-start %1 %2 %3 %4 %5 %6 %7 2>nul
 if not defined CB_PACKAGE_URL echo %CB_LINEHEADER%No CB_PACKAGE_URL environment variable found! & goto INSTALL_CB_END
 set CB_WGET_USER_CREDENTIALS=
 if [%CB_PACKAGE_USER%] equ [] (set /p CB_PACKAGE_USER=Please enter user credentials, e.g. %CB_USER%: )
@@ -445,7 +445,7 @@ goto INSTALL_CB_END
 
 :INSTALL_PACKAGES_END
 :: custom setting script
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-pkg-end %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-package-end %1 %2 %3 %4 %5 %6 %7 2>nul
 echo %CB_LINE%>> "%CB_LOGFILE%"
 
 :: extract
@@ -462,17 +462,18 @@ echo %CB_LINE%>> "%CB_LOGFILE%"
 cd /D %CB_DEVTOOLS%
 set "CB_UNZIP_PARAM=-n"
 if .%CB_INSTALL_OVERWRITE%==.true set "CB_UNZIP_PARAM=-o"
-
 echo %CB_LINEHEADER%Extract %CB_PKG_FILTER% in %CB_DEVTOOLS%... & echo %CB_LINEHEADER%Extract %CB_PKG_FILTER% in %CB_DEVTOOLS%... >> "%CB_LOGFILE%"
-FOR /F %%i IN ('dir %CB_DEV_REPOSITORY%\%CB_PKG_FILTER% /b/s') DO (
-	set "packageName=%%i" & set "packageName2=%packageName:'=%" & set packageName=%packageName2%
-	echo %CB_LINEHEADER%Extract package %packageName%>> "%CB_LOGFILE%" 
-	if exist %CB_BIN%\%CB_UNZIP_CMD% %CB_BIN%\%CB_UNZIP_CMD% %CB_UNZIP_PARAM% %%i >> "%CB_LOGFILE%" 2>nul
-	if not exist %CB_BIN%\%CB_UNZIP_CMD% powershell -nologo -command "Expand-Archive -Force '%%i' '%CB_DEVTOOLS%'" >> "%CB_LOGFILE%" 2>nul)
-	if not .%packageName:.exe=% == .%packageName% %packageName%
+FOR /F %%i IN ('dir %CB_DEV_REPOSITORY%\%CB_PKG_FILTER% /b/s') DO (call :EXTRACT_FILE %%i)
 echo %CB_LINE%>> "%CB_LOGFILE%"
 cd /D %CB_CURRENT_PATH%
 goto EXTRACT_ARCHIVES_END
+
+:EXTRACT_FILE
+if exist %CB_BIN%\%CB_UNZIP_CMD% %CB_BIN%\%CB_UNZIP_CMD% %CB_UNZIP_PARAM% %1 >> "%CB_LOGFILE%" 2>nul
+if not exist %CB_BIN%\%CB_UNZIP_CMD% powershell -nologo -command "Expand-Archive -Force '%1' '%CB_DEVTOOLS%'" >> "%CB_LOGFILE%" 2>nul	
+echo %1 | findstr /I /C:.exe >nul 2>nul	
+if %ERRORLEVEL% EQU 0 cmd /c %1
+GOTO :eof
 
 :EXTRACT_ARCHIVES_FAILED
 echo %CB_LINEHEADER%No package found %CB_PACKAGE_VERSION_NAME% (%CB_PKG_FILTER%)
@@ -493,12 +494,12 @@ goto END
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :END_WITH_ERROR
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% error %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% error-end %1 %2 %3 %4 %5 %6 %7 2>nul
 exit /b 1
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-:END_PRINT_VAIRABLE
+:END_PRINT_VARIABLE
 echo %CB_LINE%
 echo %CB_LINEHEADER%All environment variable are set, just stopped before executing %CB_SETENV%:
 if [%CB_SETENV%] equ [gradle] echo    %%GRADLE_HOME%%: %GRADLE_HOME%
@@ -506,6 +507,7 @@ if [%CB_SETENV%] equ [maven] echo    %%MAVEN_HOME%%: %MAVEN_HOME%
 if [%CB_SETENV%] equ [ant] echo    %%ANT_HOME%%: %ANT_HOME%
 if [%CB_SETENV%] equ [node] echo    %%NODE_HOME%%: %NODE_HOME%
 echo    %%JAVA_HOME%%: %JAVA_HOME%
+
 :: custom setting script
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% print-variable %1 %2 %3 %4 %5 %6 %7 2>nul
 echo %CB_LINE%

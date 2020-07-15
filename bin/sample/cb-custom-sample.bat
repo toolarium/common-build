@@ -10,27 +10,30 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
+:: define parameters
 set CUSTOM_CB_LINE=****************************************************************************************
-set CUSTOM_PN=%~nx0
-set "CUSTOM_CB_SCRIPT_PATH=%~dp0"
-set "CUSTOM_PN_FULL=%CB_SCRIPT_PATH%%PN%"
-set "CB_CURRENT_PATH=%CD%"
 
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: MAIN
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 if %0X==X goto CUSTOM_END
-if .%1==.start goto CUSTOM_START
-if .%1==.build-start goto CUSTOM_BUILD_START
-if .%1==.build-end goto CUSTOM_BUILD_END
-if .%1==.new-start goto CUSTOM_NEW_START
-if .%1==.new-end goto CUSTOM_NEW_END
-if .%1==.install-start goto CUSTOM_INSTALL_START
-if .%1==.install-end goto CUSTOM_INSTALL_END
-if .%1==.install-pkg-start goto CUSTOM_INSTALL_PKG_START
-if .%1==.install-pkg-end goto CUSTOM_INSTALL_PKG_END
-if .%1==.extract-archive-start goto CUSTOM_EXTRACT_ARCHIVE_START
-if .%1==.extract-archive-end goto CUSTOM_EXTRACT_ARCHIVE_END
-if .%1==.error-end goto CUSTOM_ERROR_END
-if .%1==.print-variable goto CUSTOM_PRINT_VARIABLE
-goto CUSTOM_END
+if .%1==. goto CUSTOM_END
+if .%1==.start shift & goto CUSTOM_START
+if .%1==.build-start shift & goto CUSTOM_BUILD_START
+if .%1==.build-end shift & goto CUSTOM_BUILD_END
+if .%1==.new-project-start shift & goto CUSTOM_NEW_PROJECT_START
+if .%1==.new-project-end shift & goto CUSTOM_NEW_PROJECT_END
+if .%1==.install-start shift & goto CUSTOM_INSTALL_START
+if .%1==.install-end shift & goto CUSTOM_INSTALL_END
+if .%1==.install-package-start shift & goto CUSTOM_INSTALL_PACKAGE_START
+if .%1==.install-package-end shift & goto CUSTOM_INSTALL_PACKAGE_END
+if .%1==.extract-archive-start shift & goto CUSTOM_EXTRACT_ARCHIVE_START
+if .%1==.extract-archive-end shift & goto CUSTOM_EXTRACT_ARCHIVE_END
+if .%1==.error-end shift & goto CUSTOM_ERROR_END
+if .%1==.print-variable shift & goto CUSTOM_PRINT_VARIABLE
+echo %CB_LINEHEADER%Unknown parameter: %1
+exit /b 1
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -42,86 +45,83 @@ echo START SAMPLE
 echo.
 echo %CUSTOM_CB_LINE%
 set CB_LINE=%CUSTOM_CB_LINE%
-
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_BUILD_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%START CUSTOM BUILD
+echo %CB_LINEHEADER%START BUILD %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_BUILD_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%END CUSTOM BUILD
+echo %CB_LINEHEADER%END BUILD %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:CUSTOM_NEW_START
+:CUSTOM_NEW_PROJECT_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%START NEW CUSTOM PROJECT
-echo %CB_WIZARD_PARAMETERS%
-
+echo %CB_LINEHEADER%START NEW PROJECT %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:CUSTOM_NEW_END
+:CUSTOM_NEW_PROJECT_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%END NEW CUSTOM PROJECT
+echo %CB_LINEHEADER%END NEW PROJECT %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_INSTALL_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%START CUSTOM INSTALL 
+echo %CB_LINEHEADER%START INSTALL %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_INSTALL_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%END CUSTOM INSTALL
+echo %CB_LINEHEADER%END INSTALL %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:CUSTOM_INSTALL_PKG_START
+:CUSTOM_INSTALL_PACKAGE_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%START CUSTOM PKG INSTALL 
+echo %CB_LINEHEADER%START PACKAGE INSTALL %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:CUSTOM_INSTALL_PKG_END
+:CUSTOM_INSTALL_PACKAGE_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%END CUSTOM PKG INSTALL
+echo %CB_LINEHEADER%END PACKAGE INSTALL %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_EXTRACT_ARCHIVE_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%START EXTRACT ARCHIVE
+echo %CB_LINEHEADER%START EXTRACT ARCHIVE %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_EXTRACT_ARCHIVE_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%END EXTRACT ARCHIVE
+echo %CB_LINEHEADER%END EXTRACT ARCHIVE %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_ERROR_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%CUSTOM ERROR MESSAGE
+echo %CB_LINEHEADER%ENDED WITH ERROR: %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
