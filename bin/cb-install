@@ -274,10 +274,10 @@ if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 		rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME/src" >/dev/null 2>&1
 	fi
 	
-	chmod -R +x "$CB_DEVTOOLS/$CB_VERSION_NAME/bin/*" >/dev/null 2>&1
+	chmod -R +x "$CB_DEVTOOLS/$CB_VERSION_NAME/bin" >/dev/null 2>&1
 fi
 
-shellProfile="~/.bashrc"
+shellProfile="$HOME/.bashrc"
 if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	echo "${CB_LINEHEADER}Set CB_HOME to $CB_DEVTOOLS/$CB_VERSION_NAME"
 	CB_HOME="$CB_DEVTOOLS/$CB_VERSION_NAME"

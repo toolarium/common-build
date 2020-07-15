@@ -473,7 +473,7 @@ if exist %CB_BIN%\%CB_UNZIP_CMD% %CB_BIN%\%CB_UNZIP_CMD% %CB_UNZIP_PARAM% %1 >> 
 if not exist %CB_BIN%\%CB_UNZIP_CMD% powershell -nologo -command "Expand-Archive -Force '%1' '%CB_DEVTOOLS%'" >> "%CB_LOGFILE%" 2>nul	
 echo %1 | findstr /I /C:.exe >nul 2>nul	
 ::powershell -nologo -command "(Get-Item '%1').VersionInfo.ProductVersion" >> "%1.txt"	
-if %ERRORLEVEL% EQU 0 cmd /c %1
+if %ERRORLEVEL% EQU 0 cmd /c "%1"
 GOTO :eof
 
 :EXTRACT_ARCHIVES_FAILED
