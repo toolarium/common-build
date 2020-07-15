@@ -67,7 +67,7 @@ set "CB_JAVA_INFO_DOWNLOAD_URL=%CB_JAVA_INFO_DOWNLOAD_URL_V3_LATEST%"
 ::echo %CB_BIN%\%CB_WGET_CMD% -O%TMPFILE% %CB_WGET_SECURITY_CREDENTIALS% -q "%CB_JAVA_INFO_DOWNLOAD_URL%"
 echo %CB_LINEHEADER%Check java %CB_PACKAGE_VERSION% version & echo %CB_LINEHEADER%Check java %CB_PACKAGE_VERSION% version>> "%CB_LOGFILE%"
 %CB_BIN%\%CB_WGET_CMD% -O%TMPFILE% %CB_WGET_SECURITY_CREDENTIALS% -q "%CB_JAVA_INFO_DOWNLOAD_URL%"
-powershell -command "$json = (Get-Content "%TMPFILE%" -Raw) | ConvertFrom-Json; $json | ? { $_.binary.image_type -eq $Env:CB_JAVA_PROJECT } | ? { $_.binary.architecture -eq $Env:CB_JAVA_ARCH } | ? {$_.binary.os -eq $Env:CB_JAVA_OS} | ConvertTo-Json" > %CB_JAVA_JSON_INFO%
+powershell -command "$json = (Get-Content "%TMPFILE%" -Raw) | ConvertFrom-Json; $json | ? { $_.binary.image_type -eq $Env:CB_JAVA_PROJECT } | ? { $_.binary.architecture -eq $Env:CB_JAVA_ARCH } | ? {$_.binary.os -eq $Env:CB_JAVA_OS} | ConvertTo-Json" > "%CB_JAVA_JSON_INFO%"
 move /y %CB_JAVA_JSON_INFO% %TMPFILE% >nul 2>nul
 ::powershell -command "$json = (Get-Content "%TMPFILE%" -Raw) | ConvertFrom-Json; $json.release_name" > "%CB_JAVA_JSON_INFO%"
 ::set /p CB_PACKAGE_VERSION_NAME= < "%CB_JAVA_JSON_INFO%"
