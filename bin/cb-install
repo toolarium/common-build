@@ -259,7 +259,7 @@ if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	echo "${CB_LINEHEADER}Extract $CB_VERSION_NAME.tgz in $CB_DEVTOOLS..."
 
 	tar -zxf "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" -C "$CB_DEV_REPOSITORY/" >/dev/null 2>&1 
-	tarContentName=$(find $CB_DEV_REPOSITORY/* -type d -name toolarium-common-build-* -print 2>/dev/null)
+	tarContentName=$(find $CB_DEV_REPOSITORY/* -type d -name 'toolarium-common-build-*' -print 2>/dev/null)
 	mv "$tarContentName" "$CB_DEVTOOLS/$CB_VERSION_NAME" >/dev/null 2>&1
 		
 	# remove unecessary files
@@ -277,7 +277,7 @@ if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	chmod -R +x "$CB_DEVTOOLS/$CB_VERSION_NAME/bin/*" >/dev/null 2>&1
 fi
 
-shellProfile="$HOME/.bashrc"
+shellProfile="~/.bashrc"
 if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	echo "${CB_LINEHEADER}Set CB_HOME to $CB_DEVTOOLS/$CB_VERSION_NAME"
 	CB_HOME="$CB_DEVTOOLS/$CB_VERSION_NAME"
