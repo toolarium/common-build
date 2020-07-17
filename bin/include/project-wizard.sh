@@ -65,7 +65,7 @@ if [ -r "$projectName" ]; then
 else
 	echo "${CB_LINEHEADER}Create project $projectName..."
 	mkdir -p "$projectName" 2>/dev/null
-	echo "apply from: \"https://git.io/JfDQT\"" > "$projectName/\build.gradle"
+	echo "apply from: \"https://git.io/JfDQT\"" > "$projectName/build.gradle"
 	echo "$CB_LINE"
 fi
 

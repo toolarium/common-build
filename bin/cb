@@ -66,6 +66,8 @@ fi
 [ -z "$CB_PACKAGE_PASSWORD" ] && CB_PACKAGE_PASSWORD=""
 [ -z "$CB_DEVTOOLS_JAVA_PREFIX" ] && CB_DEVTOOLS_JAVA_PREFIX="*jdk-"
 [ -z "$CB_INSTALL_OVERWRITE" ] && CB_INSTALL_OVERWRITE=false
+
+CB_INSTALL_OVERWRITE_DIST=$CB_INSTALL_OVERWRITE
 CB_PROJECT_JAVA_VERSION_FILE=".java-version"
 CB_JAVA_VERSION_FILE=".cb-java-version"
 rm -f "$CB_JAVA_VERSION_FILE" >/dev/null 2>&1
@@ -487,8 +489,8 @@ downloadFiles() {
 
 	#CB_USER_AGENT="--user-agent=\"Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36\""
     if [ "$HTTP_REQUEST_CLI" = "curl" ]; then
-		! [ -n "$CB_CURL_PARAM" ] && CB_CURL_PARAM="-L -O -C - "
-		#! [ -n "$CB_CURL_PARAM" ] && CB_CURL_PARAM="-L -O "
+		! [ -n "$CB_CURL_PARAM" ] && CB_CURL_PARAM="-L -C -"
+		#! [ -n "$CB_CURL_PARAM" ] && CB_CURL_PARAM="-L"
 		! [ -n "$CB_CURL_SECURITY_CREDENTIALS" ] && CB_CURL_SECURITY_CREDENTIALS="--insecure"
 		! [ -n "$CB_CURL_PROGRESSBAR" ] && CB_CURL_PROGRESSBAR="-#" && CB_CURL_LOG=" "
 		#CB_CURL_USER_CREDENTIALS="-u <user:password>
@@ -496,13 +498,15 @@ downloadFiles() {
 		! [ -n "$CB_CURL_LOG" ] && CB_CURL_LOG="-Ss"
 		#echo "$HTTP_REQUEST_CLI $CB_CURL_PARAM $CB_CURL_SECURITY_CREDENTIALS $CB_CURL_PROGRESSBAR $CB_CURL_USER_CREDENTIALS $CB_CURL_LOG -o $2 $1" 
 		#2>>$CB_LOGFILE
-		$HTTP_REQUEST_CLI $CB_CURL_PARAM $CB_CURL_SECURITY_CREDENTIALS $CB_CURL_PROGRESSBAR $CB_CURL_USER_CREDENTIALS $CB_CURL_LOG -o "$2" "$1" 
+		CB_LAST_CMD="$HTTP_REQUEST_CLI $CB_CURL_PARAM $CB_CURL_SECURITY_CREDENTIALS $CB_CURL_PROGRESSBAR $CB_CURL_USER_CREDENTIALS $CB_CURL_LOG -o $2 $1" 
+		eval $HTTP_REQUEST_CLI $CB_CURL_PARAM $CB_CURL_SECURITY_CREDENTIALS $CB_CURL_PROGRESSBAR $CB_CURL_USER_CREDENTIALS $CB_CURL_LOG -o "$2" "$1" 
 		#&> /dev/stdout | tee -a "$CB_LOGFILE"
 		errorCode=$?
-		
+
 		if [ $errorCode -eq 33 ]; then
-			CB_CURL_PARAM="-L -O "
-			$HTTP_REQUEST_CLI "$CB_CURL_PARAM $CB_CURL_SECURITY_CREDENTIALS" "$CB_CURL_PROGRESSBAR" "$CB_CURL_USER_CREDENTIALS" "$CB_CURL_LOG" -o "$2" "$1" 
+			CB_CURL_PARAM="-L"
+			CB_LAST_CMD="$HTTP_REQUEST_CLI $CB_CURL_PARAM $CB_CURL_SECURITY_CREDENTIALS $CB_CURL_PROGRESSBAR $CB_CURL_USER_CREDENTIALS $CB_CURL_LOG -o $2 $1" 
+			eval $HTTP_REQUEST_CLI "$CB_CURL_PARAM $CB_CURL_SECURITY_CREDENTIALS" "$CB_CURL_PROGRESSBAR" "$CB_CURL_USER_CREDENTIALS" "$CB_CURL_LOG" -o "$2" "$1" 
 			#&> /dev/stdout | tee -a "$CB_LOGFILE"
 			errorCode=$?
 		fi
@@ -517,9 +521,11 @@ downloadFiles() {
 			! [ -n "$CB_WGET_FILTER" ] && CB_WGET_FILTER="--exclude-directories=_deprecated -R \"index.*\""
 			! [ -n "$CB_WGET_RECURSIVE_PARAM" ] && CB_WGET_RECURSIVE_PARAM="-r -np -nH --timestamping"
 			echo "$HTTP_REQUEST_CLI $1 $CB_WGET_RECURSIVE_PARAM $CB_WGET_PARAM $CB_WGET_SECURITY_CREDENTIALS $CB_WGET_PROGRESSBAR $CB_WGET_USER_CREDENTIALS $CB_WGET_FILTER $CB_WGET_LOG"
-			$HTTP_REQUEST_CLI "$1" "$CB_WGET_RECURSIVE_PARAM" "$CB_WGET_PARAM" "$CB_WGET_SECURITY_CREDENTIALS" "$CB_WGET_PROGRESSBAR" "$CB_WGET_USER_CREDENTIALS" "$CB_WGET_FILTER" "$CB_WGET_LOG"
+			CB_LAST_CMD="$HTTP_REQUEST_CLI $1 $CB_WGET_RECURSIVE_PARAM $CB_WGET_PARAM $CB_WGET_SECURITY_CREDENTIALS $CB_WGET_PROGRESSBAR $CB_WGET_USER_CREDENTIALS $CB_WGET_FILTER $CB_WGET_LOG"
+			eval $HTTP_REQUEST_CLI "$1" "$CB_WGET_RECURSIVE_PARAM" "$CB_WGET_PARAM" "$CB_WGET_SECURITY_CREDENTIALS" "$CB_WGET_PROGRESSBAR" "$CB_WGET_USER_CREDENTIALS" "$CB_WGET_FILTER" "$CB_WGET_LOG"
 		else
-			$HTTP_REQUEST_CLI -O "$2" "$1" "$CB_WGET_PARAM" "$CB_WGET_SECURITY_CREDENTIALS" "$CB_WGET_PROGRESSBAR" "$CB_WGET_USER_CREDENTIALS" "$CB_WGET_LOG" 
+			CB_LAST_CMD="$HTTP_REQUEST_CLI -O $2 $1 $CB_WGET_PARAM $CB_WGET_SECURITY_CREDENTIALS $CB_WGET_PROGRESSBAR $CB_WGET_USER_CREDENTIALS $CB_WGET_LOG" 
+			eval $HTTP_REQUEST_CLI -O "$2" "$1" "$CB_WGET_PARAM" "$CB_WGET_SECURITY_CREDENTIALS" "$CB_WGET_PROGRESSBAR" "$CB_WGET_USER_CREDENTIALS" "$CB_WGET_LOG" 
         fi
 		
 		errorCode=$?
@@ -573,6 +579,9 @@ downloadPackage() {
 			return
 		else		
 			[ -z "$CB_PACKAGE_VERSION_NAME" ] && CB_PACKAGE_VERSION_NAME=$CB_PACKAGE_DOWNLOAD_NAME
+			
+			# overwrite
+			[ "$CB_INSTALL_OVERWRITE_DIST" = "true" ] && rm -rf $CB_DEV_REPOSITORY/$CB_PACKAGE_DOWNLOAD_NAME >/dev/null 2>&1
 				
 			# if we already have it we ignore
 			if ! [ -r "$CB_DEV_REPOSITORY/$CB_PACKAGE_DOWNLOAD_NAME" ]; then
@@ -581,6 +590,7 @@ downloadPackage() {
 					downloadFiles "$CB_PACKAGE_DOWNLOAD_URL" "$CB_DEV_REPOSITORY/$CB_PACKAGE_DOWNLOAD_NAME"
 					cd "$CB_CURRENT_PATH"
 					[ $errorCode -ne 0 ] && echo "${CB_LINEHEADER}Error occured by download, give up!" | tee -a "$CB_LOGFILE"
+					[ $errorCode -ne 0 ] && echo "${CB_LINEHEADER}Call: $CB_LAST_CMD" | tee -a "$CB_LOGFILE"
 				fi
 				
 				# in case it is zero size we delete it
@@ -684,10 +694,12 @@ installCb() {
 		downloadPackage "$1" "$2"
 		[ -n "$CB_PACKAGE_DOWNLOAD_NAME" ] && CB_PKG_FILTER=$CB_PACKAGE_DOWNLOAD_NAME 
 	fi
-
+	
 	CB_TAR_PARAM="-k"
 	CB_UNZIP_PARAM="-n"
-	[ "$CB_INSTALL_OVERWRITE" = "true" ] && CB_UNZIP_PARAM="-o" && CB_TAR_PARAM="--overwrite"
+	CB_XZ_PARAM="-k"
+	[ "$CB_INSTALL_OVERWRITE_DIST" = "true" ] && CB_UNZIP_PARAM="-o" && CB_TAR_PARAM="--overwrite" && CB_XZ_PARAM="-f"
+	[ -n "$CB_PACKAGE_DEST_VERSION_NAME" ] && mkdir -p $CB_DEVTOOLS/$CB_PACKAGE_DEST_VERSION_NAME >/dev/null 2>&1 && CB_UNZIP_PARAM="$CB_UNZIP_PARAM -d $CB_DEVTOOLS/$CB_PACKAGE_DEST_VERSION_NAME" && CB_TAR_PARAM="-C $CB_DEVTOOLS/$CB_PACKAGE_DEST_VERSION_NAME"
 	
 	# extract
 	# custom setting script
@@ -700,7 +712,7 @@ installCb() {
 		for i in $(ls -1 "$CB_DEV_REPOSITORY/$CB_PKG_FILTER" 2>/dev/null)
 		do
 			echo "${CB_LINEHEADER}Extract package $i" >> "$CB_LOGFILE"
-			
+
 			if [ -z "${i%%*.zip}" ]; then
 				if ! which unzip >/dev/null 2>&1; then
 					echo "${CB_LINEHEADER}Could not find unzip, please install unzip!"
@@ -708,10 +720,15 @@ installCb() {
 				else
 					[ -z "${i%%*.zip}" ] && CMD="unzip $CB_UNZIP_PARAM $i"
 				fi				
+			elif [ -z "${i%%*.exe}" ]; then
+				[ "$CB_OS" = "cygwin" ] && eval $i >> "$CB_LOGFILE"
+			elif [ -z "${i%%*.sh}" ]; then
+				eval $i >> "$CB_LOGFILE"
 			else			
 				[ -z "${i%%*.tar}" ] && CMD="tar $CB_TAR_PARAM -xf $i"
 				[ -z "${i%%*.tar.gz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i"
 				[ -z "${i%%*.tgz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i"
+				[ -z "${i%%*.xz}" ] && CMD="xz $CB_XZ_PARAM --decompress $i"
 			fi
 			
 			if [ -n "$CMD" ]; then
@@ -800,11 +817,11 @@ do
 		--new)		shift; projectWizard "$@"; exit 0;;
 		-exp)		shift; exploreProject; exit 0;;	
 		--explore)	shift; exploreProject; exit 0;;	
-		--force)	shift; CB_INSTALL_OVERWRITE="true";;
+		--force)	CB_INSTALL_OVERWRITE_DIST="true";;
 		--install)	shift; installCb "$@"; exit 0;;	
 		--packages)	shift; printPackages "$@"; exit 0;;	
 		--java)		shift && echo $1 > $CB_JAVA_VERSION_FILE;;	
-		--setenv)	shift; CB_SETENV=true;;	
+		--setenv)	CB_SETENV=true;;	
 		*)	CB_PARAMETERS="$CB_PARAMETERS \"$1\"";;
     esac
     shift

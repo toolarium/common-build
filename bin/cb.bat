@@ -26,6 +26,8 @@ if not defined CB_USER (set "CB_USER=%USERNAME%")
 if not defined CB_PACKAGE_PASSWORD (set "CB_PACKAGE_PASSWORD=")
 if not defined CB_DEVTOOLS_JAVA_PREFIX (set "CB_DEVTOOLS_JAVA_PREFIX=*jdk-")
 if not defined CB_INSTALL_OVERWRITE (set "CB_INSTALL_OVERWRITE=false")
+
+set CB_INSTALL_OVERWRITE_DIST=%CB_INSTALL_OVERWRITE%
 set CB_WGET_CMD=wget.exe
 set CB_UNZIP_CMD=unzip.exe
 
@@ -84,7 +86,7 @@ set "CB_SETENV="
 set CB_OPTIONAL_PARAMETER=%2
 if %0X==X goto COMMON_BUILD
 if .%1==.--silent shift & set "CB_INSTALL_USER_COMMIT=false" & set "CB_INSTALL_SILENT=true"
-if .%1==.--force shift & set "CB_INSTALL_OVERWRITE=true"
+if .%1==.--force shift & set "CB_INSTALL_OVERWRITE_DIST=true"
 if .%1==.-h goto HELP
 if .%1==.--help goto HELP
 if .%1==.-v goto VERSION
@@ -407,6 +409,7 @@ if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:32=%" SET CB_PROCESS
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:64=%" SET CB_PROCESSOR_ARCHITECTURE_NUMBER=64
 
 if .%1==. goto INSTALL_DEFAULT_PACKAGES
+if .%1==.cb goto INSTALL_CB_PACKAGE
 if .%1==.pkg goto INSTALL_PACKAGES
 call %CB_SCRIPT_PATH%\include\download.bat %1 %2 
 if not .%CB_PACKAGE_DOWNLOAD_NAME%==. set "CB_PKG_FILTER=%CB_PACKAGE_DOWNLOAD_NAME%" 
@@ -443,6 +446,10 @@ echo %CB_LINEHEADER%ERROR: Invalid credentials, give up.
 echo %CB_LINE%
 goto INSTALL_CB_END
 
+:INSTALL_CB_PACKAGE
+goto INSTALL_CB_END
+
+
 :INSTALL_PACKAGES_END
 :: custom setting script
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-package-end %1 %2 %3 %4 %5 %6 %7 2>nul
@@ -460,8 +467,10 @@ if not exist %CB_DEV_REPOSITORY%\%CB_PKG_FILTER% goto EXTRACT_ARCHIVES_FAILED
 :EXTRACT_ARCHIVES_START
 echo %CB_LINE%>> "%CB_LOGFILE%"
 cd /D %CB_DEVTOOLS%
+
 set "CB_UNZIP_PARAM=-n"
-if .%CB_INSTALL_OVERWRITE%==.true set "CB_UNZIP_PARAM=-o"
+if .%CB_INSTALL_OVERWRITE_DIST%==.true set "CB_UNZIP_PARAM=-o"
+if not .%CB_PACKAGE_DEST_VERSION_NAME% == . mkdir %CB_PACKAGE_DEST_VERSION_NAME% 2>nul & set "CB_UNZIP_PARAM=%CB_UNZIP_PARAM% -d %CB_PACKAGE_DEST_VERSION_NAME%"
 echo %CB_LINEHEADER%Extract %CB_PKG_FILTER% in %CB_DEVTOOLS%... & echo %CB_LINEHEADER%Extract %CB_PKG_FILTER% in %CB_DEVTOOLS%... >> "%CB_LOGFILE%"
 FOR /F %%i IN ('dir %CB_DEV_REPOSITORY%\%CB_PKG_FILTER% /b/s') DO (call :EXTRACT_FILE %%i)
 echo %CB_LINE%>> "%CB_LOGFILE%"
