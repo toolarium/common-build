@@ -18,6 +18,7 @@ set "PN_FULL=%CB_SCRIPT_PATH%%PN%"
 set "CB_CURRENT_PATH=%CD%"
 set "CB_INSTALL_SILENT=false"
 set CB_CUSTOM_SETTING_SCRIPT=
+title %PN%
 
 if not defined CB_HOME (echo %CB_LINE% & echo %CB_LINEHEADER%Missing CB_HOME environment variable! Please install with the cb-install.bat! & echo %CB_LINE% & goto END_WITH_ERROR)
 if not defined CB_PACKAGE_URL (set "CB_PACKAGE_URL=")
@@ -125,6 +126,7 @@ goto END
 echo %CB_LINE%
 echo toolarium common build %CB_VERSION%
 echo %CB_LINE%
+echo cb
 dir /b %CB_HOME%\bin\packages\
 echo %CB_LINE%
 goto END
@@ -447,8 +449,11 @@ echo %CB_LINE%
 goto INSTALL_CB_END
 
 :INSTALL_CB_PACKAGE
+if [%CB_INSTALL_SILENT%] equ [false] (if .%2 == . echo %CB_LINEHEADER%Install newest cb version...
+	if not .%2 == . echo %CB_LINEHEADER%Install cb version %2...)
+if [%CB_INSTALL_OVERWRITE_DIST%] equ [true] (call %CB_SCRIPT_PATH%cb-install --force --silent %2)
+if [%CB_INSTALL_OVERWRITE_DIST%] equ [false] (call %CB_SCRIPT_PATH%cb-install --silent %2)
 goto INSTALL_CB_END
-
 
 :INSTALL_PACKAGES_END
 :: custom setting script
@@ -526,5 +531,6 @@ goto END
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :END
+title %CD%
 exit /b 0
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

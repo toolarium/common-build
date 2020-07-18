@@ -28,9 +28,10 @@ set "CB_USER_DRIVE=%CD:~0,2%"
 set "CB_SCRIPT_PATH=%~dp0"
 set "CB_SCRIPT_DRIVE=%~d0"
 set CB_FORCE_INSALL=false
-set "CB_INSTALLER_VERSION=1.0.0"
+set "CB_INSTALLER_VERSION=0.6.0"
 set "CB_RELEASE_URL=https://api.github.com/repos/toolarium/common-build/releases"
 
+title %PN%
 SET CB_PROCESSOR_ARCHITECTURE_NUMBER=64
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:32=%" SET CB_PROCESSOR_ARCHITECTURE_NUMBER=32
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:64=%" SET CB_PROCESSOR_ARCHITECTURE_NUMBER=64
@@ -40,6 +41,10 @@ set "YY=%dt:~2,2%" & set "YYYY=%dt:~0,4%" & set "MM=%dt:~4,2%" & set "DD=%dt:~6,
 set "DATESTAMP=%YYYY%%MM%%DD%" & set "TIMESTAMP=%HH%%Min%%Sec%" & set "FULLTIMESTAMP=%DATESTAMP%-%TIMESTAMP%"
 set "USER_FRIENDLY_DATESTAMP=%DD%.%MM%.%YYYY%" & set "USER_FRIENDLY_TIMESTAMP=%HH%:%Min%:%Sec%" 
 set "USER_FRIENDLY_FULLTIMESTAMP=%USER_FRIENDLY_DATESTAMP% %USER_FRIENDLY_TIMESTAMP%"
+set "CB_INSTALL_ONLY_STABLE=true"
+set CB_VERSION=
+set CB_VERSION_INFO=
+set "CB_INSTALLER_SILENT=false"
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -50,7 +55,12 @@ if .%1==.-h goto HELP
 if .%1==.--help goto HELP
 if .%1==.-v goto VERSION
 if .%1==.--version goto VERSION
-if .%1==.--force (set CB_FORCE_INSALL=true)
+if .%1==.--silent set "CB_INSTALLER_SILENT=true" & shift
+if .%1==.--force set "CB_FORCE_INSALL=true" & shift
+if .%1==.--draft set CB_INSTALL_ONLY_STABLE=false & shift
+if .%1==.--force set "CB_FORCE_INSALL=true" & shift
+if .%1==.--silent set "CB_INSTALLER_SILENT=true" & shift
+set "CB_VERSION=%CB_VERSION% %1"
 shift
 goto CHECK_PARAMETER
 
@@ -68,12 +78,14 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :COMMON_BUILD_INSTALL
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINE%
-echo %CB_LINEHEADER%Started toolarium-common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%
-echo %CB_LINEHEADER%Use %CB_DEVTOOLS% path as devtools folder
-echo %CB_LINE%
-pause
-echo.
+set "CB_VERSION=%CB_VERSION: =%"
+if [%CB_INSTALLER_SILENT%] equ [false] (if not .%CB_VERSION% == . set "CB_VERSION_INFO= %CB_VERSION%"
+	echo %CB_LINE%
+	echo %CB_LINEHEADER%Started toolarium-common-build installation%CB_VERSION_INFO% on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%
+	echo %CB_LINEHEADER%Use %CB_DEVTOOLS% path as devtools folder
+	echo %CB_LINE%
+	pause
+	echo.)
 
 :: check connection
 ping 8.8.8.8 -n 1 -w 1000 >nul 2>nul
@@ -82,14 +94,25 @@ if errorlevel 1 (set "ERROR_INFO=No internet connection detected!" & goto INSTAL
 :: get the list of release from GitHub
 set CB_REMOTE_VERSION= & set CB_DOWNLOAD_VERSION_URL= & set ERROR_DETAIL_INFO= & set ERROR_INFO=
 set cbInfoTemp=%TEMP%\toolarium-common-build_info.txt & set cbErrorTemp=%TEMP%\toolarium-common-build_error.txt
-echo %CB_LINEHEADER%Check newest version of toolarium-common-build...
-powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%" | Select-Object -First 1; Split-Path -Path $releases.zipball_url -Leaf" 2>%cbErrorTemp% > %cbInfoTemp%
+del %cbInfoTemp% 2>nul & del %cbErrorTemp% 2>nul
+
+if [%CB_INSTALLER_SILENT%] equ [false] (if .%CB_VERSION% == . echo %CB_LINEHEADER%Check newest version of toolarium-common-build...
+	if not .%CB_VERSION% == . echo %CB_LINEHEADER%Check version %CB_VERSION% of toolarium-common-build...)
+
+if not .%CB_VERSION% == . set "CB_VERSION=v%CB_VERSION%"
+if not .%CB_VERSION% == . powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%"; $releases | ? { $_.name -eq $Env:CB_VERSION } | Select-Object -Property name |  select-object -First 1 -ExpandProperty name" 2>%cbErrorTemp% > %cbInfoTemp%
+if not .%CB_VERSION% == . goto VERIFY_VERSION
+if .%CB_INSTALL_ONLY_STABLE% == .true powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%"; $releases | ? { $_.prerelease -ne 'false' } | Select-Object -Property name |  select-object -First 1 -ExpandProperty name" 2>%cbErrorTemp% > %cbInfoTemp%
+if .%CB_INSTALL_ONLY_STABLE% == .false powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%" | Select-Object -First 1; Split-Path -Path $releases.zipball_url -Leaf" 2>%cbErrorTemp% > %cbInfoTemp%
+:VERIFY_VERSION
 if exist %cbInfoTemp% (set /pCB_REMOTE_VERSION=<%cbInfoTemp%)
 if .%CB_REMOTE_VERSION%==. set "ERROR_INFO=Could not get remote release information!" & goto INSTALL_FAILED
 set CB_REMOTE_VERSION=%CB_REMOTE_VERSION:~1%
-echo %CB_LINEHEADER%Latest version of common-build is %CB_REMOTE_VERSION%, select download link
+set "CB_VERSION=v%CB_REMOTE_VERSION%"
+if [%CB_INSTALLER_SILENT%] equ [false] (echo %CB_LINEHEADER%Download common-build %CB_REMOTE_VERSION%...)
 del %cbInfoTemp% 2>nul & del %cbErrorTemp% 2>nul
-powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%" | Select-Object -First 1; Write-Output $releases.zipball_url" 2>%cbErrorTemp% > %cbInfoTemp%
+powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%"; $releases | ? { $_.name -eq $Env:CB_VERSION } | Select-Object -Property zipball_url |  select-object -First 1 -ExpandProperty zipball_url" 2>%cbErrorTemp% > %cbInfoTemp%
+::powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%" | Select-Object -First 1; Write-Output $releases.zipball_url" 2>%cbErrorTemp% > %cbInfoTemp%
 if exist %cbInfoTemp% (set /pCB_DOWNLOAD_VERSION_URL=<%cbInfoTemp%)
 if .%CB_DOWNLOAD_VERSION_URL%==. set "ERROR_INFO=Could not get download url of verison %CB_REMOTE_VERSION%!" & goto INSTALL_FAILED
 del %cbInfoTemp% 2>nul & del %cbErrorTemp% 2>nul
@@ -102,15 +125,16 @@ if not exist %CB_DEV_REPOSITORY% mkdir %CB_DEV_REPOSITORY% >nul 2>nul
 
 :: download toolarium-common-build
 if .%CB_FORCE_INSALL%==.true (del %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip 2>nul)
-if exist %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip (echo %CB_LINEHEADER%Found already downloaded version, %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip & goto DOWNLOAD_CB_END)
-echo %CB_LINEHEADER%Install %CB_VERSION_NAME%
+
+if [%CB_INSTALLER_SILENT%] equ [false] (if exist %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip echo %CB_LINEHEADER%Found already downloaded version, %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip & goto DOWNLOAD_CB_END)
+if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Install %CB_VERSION_NAME%
 powershell -Command "iwr $start_time = Get-Date;Invoke-WebRequest -Uri '%CB_DOWNLOAD_VERSION_URL%' -OutFile '%CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip';Write-Output 'Time taken: $((Get-Date).Subtract($start_time).Seconds) seconds' 2>nul | iex 2>nul" 2>nul
 :: in case we donwload a new version we also extract new!
-rmdir %CB_DEVTOOLS%\%CB_VERSION_NAME% /s /q >nul 2>nul
+if .%CB_FORCE_INSALL%==.true (del /s /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\* >nul 2>nul & rmdir /s /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\ >nul 2>nul)
 :DOWNLOAD_CB_END
 
 if exist %CB_DEVTOOLS%\%CB_VERSION_NAME% goto EXTRACT_CB_END
-echo %CB_LINEHEADER%Extract %CB_VERSION_NAME%.zip in %CB_DEVTOOLS%... 
+if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Extract %CB_VERSION_NAME%.zip in %CB_DEVTOOLS%... 
 if /I [%CB_DEVTOOLS_DRIVE%] NEQ [%CB_USER_DRIVE%] (%CB_DEVTOOLS_DRIVE%)
 powershell -command "Expand-Archive -Force %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip %CB_DEV_REPOSITORY%"
 move %CB_DEV_REPOSITORY%\toolarium-common-build-???????? %CB_DEVTOOLS%\%CB_VERSION_NAME% >nul
@@ -137,15 +161,13 @@ for %%R in ("%TMPFILE%") do if %%~zR lss 1 del "%TMPFILE%" 2>nul & goto SET_COMM
 ( set /p "ignoreline=" & set "previousversion=" & set /p "previousversion=" ) < "%TMPFILE%"
 del "%TMPFILE%" 2>nul
 set CB_PREVIOUS_VERSION_NAME=%previousversion%
-::echo %CB_LINEHEADER%Found previous version %CB_PREVIOUS_VERSION_NAME% in PATH
 :: split by space
 for /f "tokens=4" %%A in ("%CB_PREVIOUS_VERSION_NAME%") do (set CB_PREVIOUS_VERSION_NAME=toolarium-common-build-%%A)
 for /f "tokens=3" %%A in ("%CB_PREVIOUS_VERSION_NAME%") do (set CB_PREVIOUS_VERSION_NAME=toolarium-common-build-%%A)
-::echo %CB_LINEHEADER%Check %CB_PREVIOUS_VERSION_NAME%
 :SET_COMMON_BUILD_IN_PATH_END
 
 if [%CB_HOME%] equ [%CB_DEVTOOLS%\%CB_VERSION_NAME%] goto SET_CBHOME_END
-echo %CB_LINEHEADER%Set CB_HOME to %CB_DEVTOOLS%\%CB_VERSION_NAME%
+if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Set CB_HOME to %CB_DEVTOOLS%\%CB_VERSION_NAME%
 set "CB_HOME=%CB_DEVTOOLS%\%CB_VERSION_NAME%" 
 setx CB_HOME "%CB_DEVTOOLS%\%CB_VERSION_NAME%" >nul 2>nul
 :SET_CBHOME_END
@@ -159,7 +181,7 @@ for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKCU\E
 
 :: upate path
 if not [%CB_PREVIOUS_VERSION_NAME%] equ [%CB_VERSION_NAME%] goto CB_ADD_PATH
-echo %CB_LINEHEADER%Found previous version %CB_PREVIOUS_VERSION_NAME% in PATH, don't change PATH variable
+if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Found previous version %CB_PREVIOUS_VERSION_NAME% in PATH, don't change PATH variable
 goto SET_PATH_END
 
 :: replace in %UserPath% %CB_PREVIOUS_VERSION_NAME% with %CB_VERSION_NAME%
@@ -179,7 +201,7 @@ goto SET_PATH_END
 ::goto SET_PATH_END
 
 :CB_ADD_PATH
-echo %CB_LINEHEADER%Add CB_HOME to user PATH environment
+if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Add CB_HOME to user PATH environment
 setx PATH "%CB_HOME%\bin;%UserPath%" >nul 2>nul
 set "PATH=%CB_HOME%\bin;%PATH%"
 goto SET_PATH_END
@@ -195,20 +217,20 @@ if not exist %CB_LOGS% (mkdir %CB_LOGS% >nul 2>nul)
 set CB_WGET_CMD=wget.exe
 if exist %CB_BIN%\%CB_WGET_CMD% goto DOWNLOAD_WGET_END
 set "CB_WGET_PACKAGE_URL=%CB_WGET_DOWNLOAD_URL%/%CB_WGET_VERSION%/%CB_PROCESSOR_ARCHITECTURE_NUMBER%/%CB_WGET_CMD%"
-echo %CB_LINEHEADER%Install %CB_BIN%\%CB_WGET_CMD%
+if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Install %CB_BIN%\%CB_WGET_CMD%
 powershell -Command "iwr $start_time = Get-Date;Invoke-WebRequest -Uri '%CB_WGET_PACKAGE_URL%' -OutFile %CB_BIN%\%CB_WGET_CMD%;Write-Output 'Time taken: $((Get-Date).Subtract($start_time).Seconds) seconds' 2>nul | iex 2>nul" 2>nul
 :DOWNLOAD_WGET_END
 
 set CB_UNZIP_CMD=unzip.exe
 if exist %CB_BIN%\%CB_UNZIP_CMD% goto DOWNLOAD_UNZIP_END
 set "CB_UNZIP_PACKAGE_URL=%CB_UNZIP_DOWNLOAD_URL%/%CB_UNZIP_CMD%"
-echo %CB_LINEHEADER%Install %CB_BIN%\%CB_UNZIP_CMD%
+if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Install %CB_BIN%\%CB_UNZIP_CMD%
 powershell -Command "iwr $start_time = Get-Date;Invoke-WebRequest -Uri '%CB_UNZIP_PACKAGE_URL%' -OutFile %CB_BIN%\%CB_UNZIP_CMD%;Write-Output 'Time taken: $((Get-Date).Subtract($start_time).Seconds) seconds' 2>nul | iex 2>nul" 2>nul
 :DOWNLOAD_UNZIP_END
 goto INSTALL_SUCCESSFULL_END
 
 :INSTALL_FAILED
-echo.
+if [%CB_INSTALLER_SILENT%] equ [false] (echo.)
 echo %CB_LINE%
 echo Failed installation: %ERROR_INFO%
 if exist %cbErrorTemp% (echo. & type %cbErrorTemp%)
@@ -216,13 +238,13 @@ echo %CB_LINE%
 goto END
 
 :INSTALL_SUCCESSFULL_END
-echo.
-echo %CB_LINE%
-echo Successfully installed toolarium-common-build v%CB_REMOTE_VERSION%
-echo in folder %CB_HOME%. 
-echo.
-echo The %%PATH%% is already extended and you can start working with the command cb!
-echo %CB_LINE%
+if [%CB_INSTALLER_SILENT%] equ [false] (echo.
+	echo %CB_LINE%
+	echo Successfully installed toolarium-common-build v%CB_REMOTE_VERSION%
+	echo in folder %CB_HOME%. 
+	echo.
+	echo The %%PATH%% is already extended and you can start working with the command cb!
+	echo %CB_LINE%)
 goto END
 
 
@@ -233,9 +255,11 @@ echo %PN% - toolarium common build installer v%CB_INSTALLER_VERSION%
 echo usage: %PN% [OPTION]
 echo.
 echo Overview of the available OPTIONs:
-echo  -h, --help                Show this help message.
-echo  -v, --version             Print version information.
-echo  --force                   Force to reinstall the common-build.
+echo  -h, --help           Show this help message.
+echo  -v, --version        Print version information.
+echo  --silent             Suppress the console output.
+echo  --force              Force to reinstall the common-build.
+echo  --draft              Also considers draft / pre-release versions.
 echo.
 goto END
 
@@ -245,4 +269,5 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 del %cbInfoTemp% 2>nul
 del %cbErrorTemp% 2>nul
+title %CD%
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
