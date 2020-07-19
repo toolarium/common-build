@@ -173,43 +173,22 @@ set "CB_HOME=%CB_DEVTOOLS%\%CB_VERSION_NAME%"
 setx CB_HOME "%CB_DEVTOOLS%\%CB_VERSION_NAME%" >nul 2>nul
 :SET_CBHOME_END
 
-:: read path
-set "SystemPath=" & set "UserPath="
-for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKLM\System\CurrentControlSet\Control\Session Manager\Environment" /v "Path" 2^>nul') do (if /I "%%N" == "Path" (set "SystemPath=%%P" & goto GET_USER_PATH_FROM_REGISTRY))
-:GET_USER_PATH_FROM_REGISTRY
-for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKCU\Environment" /v "Path" 2^>nul') do (if /I "%%N" == "Path" (set "UserPath=%%P" & goto GET_USER_PATH_FROM_REGISTRY_END))
-:GET_USER_PATH_FROM_REGISTRY_END
-
 :: upate path
-if not [%CB_PREVIOUS_VERSION_NAME%] equ [%CB_VERSION_NAME%] goto CB_ADD_PATH
+if not [%CB_PREVIOUS_VERSION_NAME%] equ [%CB_VERSION_NAME%] goto CB_SET_PATH
 if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Found previous version %CB_PREVIOUS_VERSION_NAME% in PATH, don't change PATH variable
 goto SET_PATH_END
 
-:: replace in %UserPath% %CB_PREVIOUS_VERSION_NAME% with %CB_VERSION_NAME%
-::set "NewUserPath=%UserPath:CB_PREVIOUS_VERSION_NAME=CB_VERSION_NAME%"
-::if [%NewUserPath%] EQU [%UserPath%] goto CB_SYSTEM_PATH
-::echo %CB_LINEHEADER%Update CB_HOME in user PATH environment
-::setx PATH "%NewUserPath%" >nul 2>nul
-::set "PATH=%PATH:CB_PREVIOUS_VERSION_NAME=CB_VERSION_NAME%"
-::goto SET_PATH_END
-
-:::CB_SYSTEM_PATH
-::set NewSystemPath=%SystemPath:CB_PREVIOUS_VERSION_NAME=CB_VERSION_NAME%
-::if [%NewSystemPath%] EQU [%SystemPath%] goto CB_ADD_PATH
-::echo %CB_LINEHEADER%Update CB_HOME in system PATH environment
-::setx -m PATH "%NewSystemPath%" >nul 2>nul
-::set "PATH=%PATH:CB_PREVIOUS_VERSION_NAME=CB_VERSION_NAME%"
-::goto SET_PATH_END
-
-:CB_ADD_PATH
-:: TODO: replace
-if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Add CB_HOME to user PATH environment
-setx PATH "%CB_HOME%\bin;%UserPath%" >nul 2>nul
+:CB_SET_PATH
+:: read user path and cleanup
 set "PATH=%CB_HOME%\bin;%PATH%"
-goto SET_PATH_END
-
+set USER_PATH=
+if exist %CB_HOME%\bin\cb-cleanpath.bat call %CB_HOME%\bin\cb-cleanpath.bat --user toolarium
+if .%USER_PATH% == . goto SET_PATH_END
+if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Update CB_HOME in the user PATH environment
+setx PATH "%CB_HOME%\bin;%USER_PATH%" >nul 2>nul
+::call %CB_HOME%\bin\cb-cleanpath.bat --system toolarium
+::setx -m PATH "%SYSTEM_PATH%" >nul 2>nul
 :SET_PATH_END
-
 set "CB_BIN=%CB_HOME%\bin" 
 if not exist %CB_BIN% (mkdir %CB_BIN% >nul 2>nul)
 set "CB_LOGS=%CB_HOME%\logs" 
