@@ -14,6 +14,36 @@ echo "$CB_LINE"
 echo "${CB_LINEHEADER}Create new project, enter project basic data."
 echo "$CB_LINE"
 
+if [ -n "$CB_CUSTOM_PROJECT_CONFIGFILE" ]; then
+	CB_PROJECT_CONFIGFILE=$CB_CUSTOM_PROJECT_CONFIGFILE
+else
+	# default
+	CB_PROJECT_CONFIGFILE=$CB_SCRIPT_PATH/../conf/project-types.properties
+
+	# if we have a local common gradle build use the project types configuration file
+	if [ -z "$COMMON_GRADLE_BUILD_URL" ]; then
+		[ "$CB_OS" == "cygwin" ] && commonGradleBuildBasePath="$(cygpath $USERPROFILE)/.gradle/common-gradle-build" || commonGradleBuildBasePath="$HOME/.gradle/common-gradle-build"
+		
+		if [ -d "$commonGradleBuildBasePath" ]; then
+			commonGradleBuildVersion=$(find "$commonGradleBuildBasePath" -maxdepth 1 -type d -name "*\.*\.*" -prune -exec ls -d {} \; 2>/dev/null | tail -1 2>/dev/null | xargs -l basename 2>/dev/null)
+			[ -n "$commonGradleBuildVersion" ] && COMMON_GRADLE_BUILD_URL=$commonGradleBuildBasePath/$commonGradleBuildVersion/gradle
+		fi
+	fi
+
+	[ -r "$COMMON_GRADLE_BUILD_URL/conf/project-types.properties" ] && CB_PROJECT_CONFIGFILE=$COMMON_GRADLE_BUILD_URL/conf/project-types.properties
+fi
+
+if ! [ -r "$CB_PROJECT_CONFIGFILE" ]; then
+	echo "$CB_LINE"
+	echo "${CB_LINEHEADER}Missing project type configuration file $CB_PROJECT_CONFIGFILE, please install with the cb-install.bat."
+	echo "$CB_LINE"
+	endWithError
+fi
+echo "${CB_LINEHEADER}Use $CB_PROJECT_CONFIGFILE as project configuration file"
+CB_PROJECT_CONFIGFILE_TMPFILE=$(mktemp /tmp/cb-project-types.XXXXXXXXX)
+cat $CB_PROJECT_CONFIGFILE 2>/dev/null | grep -v "#" | grep "=" > $CB_PROJECT_CONFIGFILE_TMPFILE 2>/dev/null
+
+
 projectName=
 projectRootPackageName=
 projectDescription=
@@ -45,28 +75,49 @@ echo ""
 echo "$CB_LINE"
 echo "${CB_LINEHEADER}Project type:"
 echo "$CB_LINE"
-echo "   [1] java-library"
-echo "   [2] config project"
 echo ""
-read -p "${CB_LINEHEADER}Please choose the project type [1]: " input
+#echo "   [1] java-library"
+#echo "   [2] config project"
+#echo ""
+#read -p "${CB_LINEHEADER}Please choose the project type [1]: " input
 
-projectType=java-library
-if [ -n "$input" ]; then
-	[ "$input" = "2" ] && projectType=config
-fi
-
+projectType=
+while [ -z "$projectType" ]; do
+	count=1
+	while IFS= read -r line; do 
+		echo "   [$count] ${line%=*}  		${line#*=}"
+		count=$((count+1))
+	done <  $CB_PROJECT_CONFIGFILE_TMPFILE
+	
+	echo ""
+	read -p "${CB_LINEHEADER}Please choose the project type [1]: " input
+	
+	[ -z "$input" ] && input=1
+	
+	count=1
+	while IFS= read -r line; do 
+		[ "$count" == "$input" ] && projectType="${line%=*}" && break
+		count=$((count+1))
+	done <  $CB_PROJECT_CONFIGFILE_TMPFILE
+	[ -z "$projectType" ] && echo "${CB_LINEHEADER}Invalid input $input" && echo ""
+done
+	
+rm -f "$CB_PROJECT_CONFIGFILE_TMPFILE" >/dev/null 2>&1
 echo ""
 echo "$CB_LINE"
 
 if [ -r "$projectName" ]; then
-	echo "${CB_LINEHEADER}Project $projectName already exist, abort!"
+	echo "${CB_LINEHEADER}Project $projectName already exist, abort."
 	echo "$CB_LINE"
 	endWithError
 else
 	echo "${CB_LINEHEADER}Create project $projectName..."
 	mkdir -p "$projectName" 2>/dev/null
 	echo "apply from: \"https://git.io/JfDQT\"" > "$projectName/build.gradle"
+	projectStartParameter="--no-daemon"	
 	echo "$CB_LINE"
+	 
+	export projectStartParameter projectName projectRootPackageName projectGroupId  projectComponentId  projectDescription projectType
 fi
 
 

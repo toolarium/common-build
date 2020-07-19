@@ -11,6 +11,7 @@
 
 
 :: define defaults
+setlocal EnableDelayedExpansion
 if .%CB_DEVTOOLS_NAME%==. set "CB_DEVTOOLS_NAME=devtools"
 if .%CB_DEVTOOLS_DRIVE%==.  set "CB_DEVTOOLS_DRIVE=c:"
 if .%CB_DEVTOOLS%==. set "CB_DEVTOOLS=%CB_DEVTOOLS_DRIVE%\%CB_DEVTOOLS_NAME%"
@@ -89,11 +90,11 @@ if [%CB_INSTALLER_SILENT%] equ [false] (if not .%CB_VERSION% == . set "CB_VERSIO
 
 :: check connection
 ping 8.8.8.8 -n 1 -w 1000 >nul 2>nul
-if errorlevel 1 (set "ERROR_INFO=No internet connection detected!" & goto INSTALL_FAILED)
+if errorlevel 1 (set "ERROR_INFO=No internet connection detected." & goto INSTALL_FAILED)
 
 :: get the list of release from GitHub
 set CB_REMOTE_VERSION= & set CB_DOWNLOAD_VERSION_URL= & set ERROR_DETAIL_INFO= & set ERROR_INFO=
-set cbInfoTemp=%TEMP%\toolarium-common-build_info.txt & set cbErrorTemp=%TEMP%\toolarium-common-build_error.txt
+set cbInfoTemp=%TEMP%\toolarium-common-build_info%RANDOM%%RANDOM%.txt & set cbErrorTemp=%TEMP%\toolarium-common-build_error%RANDOM%%RANDOM%.txt
 del %cbInfoTemp% 2>nul & del %cbErrorTemp% 2>nul
 
 if [%CB_INSTALLER_SILENT%] equ [false] (if .%CB_VERSION% == . echo %CB_LINEHEADER%Check newest version of toolarium-common-build...
@@ -106,7 +107,7 @@ if .%CB_INSTALL_ONLY_STABLE% == .true powershell -Command "$releases = Invoke-Re
 if .%CB_INSTALL_ONLY_STABLE% == .false powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%" | Select-Object -First 1; Split-Path -Path $releases.zipball_url -Leaf" 2>%cbErrorTemp% > %cbInfoTemp%
 :VERIFY_VERSION
 if exist %cbInfoTemp% (set /pCB_REMOTE_VERSION=<%cbInfoTemp%)
-if .%CB_REMOTE_VERSION%==. set "ERROR_INFO=Could not get remote release information!" & goto INSTALL_FAILED
+if .%CB_REMOTE_VERSION%==. set "ERROR_INFO=Could not get remote release information." & goto INSTALL_FAILED
 set CB_REMOTE_VERSION=%CB_REMOTE_VERSION:~1%
 set "CB_VERSION=v%CB_REMOTE_VERSION%"
 if [%CB_INSTALLER_SILENT%] equ [false] (echo %CB_LINEHEADER%Download common-build %CB_REMOTE_VERSION%...)
@@ -114,7 +115,7 @@ del %cbInfoTemp% 2>nul & del %cbErrorTemp% 2>nul
 powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%"; $releases | ? { $_.name -eq $Env:CB_VERSION } | Select-Object -Property zipball_url |  select-object -First 1 -ExpandProperty zipball_url" 2>%cbErrorTemp% > %cbInfoTemp%
 ::powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%" | Select-Object -First 1; Write-Output $releases.zipball_url" 2>%cbErrorTemp% > %cbInfoTemp%
 if exist %cbInfoTemp% (set /pCB_DOWNLOAD_VERSION_URL=<%cbInfoTemp%)
-if .%CB_DOWNLOAD_VERSION_URL%==. set "ERROR_INFO=Could not get download url of verison %CB_REMOTE_VERSION%!" & goto INSTALL_FAILED
+if .%CB_DOWNLOAD_VERSION_URL%==. set "ERROR_INFO=Could not get download url of verison %CB_REMOTE_VERSION%." & goto INSTALL_FAILED
 del %cbInfoTemp% 2>nul & del %cbErrorTemp% 2>nul
 set "CB_VERSION_NAME=toolarium-common-build-%CB_REMOTE_VERSION%"
 
@@ -129,7 +130,7 @@ if .%CB_FORCE_INSALL%==.true (del %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip 2>nu
 if [%CB_INSTALLER_SILENT%] equ [false] (if exist %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip echo %CB_LINEHEADER%Found already downloaded version, %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip & goto DOWNLOAD_CB_END)
 if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Install %CB_VERSION_NAME%
 powershell -Command "iwr $start_time = Get-Date;Invoke-WebRequest -Uri '%CB_DOWNLOAD_VERSION_URL%' -OutFile '%CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip';Write-Output 'Time taken: $((Get-Date).Subtract($start_time).Seconds) seconds' 2>nul | iex 2>nul" 2>nul
-:: in case we donwload a new version we also extract new!
+:: in case we donwload a new version we also extract new
 if .%CB_FORCE_INSALL%==.true (del /s /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\* >nul 2>nul & rmdir /s /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\ >nul 2>nul)
 :DOWNLOAD_CB_END
 
@@ -155,7 +156,7 @@ rmdir %CB_DEVTOOLS%\%CB_VERSION_NAME%\src /s /q >nul 2>nul
 :: read previous version
 set CB_PREVIOUS_VERSION_NAME=
 set previousversion=
-set "TMPFILE=%TEMP%\toolarium-common-version.txt"
+set "TMPFILE=%TEMP%\toolarium-common-version%RANDOM%%RANDOM%.txt"
 call cb --version > "%TMPFILE%" 2>nul
 for %%R in ("%TMPFILE%") do if %%~zR lss 1 del "%TMPFILE%" 2>nul & goto SET_COMMON_BUILD_IN_PATH_END
 ( set /p "ignoreline=" & set "previousversion=" & set /p "previousversion=" ) < "%TMPFILE%"
@@ -201,6 +202,7 @@ goto SET_PATH_END
 ::goto SET_PATH_END
 
 :CB_ADD_PATH
+:: TODO: replace
 if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Add CB_HOME to user PATH environment
 setx PATH "%CB_HOME%\bin;%UserPath%" >nul 2>nul
 set "PATH=%CB_HOME%\bin;%PATH%"
@@ -243,7 +245,7 @@ if [%CB_INSTALLER_SILENT%] equ [false] (echo.
 	echo Successfully installed toolarium-common-build v%CB_REMOTE_VERSION%
 	echo in folder %CB_HOME%. 
 	echo.
-	echo The %%PATH%% is already extended and you can start working with the command cb!
+	echo The %%PATH%% is already extended and you can start working with the command cb.
 	echo %CB_LINE%)
 goto END
 

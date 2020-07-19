@@ -30,7 +30,7 @@ CB_INSTALLER_VERSION=0.6.0
 CB_RELEASE_URL=https://api.github.com/repos/toolarium/common-build/releases
 FULLTIMESTAMP="date '+%Y%d%m%H%M%S'"
 USER_FRIENDLY_FULLTIMESTAMP="date '+%d.%m.%Y %H:%M:%S'"
-cbErrorTemp=/tmp/toolarium-common-build_error.txt
+cbErrorTemp=$(mktemp /tmp/toolarium-common-build_error.XXXXXXXXX)
 
 CB_OS="$(uname | tr '[:upper:]' '[:lower:]')"
 CB_OS=$(echo "$CB_OS" | awk '{print substr($0, 0, 7)}')
@@ -86,7 +86,7 @@ installationSuccess() {
 		echo "Successfully installed toolarium-common-build $releaseVersion"
 		echo "in folder $CB_HOME. "
 		echo ""
-		echo "The \$PATH is extended and you can start working with the command cb!"
+		echo "The \$PATH is extended and you can start working with the command cb."
 		echo "Please re-login or type in . $1, before you start."
 		echo "$CB_LINE"
 	fi
@@ -122,7 +122,7 @@ checkInternetConnection() {
 
 	if [ -n "$CMD" ]; then
 		if ! eval "$CMD" >/dev/null 2>&1; then
-			installationFailed "No internet connection detected!"
+			installationFailed "No internet connection detected."
 		fi
 	fi
 }
@@ -289,7 +289,7 @@ if [ "$CB_INSTALLER_SILENT" = "false" ]; then
 fi
 
 HTTP_REQUEST_CLI=$(checkHttpRequestCLI)
-[ -z "$HTTP_REQUEST_CLI" ] && installationFailed "Either curl or wget is required.!\nPlease install curl package (e.g. sudo apt install curl)" && exit 1
+[ -z "$HTTP_REQUEST_CLI" ] && installationFailed "Either curl or wget is required.\nPlease install curl package (e.g. sudo apt install curl)" && exit 1
 checkInternetConnection
 
 if [ "$CB_INSTALLER_SILENT" = "false" ]; then
@@ -305,11 +305,11 @@ else
 	releaseVersion=$(getLatestRelease $CB_INSTALL_ONLY_STABLE)
 fi
 
-[ -z "$releaseVersion" ] && installationFailed "Could not get remote release information!" && exit 1
+[ -z "$releaseVersion" ] && installationFailed "Could not get remote release information." && exit 1
 [ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Latest version of common-build is $releaseVersion, select download link"
 downloadUrl=$(getReleaseDownloadUrl $releaseVersion)
 
-[ -z "$downloadUrl" ] && installationFailed "Could not get download url of verison $releaseVersion!" && exit 1
+[ -z "$downloadUrl" ] && installationFailed "Could not get download url of verison $releaseVersion." && exit 1
 rm -f "$cbErrorTemp" >/dev/null 2>&1
 CB_VERSION_NAME="toolarium-common-build-$releaseVersion"
 
@@ -326,8 +326,8 @@ else
 	[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Install $CB_VERSION_NAME"
 	downloadRelease "$downloadUrl" "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz"
 
-	# in case we donwload a new version we also extract new!
-	! [ -r "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" ] && installationFailed "Could not download version $releaseVersion!"
+	# in case we donwload a new version we also extract new
+	! [ -r "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" ] && installationFailed "Could not download version $releaseVersion."
 	[ $(stat -c %s $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz) -gt 0 ] && rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME" >/dev/null 2>&1
 fi
 
@@ -381,7 +381,7 @@ if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 			mv -f "$newFileName" "$shellProfile" >/dev/null 2>&1
 		fi
 	else
-		echo "${CB_LINEHEADER}Can not set CB_HOME in $shellProfile, it's write protected!"
+		echo "${CB_LINEHEADER}Can not set CB_HOME in $shellProfile, it's write protected."
 	fi
 fi
 

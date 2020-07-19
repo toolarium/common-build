@@ -50,6 +50,11 @@ customBuildEnd() {
 #########################################################################
 customNewProjectStart() {
 	echo "${CB_LINEHEADER}START NEW PROJECT $*"
+	
+	# define own project types
+	CB_CUSTOM_PROJECT_CONFIGFILE=$(mktemp /tmp/cb-project-types-custom.XXXXXXXXX)
+	echo "java-library = Simple java library" >> $CB_CUSTOM_PROJECT_CONFIGFILE
+	echo "my-own-type = My own type" >> $CB_CUSTOM_PROJECT_CONFIGFILE
 }
 
 
@@ -58,6 +63,7 @@ customNewProjectStart() {
 #########################################################################
 customNewProjectEnd() {
 	echo "${CB_LINEHEADER}END NEW PROJECT $*"
+	del $CB_CUSTOM_PROJECT_CONFIGFILE >/dev/null 2>&1
 }
 
 

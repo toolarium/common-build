@@ -66,6 +66,12 @@ goto CUSTOM_END
 :CUSTOM_NEW_PROJECT_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %CB_LINEHEADER%START NEW PROJECT %1 %2 %3 %4 %5 %6 %7 %8 %9
+
+:: define own project types
+set "CB_CUSTOM_PROJECT_CONFIGFILE=%TEMP%\cb-project-types-custom-%RANDOM%%RANDOM%.tmp"
+echo java-library = Simple java library >> %CB_CUSTOM_PROJECT_CONFIGFILE%
+echo my-own-type = My own type >> %CB_CUSTOM_PROJECT_CONFIGFILE%
+
 goto CUSTOM_END
 
 
@@ -73,6 +79,7 @@ goto CUSTOM_END
 :CUSTOM_NEW_PROJECT_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %CB_LINEHEADER%END NEW PROJECT %1 %2 %3 %4 %5 %6 %7 %8 %9
+del %CB_CUSTOM_PROJECT_CONFIGFILE%
 goto CUSTOM_END
 
 
