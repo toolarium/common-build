@@ -29,7 +29,7 @@ set "CB_USER_DRIVE=%CD:~0,2%"
 set "CB_SCRIPT_PATH=%~dp0"
 set "CB_SCRIPT_DRIVE=%~d0"
 set CB_FORCE_INSALL=false
-set "CB_INSTALLER_VERSION=0.6.1"
+set "CB_INSTALLER_VERSION=0.6.2"
 set "CB_RELEASE_URL=https://api.github.com/repos/toolarium/common-build/releases"
 
 title %PN%
@@ -174,21 +174,20 @@ setx CB_HOME "%CB_DEVTOOLS%\%CB_VERSION_NAME%" >nul 2>nul
 :SET_CBHOME_END
 
 :: upate path
-if not [%CB_PREVIOUS_VERSION_NAME%] equ [%CB_VERSION_NAME%] goto CB_SET_PATH
+if [%CB_PREVIOUS_VERSION_NAME%] neq [%CB_VERSION_NAME%] goto CB_SET_PATH
 if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Found previous version %CB_PREVIOUS_VERSION_NAME% in PATH, don't change PATH variable
 goto SET_PATH_END
 
 :CB_SET_PATH
 :: read user path and cleanup
-set "PATH=%CB_HOME%\bin;%PATH%"
 set USER_PATH=
-if exist %CB_HOME%\bin\cb-cleanpath.bat call %CB_HOME%\bin\cb-cleanpath.bat --user toolarium
-if .%USER_PATH% == . goto SET_PATH_END
+if exist %CB_HOME%\bin\cb-cleanpath.bat call %CB_HOME%\bin\cb-cleanpath.bat --user toolarium 2>nul
 if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Update CB_HOME in the user PATH environment
 setx PATH "%CB_HOME%\bin;%USER_PATH%" >nul 2>nul
 ::call %CB_HOME%\bin\cb-cleanpath.bat --system toolarium
 ::setx -m PATH "%SYSTEM_PATH%" >nul 2>nul
 :SET_PATH_END
+set "PATH=%CB_HOME%\bin;%PATH%"
 set "CB_BIN=%CB_HOME%\bin" 
 if not exist %CB_BIN% (mkdir %CB_BIN% >nul 2>nul)
 set "CB_LOGS=%CB_HOME%\logs" 
