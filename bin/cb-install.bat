@@ -224,6 +224,7 @@ if [%CB_INSTALLER_SILENT%] equ [false] (echo.
 	echo in folder %CB_HOME%. 
 	echo.
 	echo The %%PATH%% is already extended and you can start working with the command cb.
+	echo Please start a new command line before you start."
 	echo %CB_LINE%)
 goto END
 

@@ -46,7 +46,10 @@ if defined CB_DEVTOOLS goto SET_DEVTOOLS_END
 cd /D %CB_HOME%\..
 set "CB_DEVTOOLS=%CD%"
 cd /D %CB_CURRENT_PATH%
+
 :SET_DEVTOOLS_END
+set CB_TOOL_VERSION_DEFAULT=%CB_HOME%\conf\tool-version-default.properties
+set CB_TOOL_VERSION_INSTALLED=%CB_HOME%\conf\tool-version-installed.properties
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -416,10 +419,26 @@ SET CB_PROCESSOR_ARCHITECTURE_NUMBER=64
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:32=%" SET CB_PROCESSOR_ARCHITECTURE_NUMBER=32
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:64=%" SET CB_PROCESSOR_ARCHITECTURE_NUMBER=64
 
-if .%1==. goto INSTALL_DEFAULT_PACKAGES
+
+::set CB_TOOL_VERSION_DEFAULT=%CB_HOME%\conf\tool-version-default.properties
+::set CB_TOOL_VERSION_INSTALLED=%CB_HOME%\conf\tool-version-installed.properties
+set CB_INSTALL_VERSION=%2
+
+if .%1==. echo %CB_LINEHEADER%No CB_PACKAGE_URL environment variable found. & goto INSTALL_CB_END
 if .%1==.cb goto INSTALL_CB_PACKAGE
 if .%1==.pkg goto INSTALL_PACKAGES
-call %CB_SCRIPT_PATH%\include\download.bat %1 %2 
+if not .%CB_INSTALL_VERSION%==. goto TOOL_VERSION_DEFAULT_END
+
+:: check tool default version
+dir %CB_TOOL_VERSION_DEFAULT% >nul 2>nul
+if %ERRORLEVEL% NEQ 0 goto TOOL_VERSION_DEFAULT_END
+set "CB_TOOL_VERSION_DEFAULT_TMPFILE=%TEMP%\cb-tool-version-default-%RANDOM%%RANDOM%.tmp"
+type %CB_TOOL_VERSION_DEFAULT% 2>nul | findstr /C:= > %CB_TOOL_VERSION_DEFAULT_TMPFILE% 2>nul
+for /f "tokens=1,* delims== " %%i in (%CB_TOOL_VERSION_DEFAULT_TMPFILE%) do (if .%%i == .%1 set "CB_INSTALL_VERSION=%%j")
+del %CB_TOOL_VERSION_DEFAULT_TMPFILE% >nul 2>nul
+:TOOL_VERSION_DEFAULT_END
+
+call %CB_SCRIPT_PATH%\include\download.bat %1 %CB_INSTALL_VERSION% 
 if not .%CB_PACKAGE_DOWNLOAD_NAME%==. set "CB_PKG_FILTER=%CB_PACKAGE_DOWNLOAD_NAME%" 
 goto CHECK_EXTRACT_ARCHIVES 
 
@@ -469,7 +488,7 @@ echo %CB_LINE%>> "%CB_LOGFILE%"
 :: extract
 :CHECK_EXTRACT_ARCHIVES
 :: custom setting script
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% extract-archive-start %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% extract-archive-start %1 %CB_INSTALL_VERSION% %2 %3 %4 %5 %6 %7 2>nul
 
 if not defined CB_PKG_FILTER goto EXTRACT_ARCHIVES_END
 if [%CB_PKG_FILTER_WILDCARD%] equ [true] (goto EXTRACT_ARCHIVES_START)
@@ -502,7 +521,7 @@ goto EXTRACT_ARCHIVES_END
 
 :EXTRACT_ARCHIVES_END
 :: custom setting script
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% extract-archive-end %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% extract-archive-end %1 %CB_INSTALL_VERSION% %2 %3 %4 %5 %6 %7 2>nul
 
 :INSTALL_CB_END
 

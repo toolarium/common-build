@@ -74,6 +74,8 @@ rm -f "$CB_JAVA_VERSION_FILE" >/dev/null 2>&1
 [ -z "$CB_DEVTOOLS" ] && CB_DEVTOOLS=$(cd "$CB_HOME"/.. 2>/dev/null; echo "$PWD") && export CB_DEVTOOLS
 [ "$CB_OS" = "cygwin" ] && CB_DEVTOOLS=$(cygpath "$CB_DEVTOOLS")
 #[ -z "$(echo $CB_OS | sed 's/cygwin.*//')" ] && CLASSSEP=";" || CLASSSEP=":"
+CB_TOOL_VERSION_DEFAULT=$CB_HOME/conf/tool-version-default.properties
+CB_TOOL_VERSION_INSTALLED=$CB_HOME/conf/tool-version-installed.properties
 
 
 #########################################################################
@@ -651,16 +653,31 @@ installCb() {
 	CB_PROCESSOR_ARCHITECTURE_NUMBER=$(getconf LONG_BIT)
 	[ -z "$CB_PROCESSOR_ARCHITECTURE_NUMBER" ] && CB_PROCESSOR_ARCHITECTURE_NUMBER=64
 
-	if [ -z "$1" ]; then
-		CB_PKG_FILTER="*.zip" 
-		CB_PKG_FILTER_WILDCARD="true"
-	elif [ "$1" = "pkg" ]; then
-		CB_PKG_FILTER="*.zip" 
-		CB_PKG_FILTER_WILDCARD="true"
-	elif [ "$1" = "cb" ]; then
+	[ -z "$1" ] && echo "${CB_LINEHEADER}No CB_PACKAGE_URL environment variable found." && echo "$CB_LINE" && endWithError
+	if [ -n "$2" ]; then
+		CB_INSTALL_VERSION=$2
+	else
+		# check tool default version
+		if [ -r "$CB_TOOL_VERSION_DEFAULT" ]; then
+			CB_TOOL_VERSION_DEFAULT_TMPFILE=$(mktemp /tmp/cb-tool-version-default.XXXXXXXXX)
+			cat $CB_TOOL_VERSION_DEFAULT 2>/dev/null | grep -v "#" | grep "=" > $CB_TOOL_VERSION_DEFAULT_TMPFILE 2>/dev/null
+			while IFS= read -r line; do 
+				key="${line%=*}" && key="$(echo $key 2>/dev/null| sed 's/ //g' 2>/dev/null)"
+				[ "$key" == "$1" ] && CB_INSTALL_VERSION="${line#*=}" && CB_INSTALL_VERSION="$(echo $CB_INSTALL_VERSION 2>/dev/null| sed 's/ //g' 2>/dev/null)"
+			done <  $CB_TOOL_VERSION_DEFAULT_TMPFILE
+			rm -f $CB_TOOL_VERSION_DEFAULT_TMPFILE >/dev/null 2>&1
+		fi
+	fi
+	echo "[$CB_INSTALL_VERSION]"
+	endWithError
+	
+	if [ "$1" = "cb" ]; then
 		CB_PKG_FILTER=cb
 		CB_PKG_FILTER_WILDCARD=
 		CB_PACKAGE_DEST_VERSION_NAME=
+	elif [ "$1" = "pkg" ]; then
+		CB_PKG_FILTER="*.zip" 
+		CB_PKG_FILTER_WILDCARD="true"
 	else
 		CB_PKG_FILTER=
 		CB_PKG_FILTER_WILDCARD="false"

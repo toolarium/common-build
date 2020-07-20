@@ -99,6 +99,7 @@ while [ -z "$projectType" ]; do
 		[ "$count" == "$input" ] && projectType="${line%=*}" && break
 		count=$((count+1))
 	done <  $CB_PROJECT_CONFIGFILE_TMPFILE
+	projectType="$(echo $projectType 2>/dev/null | sed 's/ //g' 2>/dev/null)"
 	[ -z "$projectType" ] && echo "${CB_LINEHEADER}Invalid input $input" && echo ""
 done
 	
