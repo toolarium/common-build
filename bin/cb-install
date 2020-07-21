@@ -26,7 +26,7 @@ PN=$(basename "$0")
 CB_FORCE_INSALL=false
 CB_INSTALL_ONLY_STABLE=true
 CB_INSTALLER_SILENT=false
-CB_INSTALLER_VERSION=0.6.2
+CB_INSTALLER_VERSION=0.7.0
 CB_RELEASE_URL=https://api.github.com/repos/toolarium/common-build/releases
 FULLTIMESTAMP="date '+%Y%d%m%H%M%S'"
 USER_FRIENDLY_FULLTIMESTAMP="date '+%d.%m.%Y %H:%M:%S'"
@@ -349,8 +349,9 @@ if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 		cp "$CB_DEVTOOLS/$CB_VERSION_NAME/src/main/cli/*" "$CB_DEVTOOLS/$CB_VERSION_NAME/bin/" >/dev/null 2>&1
 		rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME/src" >/dev/null 2>&1
 	fi
-	
+
 	chmod -R +x "$CB_DEVTOOLS/$CB_VERSION_NAME/bin" >/dev/null 2>&1
+	mkdir "$CB_DEVTOOLS/$CB_VERSION_NAME/current" >/dev/null 2>&1
 fi
 
 shellProfile="$HOME/.bashrc"

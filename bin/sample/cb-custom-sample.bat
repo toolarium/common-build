@@ -30,8 +30,9 @@ if .%1==.install-package-start shift & goto CUSTOM_INSTALL_PACKAGE_START
 if .%1==.install-package-end shift & goto CUSTOM_INSTALL_PACKAGE_END
 if .%1==.extract-archive-start shift & goto CUSTOM_EXTRACT_ARCHIVE_START
 if .%1==.extract-archive-end shift & goto CUSTOM_EXTRACT_ARCHIVE_END
+if .%1==.setenv-start shift & goto CUSTOM_SETENV_START
+if .%1==.setenv-end shift & goto CUSTOM_SETENV_END
 if .%1==.error-end shift & goto CUSTOM_ERROR_END
-if .%1==.print-variable shift & goto CUSTOM_PRINT_VARIABLE
 echo %CB_LINEHEADER%Unknown parameter: %1
 exit /b 1
 
@@ -126,16 +127,23 @@ goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:CUSTOM_ERROR_END
+:CUSTOM_SETENV_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%ENDED WITH ERROR: %1 %2 %3 %4 %5 %6 %7 %8 %9
+echo %CB_LINEHEADER%START SETENV %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:CUSTOM_PRINT_VARIABLE
+:CUSTOM_SETENV_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo    %%CB_CUSTOM_SETTING%%: %CB_CUSTOM_SETTING%
+echo %CB_LINEHEADER%END SETENV %1 %2 %3 %4 %5 %6 %7 %8 %9
+goto CUSTOM_END
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:CUSTOM_ERROR_END
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo %CB_LINEHEADER%ENDED WITH ERROR: %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 

@@ -24,12 +24,12 @@ if .%CB_UNZIP_DOWNLOAD_URL%==. set "CB_UNZIP_DOWNLOAD_URL=http://stahlworks.com/
 set "CB_LINEHEADER=.: "
 set CB_LINE=----------------------------------------------------------------------------------------
 set PN=%~nx0
-set "CB_CURRENT_PATH=%CD%"
+set "CB_WORKING_PATH=%CD%"
 set "CB_USER_DRIVE=%CD:~0,2%"
 set "CB_SCRIPT_PATH=%~dp0"
 set "CB_SCRIPT_DRIVE=%~d0"
 set CB_FORCE_INSALL=false
-set "CB_INSTALLER_VERSION=0.6.2"
+set "CB_INSTALLER_VERSION=0.7.0"
 set "CB_RELEASE_URL=https://api.github.com/repos/toolarium/common-build/releases"
 
 title %PN%
@@ -192,6 +192,8 @@ set "CB_BIN=%CB_HOME%\bin"
 if not exist %CB_BIN% (mkdir %CB_BIN% >nul 2>nul)
 set "CB_LOGS=%CB_HOME%\logs" 
 if not exist %CB_LOGS% (mkdir %CB_LOGS% >nul 2>nul)
+set "CB_CURRENT_PATH=%CB_HOME%\current" 
+if not exist %CB_CURRENT_PATH% (mkdir %CB_CURRENT_PATH% >nul 2>nul)
 
 :: download wget -> https://eternallybored.org/misc/wget/1.20.3/64/wget.exe
 set CB_WGET_CMD=wget.exe
@@ -224,7 +226,6 @@ if [%CB_INSTALLER_SILENT%] equ [false] (echo.
 	echo in folder %CB_HOME%. 
 	echo.
 	echo The %%PATH%% is already extended and you can start working with the command cb.
-	echo Please start a new command line before you start."
 	echo %CB_LINE%)
 goto END
 
@@ -251,4 +252,7 @@ goto END
 del %cbInfoTemp% 2>nul
 del %cbErrorTemp% 2>nul
 title %CD%
+endlocal & (
+  set "CB_HOME=%CB_HOME%"
+  set "PATH=%PATH%")
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

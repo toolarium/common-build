@@ -19,6 +19,7 @@ set CB_PACKAGE_VERSION_NAME=
 set CB_PACKAGE_DEST_VERSION_NAME=
 set CB_PACKAGE_DOWNLOAD_URL=
 
+set "TMPFILE=%TEMP%\cb-download-%RANDOM%%RANDOM%.tmp"
 if not exist %CB_SCRIPT_PATH%\packages\%CB_PACKAGE_NAME%\%CB_PACKAGE_NAME%.bat goto DOWNLOAD_PACKAGE_NOTFOUND_ERROR
 :: we expecte:
 :: 1) the CB_PACKAGE_VERSION contains the version which will be installed (optional)
@@ -63,14 +64,20 @@ goto DOWNLOAD_END
 
 :DOWNLOAD_PACKAGE_ERROR
 echo %CB_LINEHEADER%Error occured in download: %CB_ERROR_INFO% & echo %CB_LINEHEADER%Error occured in download: %CB_ERROR_INFO%>> "%CB_LOGFILE%"
-goto DOWNLOAD_END
+del %TMPFILE% >nul 2>nul
+exit /b 1
 
 :DOWNLOAD_PACKAGE_NOTFOUND_ERROR
 echo %CB_LINEHEADER%Package %CB_PACKAGE_NAME% is currently not supported! & echo %CB_LINEHEADER%Package %CB_PACKAGE_NAME% is currently not supported!>> "%CB_LOGFILE%"
-goto DOWNLOAD_END
+del %TMPFILE% >nul 2>nul
+exit /b 1
 
 :DOWNLOAD_ENVIRONMENT_ERROR
 echo %CB_LINEHEADER%Could not found expected environment variable %CB_ERROR_INFO% & echo %CB_LINEHEADER%Could not found expected environment variable %CB_ERROR_INFO%>> "%CB_LOGFILE%"
-goto DOWNLOAD_END
+del %TMPFILE% >nul 2>nul
+exit /b 1
 
 :DOWNLOAD_END
+del %TMPFILE% >nul 2>nul
+del %TMPFILE% >nul 2>nul
+exit /b 0

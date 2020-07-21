@@ -18,6 +18,7 @@ if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_JAVA_VERSION%"
 :: 8,9,10,11,12,13
 ::if not defined CB_JAVA_FEATURE_VERSION set "CB_JAVA_FEATURE_VERSION=11"
 set CB_JAVA_FEATURE_VERSION=%CB_PACKAGE_VERSION%
+for /f "tokens=1 delims=." %%i in ("%CB_PACKAGE_VERSION%") do (set "CB_JAVA_FEATURE_VERSION=%%i")
 :: ga, ea
 if not defined CB_JAVA_RELEASE_TYPE set "CB_JAVA_RELEASE_TYPE=ga"
 ::linux, windows, mac, solaris, aix
