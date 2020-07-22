@@ -629,6 +629,7 @@ del %TMPFILE% >nul 2>nul
 if .%topDirectory% == . echo %CB_LINEHEADER%Could not get root directory of %1, give up. & del %TMPFILE% >nul 2>nul & goto :eof
 set "topDirectory=%topDirectory:~2%" 
 set "topDirectory=%topDirectory:/=%"
+if not .%CB_PACKAGE_DEST_VERSION_NAME% == . set "topDirectory=%CB_PACKAGE_DEST_VERSION_NAME%"
 if [%CB_INSTALL_SILENT%] equ [false] if exist %CB_DEVTOOLS%\%topDirectory% echo %CB_LINEHEADER%Directory %CB_DEVTOOLS%\%topDirectory% will be updated.
 if exist %CB_BIN%\%CB_UNZIP_CMD% %CB_BIN%\%CB_UNZIP_CMD% %CB_UNZIP_PARAM% %1 >> "%CB_LOGFILE%" 
 if %ERRORLEVEL% NEQ 0 set "errorCode=%ERRORLEVEL%" & echo %CB_LINEHEADER%Could not extract package. & goto :eof
@@ -656,7 +657,7 @@ set "CB_TOOL_VERSION_INSTALLED_TMPFILE=%TEMP%\cb-tool-version-installed-%RANDOM%
 set "CB_TOOL_VERSION_INSTALLED_TMPFILE2=%TEMP%\cb-tool-version-installed-%RANDOM%%RANDOM%.tmp"
 set CB_ENTRY_FOUND=false
 set CB_UPDATED=false
-if not exist %CB_TOOL_VERSION_INSTALLED_TMPFILE% type %CB_TOOL_VERSION_INSTALLED% 2>nul | findstr /C:= > %CB_TOOL_VERSION_INSTALLED_TMPFILE% 2>nul
+type %CB_TOOL_VERSION_INSTALLED% 2>nul | findstr /C:= > %CB_TOOL_VERSION_INSTALLED_TMPFILE% 2>nul
 for /f "tokens=1,* delims== " %%i in (%CB_TOOL_VERSION_INSTALLED_TMPFILE%) do (
 	if .%%i == .%CB_INSTALL_PKG% (
 		set CB_ENTRY_FOUND=true
