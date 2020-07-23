@@ -240,17 +240,17 @@ projectWizard() {
 exploreProject()
 {
 	fileExplorer=
-	[ "$CB_OS" = "windows" ] && fileExplorer=$(which explorer.exe >/dev/null 2>&1)
-	[ "$CB_OS" = "cygwin" ] && fileExplorer=$(which explorer.exe >/dev/null 2>&1)
-	[ "$CB_OS" = "mac" ] && fileExplorer=$(which open >/dev/null 2>&1)
+	[ "$CB_OS" = "windows" ] && fileExplorer=$(which explorer.exe 2>&1)
+	[ "$CB_OS" = "cygwin" ] && fileExplorer=$(which explorer.exe 2>/dev/null)
+	[ "$CB_OS" = "mac" ] && fileExplorer=$(which open 2>/dev/null)
 
 	if [ "$CB_OS" = "linux" ]; then
 		fileExplorer=$(which xdg-open 2>/dev/null)		
 		# kde
-		[ -z "$fileExplorer" ] && fileExplorer=$(which dolphin >/dev/null 2>&1)
+		[ -z "$fileExplorer" ] && fileExplorer=$(which dolphin 2>/dev/null)
 		# gnome
-		[ -z "$fileExplorer" ] && fileExplorer=$(which gnome-open >/dev/null 2>&1)		
-		[ -z "$fileExplorer" ] && fileExplorer=$(which nautilus >/dev/null 2>&1)
+		[ -z "$fileExplorer" ] && fileExplorer=$(which gnome-open 2>/dev/null)
+		[ -z "$fileExplorer" ] && fileExplorer=$(which nautilus 2>/dev/null)
 	fi
 	
 	if [ -n "$fileExplorer" ]; then
@@ -258,7 +258,7 @@ exploreProject()
 		then
 			exploreDirectory="$CB_WORKING_PATH"
 			[ "$CB_OS" = "cygwin" ] && exploreDirectory="$(cygpath --windows $CB_WORKING_PATH)"
-			$fileExplorer "$exploreDirectory"
+			$fileExplorer "$exploreDirectory" >/dev/null 2>&1 &
 		else
 			echo "$CB_LINE"
 			echo "${CB_LINEHEADER}Could not found explorer.exe."
