@@ -251,6 +251,7 @@ endlocal & (
   set "CB_CUSTOM_SETTING_SCRIPT=%CB_CUSTOM_SETTING_SCRIPT%"
 )
 
+if .%1 == .--silent shift & set CB_INSTALL_SILENT=true
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% setenv-start %1 %2 %3 %4 %5 %6 %7 2>nul
 
 set CB_ANT_HOME=%CB_CURRENT_PATH%\ant
