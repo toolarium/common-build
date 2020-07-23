@@ -22,7 +22,7 @@ else
 
 	# if we have a local common gradle build use the project types configuration file
 	if [ -z "$COMMON_GRADLE_BUILD_URL" ]; then
-		[ "$CB_OS" == "cygwin" ] && commonGradleBuildBasePath="$(cygpath $USERPROFILE)/.gradle/common-gradle-build" || commonGradleBuildBasePath="$HOME/.gradle/common-gradle-build"
+		[ "$CB_OS" = "cygwin" ] && commonGradleBuildBasePath="$(cygpath $USERPROFILE)/.gradle/common-gradle-build" || commonGradleBuildBasePath="$HOME/.gradle/common-gradle-build"
 		
 		if [ -d "$commonGradleBuildBasePath" ]; then
 			commonGradleBuildVersion=$(find "$commonGradleBuildBasePath" -maxdepth 1 -type d -name "*\.*\.*" -prune -exec ls -d {} \; 2>/dev/null | tail -1 2>/dev/null | xargs -l basename 2>/dev/null)
@@ -96,7 +96,7 @@ while [ -z "$projectType" ]; do
 	
 	count=1
 	while IFS= read -r line; do 
-		[ "$count" == "$input" ] && projectType="${line%=*}" && break
+		[ "$count" = "$input" ] && projectType="${line%=*}" && break
 		count=$((count+1))
 	done <  $CB_PROJECT_CONFIGFILE_TMPFILE
 	projectType="$(echo $projectType 2>/dev/null | sed 's/ //g' 2>/dev/null)"
