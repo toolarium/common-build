@@ -46,6 +46,7 @@ case $CB_OS in
 	'aix') CB_OS="aix";;
 	*) ;;
 esac
+CB_SHELL_INITIALISATION_CMD="export CB_HOME=$CB_HOME && export PATH=\"\$CB_HOME/bin:\$PATH\""
 
 
 #########################################################################
@@ -53,6 +54,27 @@ esac
 #########################################################################
 getFileSize() { 
 	set -- $(\ls -dn "$1") && echo $5; 
+}
+
+
+#########################################################################
+# Get the current shell
+#########################################################################
+getCurrentShell() {
+    if [ "$HTTP_REQUEST_CLI" = "curl" ]; then	
+		CMD="curl -fsSL http://www.in-ulm.de/~mascheck/various/whatshell/whatshell.sh | sh"
+    else
+		CMD="wget -q -O - /dev/null http://www.in-ulm.de/~mascheck/various/whatshell/whatshell.sh | sh"
+    fi
+
+	currentShell=$(eval $CMD | awk '{print $1}')
+	if [ -z $currentShell ]; then
+		[ "$(echo ${SHELL##*/})" = "bash" ] && currentShell=".bashrc"
+		[ "$(echo ${SHELL##*/})" = "zsh" ] && currentShell=".zshrc"
+		[ "$(echo ${SHELL##*/})" = "zsh" ] && currentShell=".ashrc"
+	fi
+	
+	echo $currentShell
 }
 
 
@@ -88,6 +110,8 @@ Version() {
 # installationSuccess
 #########################################################################
 installationSuccess() {
+	msgInfo=""
+	[ -n "$1" ] && msgInfo="or type in . $1"
 	if [ "$CB_INSTALLER_SILENT" = "false" ]; then
 		echo ""
 		echo "$CB_LINE"
@@ -95,7 +119,7 @@ installationSuccess() {
 		echo "in folder $CB_HOME. "
 		echo ""
 		echo "The \$PATH is extended and you can start working with the command cb."
-		echo "Please re-login or type in . $1, before you start."
+		echo "Please re-login $msgInfo, before you start."
 		echo "$CB_LINE"
 	fi
 }
@@ -264,6 +288,43 @@ exithandler() {
 
 
 #########################################################################
+# update the shell initialisation
+#########################################################################
+updateShellInitialisation() {
+	[ -z "$1" ] && return
+	shellProfile=$1	
+
+	# in case it does not exist, just create empty file
+	! [ -f "$shellProfile" ] && touch $shellProfile && chmod 750 $shellProfile
+	
+	if [ -w "$shellProfile" ]; then
+		backupFileName="${shellProfile}_cb-$(eval $FULLTIMESTAMP)"
+		cp "$shellProfile" "$backupFileName" >/dev/null 2>&1 && chmod +r "$backupFileName" >/dev/null 2>&1
+	
+		if [ -z "$(cat $shellProfile | grep 'toolarium-common-build support')" ]; then
+			[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Modify file $shellProfile" 
+			echo "" >> "$shellProfile"
+			echo "# toolarium-common-build support" >> "$shellProfile"
+			echo "$CB_SHELL_INITIALISATION_CMD" >> "$shellProfile"
+		else
+			newFileName="${shellProfile}_cb-new"
+			rm -f "$newFileName" >/dev/null 2>&1
+
+			#TEST: CB_HOME="$CB_HOME/aa"
+			CB_HOME_ESCAPED=$(echo "$CB_HOME" | sed 's/\//\\\//g')
+			[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Update file $shellProfile" 
+			cat "$shellProfile" | sed "s/CB_HOME\=.*\&/CB_HOME\=$CB_HOME_ESCAPED\ \&\&/g" > "$newFileName"
+			chmod --reference="$shellProfile $newFileName" >/dev/null 2>&1
+			chmod +r+w "$newFileName" >/dev/null 2>&1
+			mv -f "$newFileName" "$shellProfile" >/dev/null 2>&1
+		fi
+	else
+		echo "${CB_LINEHEADER}Can not set CB_HOME in $shellProfile, it's write protected."
+	fi
+}
+
+
+#########################################################################
 # main
 #########################################################################
 trap 'exithandler $?; exit' 0
@@ -362,39 +423,28 @@ if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	mkdir "$CB_DEVTOOLS/$CB_VERSION_NAME/current" >/dev/null 2>&1
 fi
 
-shellProfile="$HOME/.bashrc"
 if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Set CB_HOME to $CB_DEVTOOLS/$CB_VERSION_NAME"
 	CB_HOME="$CB_DEVTOOLS/$CB_VERSION_NAME"
 	export CB_HOME="$CB_HOME" && export PATH="$CB_HOME/bin:$PATH"
 
-	if [ -w "$shellProfile" ]; then
-		backupFileName="${shellProfile}_cb-$(eval $FULLTIMESTAMP)"
-		cp "$shellProfile" "$backupFileName" >/dev/null 2>&1 && chmod +r "$backupFileName" >/dev/null 2>&1
+	which bash >/dev/null 2>&1
+	[ $? -eq 0 ] && updateShellInitialisation "$HOME/.bashrc"
 	
-		if [ -z "$(cat $shellProfile | grep 'toolarium-common-build support')" ]; then
-			[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Modify file $shellProfile" 
-			echo "" >> "$shellProfile"
-			echo "# toolarium-common-build support" >> "$shellProfile"
-			echo "export CB_HOME=$CB_HOME && export PATH=\"\$CB_HOME/bin:\$PATH\"" >> "$shellProfile"
-		else
-			newFileName="${shellProfile}_cb-new"
-			rm -f "$newFileName" >/dev/null 2>&1
-
-			#TEST: CB_HOME="$CB_HOME/aa"
-			CB_HOME_ESCAPED=$(echo "$CB_HOME" | sed 's/\//\\\//g')
-			[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Update file $shellProfile" 
-			cat "$shellProfile" | sed "s/CB_HOME\=.*\&/CB_HOME\=$CB_HOME_ESCAPED\ \&\&/g" > "$newFileName"
-			chmod --reference="$shellProfile $newFileName" >/dev/null 2>&1
-			chmod +r+w "$newFileName" >/dev/null 2>&1
-			mv -f "$newFileName" "$shellProfile" >/dev/null 2>&1
-		fi
-	else
-		echo "${CB_LINEHEADER}Can not set CB_HOME in $shellProfile, it's write protected."
-	fi
+	which zsh >/dev/null 2>&1
+	[ $? -eq 0 ] && updateShellInitialisation "$HOME/.zshrc"
+	
+	which ash >/dev/null 2>&1
+	[ $? -eq 0 ] && updateShellInitialisation "$HOME/.ashrc"
+	
+	#which fish >/dev/null 2>&1
+	#if [ $? -eq 0 ]; then
+	#	CB_SHELL_INITIALISATION_CMD="set -x CB_HOME $CB_HOME && set -x PATH \$PATH \$CB_HOME/bin"
+	#	updateShellInitialisation "$HOME/.config/fish/config.fish"
+	#fi
 fi
 
-installationSuccess "$shellProfile"
+installationSuccess $(getCurrentShell)
 
 
 #########################################################################
