@@ -49,6 +49,14 @@ esac
 
 
 #########################################################################
+# Get the file size (gnu linux: stat -c %s, max: stat -f %z)
+#########################################################################
+getFileSize() { 
+	set -- $(\ls -dn "$1") && echo $5; 
+}
+
+
+#########################################################################
 # Usage
 #########################################################################
 Usage() {
@@ -169,7 +177,7 @@ getLatestRelease() {
 	
 	version=$(eval "$CMD")
 	[ $? -eq 0 ] && echo ${version#v*} || echo ""
-	[ -r "$cbErrorTemp" ] && [ $(stat -c %s $cbErrorTemp) -eq 0 ] && rm -f "$cbErrorTemp" >/dev/null 2>&1
+	[ -r "$cbErrorTemp" ] && [ $(getFileSize $cbErrorTemp) -eq 0 ] && rm -f "$cbErrorTemp" >/dev/null 2>&1
 }
 
 
@@ -196,7 +204,7 @@ getRelease() {
 
  	version=$(eval "$CMD")
 	[ $? -eq 0 ] && echo ${version#v*} || echo ""
-	[ -r "$cbErrorTemp" ] && [ $(stat -c %s $cbErrorTemp) -eq 0 ] && rm -f "$cbErrorTemp" >/dev/null 2>&1
+	[ -r "$cbErrorTemp" ] && [ $(getFileSize $cbErrorTemp) -eq 0 ] && rm -f "$cbErrorTemp" >/dev/null 2>&1
 }
 
 
@@ -223,7 +231,7 @@ getReleaseDownloadUrl() {
 
 	downloadUrl=$(eval "$CMD")
 	[ $? -eq 0 ] && echo $downloadUrl || echo ""
-	[ -r "$cbErrorTemp" ] && [ $(stat -c %s $cbErrorTemp) -eq 0 ] && rm -f "$cbErrorTemp" >/dev/null 2>&1
+	[ -r "$cbErrorTemp" ] && [ $(getFileSize $cbErrorTemp) -eq 0 ] && rm -f "$cbErrorTemp" >/dev/null 2>&1
 }
 
 
@@ -328,7 +336,7 @@ else
 
 	# in case we donwload a new version we also extract new
 	! [ -r "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" ] && installationFailed "Could not download version $releaseVersion."
-	[ $(stat -c %s $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz) -gt 0 ] && rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME" >/dev/null 2>&1
+	[ $(getFileSize $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz) -gt 0 ] && rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME" >/dev/null 2>&1
 fi
 
 if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then 

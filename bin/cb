@@ -44,6 +44,14 @@ export CB_LINE CB_LINEHEADER
 
 
 #########################################################################
+# Get the file size (gnu linux: stat -c %s, max: stat -f %z)
+#########################################################################
+getFileSize() { 
+	set -- $(\ls -dn "$1") && echo $5; 
+}
+
+
+#########################################################################
 # End with error
 #########################################################################
 endWithError() {
@@ -265,7 +273,7 @@ exploreProject()
 			echo "$CB_LINE"
 		fi
 	else
-		echo "${CB_LINEHEADER}This functionality is not supported by this os installation ($CB_OS)."	
+		echo "${CB_LINEHEADER}This functionality is not supported by this os installation ($CB_OS/$CB_MACHINE)."	
 	fi
 }
 
@@ -452,11 +460,13 @@ commonBuild() {
 
 	if [ -r "$CB_JAVA_VERSION_FILE" ]; then
 		#current run java switch
+		CB_JAVA_HOME=
 		cbJavaVersion=$(awk '{print $1}' < "$CB_JAVA_VERSION_FILE" 2>/dev/null)
 		rm -f "$CB_JAVA_VERSION_FILE" >/dev/null 2>&1
 		[ -n "$cbJavaVersion" ] && echo "${CB_LINEHEADER}Set java version $cbJavaVersion (by command line --java $cbJavaVersion)"
 	elif [ -r "$CB_PROJECT_JAVA_VERSION_FILE" ]; then
 		# project specific java switch
+		CB_JAVA_HOME=
 		cbJavaVersion=$(awk '{print $1}' < "$CB_PROJECT_JAVA_VERSION_FILE" 2>/dev/null)
 		[ -n "$cbJavaVersion" ] && echo "${CB_LINEHEADER}Set project java version $cbJavaVersion (from .java-version)"
 	else
@@ -666,7 +676,13 @@ downloadPackage() {
 
 				# in case it is zero size we delete it
 				if [ -r "$CB_DEV_REPOSITORY/$CB_PACKAGE_DOWNLOAD_NAME" ]; then 
-					if [ $(stat -c %s $CB_DEV_REPOSITORY/$CB_PACKAGE_DOWNLOAD_NAME) -lt 1000 ]; then
+				
+				
+				[ $(wc -c $CB_DEV_REPOSITORY/$CB_PACKAGE_DOWNLOAD_NAME | awk '{print $1}') -lt 10 ]
+				[ $(wc -c $CB_DEV_REPOSITORY/$CB_PACKAGE_DOWNLOAD_NAME | awk '{print $1}') -lt 10 ]
+				ls -l jptools-sf/gradle.properties | awk '{print $5}'
+				
+					if [ $(getFileSize $CB_DEV_REPOSITORY/$CB_PACKAGE_DOWNLOAD_NAME) -lt 1000 ]; then
 						echo "${CB_LINEHEADER}Invalid package $CB_PACKAGE_NAME $CB_PACKAGE_VERSION, give up." | tee -a "$CB_LOGFILE"
 						rm -rf "$CB_DEV_REPOSITORY/$CB_PACKAGE_DOWNLOAD_NAME" >/dev/null 2>&1
 						errorCode=1
