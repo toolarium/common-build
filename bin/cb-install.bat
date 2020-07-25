@@ -29,7 +29,7 @@ set "CB_USER_DRIVE=%CD:~0,2%"
 set "CB_SCRIPT_PATH=%~dp0"
 set "CB_SCRIPT_DRIVE=%~d0"
 set CB_FORCE_INSALL=false
-set "CB_INSTALLER_VERSION=0.7.0"
+set "CB_INSTALLER_VERSION=0.7.2"
 set "CB_RELEASE_URL=https://api.github.com/repos/toolarium/common-build/releases"
 
 title %PN%
@@ -40,7 +40,7 @@ if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:64=%" SET CB_PROCESS
 for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value') do set "dt=%%a"
 set "YY=%dt:~2,2%" & set "YYYY=%dt:~0,4%" & set "MM=%dt:~4,2%" & set "DD=%dt:~6,2%" & set "HH=%dt:~8,2%" & set "Min=%dt:~10,2%" & set "Sec=%dt:~12,2%"
 set "DATESTAMP=%YYYY%%MM%%DD%" & set "TIMESTAMP=%HH%%Min%%Sec%" & set "FULLTIMESTAMP=%DATESTAMP%-%TIMESTAMP%"
-set "USER_FRIENDLY_DATESTAMP=%DD%.%MM%.%YYYY%" & set "USER_FRIENDLY_TIMESTAMP=%HH%:%Min%:%Sec%" 
+set "USER_FRIENDLY_DATESTAMP=%DD%.%MM%.%YYYY%" & set "USER_FRIENDLY_TIMESTAMP=%HH%:%Min%:%Sec%"
 set "USER_FRIENDLY_FULLTIMESTAMP=%USER_FRIENDLY_DATESTAMP% %USER_FRIENDLY_TIMESTAMP%"
 set "CB_INSTALL_ONLY_STABLE=true"
 set CB_VERSION=
@@ -121,7 +121,7 @@ set "CB_VERSION_NAME=toolarium-common-build-%CB_REMOTE_VERSION%"
 
 :: create directories
 if not exist %CB_DEVTOOLS% mkdir %CB_DEVTOOLS% >nul 2>nul & echo %CB_LINEHEADER%Create directory %CB_DEVTOOLS%
-set "CB_DEV_REPOSITORY=%CB_DEVTOOLS%\.repository" 
+set "CB_DEV_REPOSITORY=%CB_DEVTOOLS%\.repository"
 if not exist %CB_DEV_REPOSITORY% mkdir %CB_DEV_REPOSITORY% >nul 2>nul
 
 :: download toolarium-common-build
@@ -135,7 +135,7 @@ if .%CB_FORCE_INSALL%==.true (del /s /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\* >nul 2
 :DOWNLOAD_CB_END
 
 if exist %CB_DEVTOOLS%\%CB_VERSION_NAME% goto EXTRACT_CB_END
-if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Extract %CB_VERSION_NAME%.zip in %CB_DEVTOOLS%... 
+if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Extract %CB_VERSION_NAME%.zip in %CB_DEVTOOLS%...
 if /I [%CB_DEVTOOLS_DRIVE%] NEQ [%CB_USER_DRIVE%] (%CB_DEVTOOLS_DRIVE%)
 powershell -command "Expand-Archive -Force %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%.zip %CB_DEV_REPOSITORY%"
 move %CB_DEV_REPOSITORY%\toolarium-common-build-???????? %CB_DEVTOOLS%\%CB_VERSION_NAME% >nul
@@ -169,7 +169,7 @@ for /f "tokens=3" %%A in ("%CB_PREVIOUS_VERSION_NAME%") do (set CB_PREVIOUS_VERS
 
 if [%CB_HOME%] equ [%CB_DEVTOOLS%\%CB_VERSION_NAME%] goto SET_CBHOME_END
 if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Set CB_HOME to %CB_DEVTOOLS%\%CB_VERSION_NAME%
-set "CB_HOME=%CB_DEVTOOLS%\%CB_VERSION_NAME%" 
+set "CB_HOME=%CB_DEVTOOLS%\%CB_VERSION_NAME%"
 setx CB_HOME "%CB_DEVTOOLS%\%CB_VERSION_NAME%" >nul 2>nul
 :SET_CBHOME_END
 
@@ -188,11 +188,11 @@ setx PATH "%CB_HOME%\bin;%USER_PATH%" >nul 2>nul
 ::setx -m PATH "%SYSTEM_PATH%" >nul 2>nul
 :SET_PATH_END
 set "PATH=%CB_HOME%\bin;%PATH%"
-set "CB_BIN=%CB_HOME%\bin" 
+set "CB_BIN=%CB_HOME%\bin"
 if not exist %CB_BIN% (mkdir %CB_BIN% >nul 2>nul)
-set "CB_LOGS=%CB_HOME%\logs" 
+set "CB_LOGS=%CB_HOME%\logs"
 if not exist %CB_LOGS% (mkdir %CB_LOGS% >nul 2>nul)
-set "CB_CURRENT_PATH=%CB_HOME%\current" 
+set "CB_CURRENT_PATH=%CB_HOME%\current"
 if not exist %CB_CURRENT_PATH% (mkdir %CB_CURRENT_PATH% >nul 2>nul)
 
 :: download wget -> https://eternallybored.org/misc/wget/1.20.3/64/wget.exe
@@ -223,7 +223,7 @@ goto END
 if [%CB_INSTALLER_SILENT%] equ [false] (echo.
 	echo %CB_LINE%
 	echo Successfully installed toolarium-common-build v%CB_REMOTE_VERSION%
-	echo in folder %CB_HOME%. 
+	echo in folder %CB_HOME%.
 	echo.
 	echo The %%PATH%% is already extended and you can start working with the command cb.
 	echo %CB_LINE%)

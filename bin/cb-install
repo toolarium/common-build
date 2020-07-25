@@ -26,7 +26,7 @@ PN=$(basename "$0")
 CB_FORCE_INSALL=false
 CB_INSTALL_ONLY_STABLE=true
 CB_INSTALLER_SILENT=false
-CB_INSTALLER_VERSION=0.7.0
+CB_INSTALLER_VERSION=0.7.2
 CB_RELEASE_URL=https://api.github.com/repos/toolarium/common-build/releases
 FULLTIMESTAMP="date '+%Y%d%m%H%M%S'"
 USER_FRIENDLY_FULLTIMESTAMP="date '+%d.%m.%Y %H:%M:%S'"
@@ -52,8 +52,8 @@ CB_SHELL_INITIALISATION_CMD="export CB_HOME=$CB_HOME && export PATH=\"\$CB_HOME/
 #########################################################################
 # Get the file size (gnu linux: stat -c %s, max: stat -f %z)
 #########################################################################
-getFileSize() { 
-	set -- $(\ls -dn "$1") && echo $5; 
+getFileSize() {
+	set -- $(\ls -dn "$1") && echo $5;
 }
 
 
@@ -61,7 +61,7 @@ getFileSize() {
 # Get the current shell
 #########################################################################
 getCurrentShell() {
-    if [ "$HTTP_REQUEST_CLI" = "curl" ]; then	
+    if [ "$HTTP_REQUEST_CLI" = "curl" ]; then
 		CMD="curl -fsSL http://www.in-ulm.de/~mascheck/various/whatshell/whatshell.sh | sh"
     else
 		CMD="wget -q -O - /dev/null http://www.in-ulm.de/~mascheck/various/whatshell/whatshell.sh | sh"
@@ -73,7 +73,7 @@ getCurrentShell() {
 		[ "$(echo ${SHELL##*/})" = "zsh" ] && currentShell=".zshrc"
 		[ "$(echo ${SHELL##*/})" = "zsh" ] && currentShell=".ashrc"
 	fi
-	
+
 	echo $currentShell
 }
 
@@ -166,7 +166,7 @@ checkInternetConnection() {
 checkHttpRequestCLI() {
 	which curl >/dev/null 2>&1
 	[ $? -eq 0 ] && echo "curl" && return
-	
+
 	which wget >/dev/null 2>&1
 	[ $? -eq 0 ] && echo "wget" && return
 	echo ""
@@ -177,7 +177,7 @@ checkHttpRequestCLI() {
 # getLatestRelease
 #########################################################################
 getLatestRelease() {
-    if [ "$HTTP_REQUEST_CLI" = "curl" ]; then	
+    if [ "$HTTP_REQUEST_CLI" = "curl" ]; then
 		CMD="curl -fsSL $CB_RELEASE_URL"
     else
 		CMD="wget -q --header=\"Accept: application/json\" -O - $CB_RELEASE_URL"
@@ -198,7 +198,7 @@ getLatestRelease() {
 	else
 		CMD="$CMD 2>$cbErrorTemp | grep \"tag_name\" | awk '{print \$2}' | sed -n 's/\"\(.*\)\",/\1/p' | head -1 2>/dev/null"
 	fi
-	
+
 	version=$(eval "$CMD")
 	[ $? -eq 0 ] && echo ${version#v*} || echo ""
 	[ -r "$cbErrorTemp" ] && [ $(getFileSize $cbErrorTemp) -eq 0 ] && rm -f "$cbErrorTemp" >/dev/null 2>&1
@@ -209,7 +209,7 @@ getLatestRelease() {
 # getRelease
 #########################################################################
 getRelease() {
-    if [ "$HTTP_REQUEST_CLI" = "curl" ]; then	
+    if [ "$HTTP_REQUEST_CLI" = "curl" ]; then
 		CMD="curl -fsSL $CB_RELEASE_URL"
     else
 		CMD="wget -q --header=\"Accept: application/json\" -O - $CB_RELEASE_URL"
@@ -292,17 +292,17 @@ exithandler() {
 #########################################################################
 updateShellInitialisation() {
 	[ -z "$1" ] && return
-	shellProfile=$1	
+	shellProfile=$1
 
 	# in case it does not exist, just create empty file
 	! [ -f "$shellProfile" ] && touch $shellProfile && chmod 750 $shellProfile
-	
+
 	if [ -w "$shellProfile" ]; then
 		backupFileName="${shellProfile}_cb-$(eval $FULLTIMESTAMP)"
 		cp "$shellProfile" "$backupFileName" >/dev/null 2>&1 && chmod +r "$backupFileName" >/dev/null 2>&1
-	
+
 		if [ -z "$(cat $shellProfile | grep 'toolarium-common-build support')" ]; then
-			[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Modify file $shellProfile" 
+			[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Modify file $shellProfile"
 			echo "" >> "$shellProfile"
 			echo "# toolarium-common-build support" >> "$shellProfile"
 			echo "$CB_SHELL_INITIALISATION_CMD" >> "$shellProfile"
@@ -312,7 +312,7 @@ updateShellInitialisation() {
 
 			#TEST: CB_HOME="$CB_HOME/aa"
 			CB_HOME_ESCAPED=$(echo "$CB_HOME" | sed 's/\//\\\//g')
-			[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Update file $shellProfile" 
+			[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Update file $shellProfile"
 			cat "$shellProfile" | sed "s/CB_HOME\=.*\&/CB_HOME\=$CB_HOME_ESCAPED\ \&\&/g" > "$newFileName"
 			chmod --reference="$shellProfile $newFileName" >/dev/null 2>&1
 			chmod +r+w "$newFileName" >/dev/null 2>&1
@@ -341,7 +341,7 @@ do
 	-v)	Version; exit 0;;
 	--version)	Version; exit 0;;
 	--silent) 	CB_INSTALLER_SILENT=true;;
-	--force)	CB_FORCE_INSALL=true;;	
+	--force)	CB_FORCE_INSALL=true;;
 	--draft) 	CB_INSTALL_ONLY_STABLE=false;;
 	*)	CB_INSTALL_PARAMETERS="$CB_INSTALL_PARAMETERS $1";;
     esac
@@ -363,7 +363,7 @@ checkInternetConnection
 
 if [ "$CB_INSTALLER_SILENT" = "false" ]; then
 	[ -z "$CB_INSTALL_PARAMETERS" ] && echo "${CB_LINEHEADER}Check newest version of toolarium-common-build..."
-	[ -n "$CB_INSTALL_PARAMETERS" ] && echo "${CB_LINEHEADER}Check version $CB_INSTALL_PARAMETERS of toolarium-common-build..."	
+	[ -n "$CB_INSTALL_PARAMETERS" ] && echo "${CB_LINEHEADER}Check version $CB_INSTALL_PARAMETERS of toolarium-common-build..."
 fi
 
 CB_VERSION=
@@ -384,13 +384,13 @@ CB_VERSION_NAME="toolarium-common-build-$releaseVersion"
 
 # create directories
 ! [ -d "$CB_DEVTOOLS" ] && mkdir "$CB_DEVTOOLS" >/dev/null 2>&1 && echo "${CB_LINEHEADER}Create directory $CB_DEVTOOLS"
-CB_DEV_REPOSITORY="$CB_DEVTOOLS/.repository" 
+CB_DEV_REPOSITORY="$CB_DEVTOOLS/.repository"
 ! [ -d "$CB_DEV_REPOSITORY" ] && mkdir "$CB_DEV_REPOSITORY" >/dev/null 2>&1
 
 # download toolarium-common-build
 [ "$CB_FORCE_INSALL" = "true" ] && rm -f "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" >/dev/null 2>&1
 if [ -r "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" ]; then
-	[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Found already downloaded version, $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" 
+	[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Found already downloaded version, $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz"
 else
 	[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Install $CB_VERSION_NAME"
 	downloadRelease "$downloadUrl" "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz"
@@ -400,13 +400,13 @@ else
 	[ $(getFileSize $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz) -gt 0 ] && rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME" >/dev/null 2>&1
 fi
 
-if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then 
+if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Extract $CB_VERSION_NAME.tgz in $CB_DEVTOOLS..."
 
-	tar -zxf "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" -C "$CB_DEV_REPOSITORY/" >/dev/null 2>&1 
+	tar -zxf "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" -C "$CB_DEV_REPOSITORY/" >/dev/null 2>&1
 	tarContentName=$(find $CB_DEV_REPOSITORY/* -type d -name 'toolarium-common-build-*' -print 2>/dev/null)
 	mv "$tarContentName" "$CB_DEVTOOLS/$CB_VERSION_NAME" >/dev/null 2>&1
-		
+
 	# remove unecessary files
 	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/.gitattributes" >/dev/null 2>&1
 	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/.gitignore" >/dev/null 2>&1
@@ -430,13 +430,13 @@ if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 
 	which bash >/dev/null 2>&1
 	[ $? -eq 0 ] && updateShellInitialisation "$HOME/.bashrc"
-	
+
 	which zsh >/dev/null 2>&1
 	[ $? -eq 0 ] && updateShellInitialisation "$HOME/.zshrc"
-	
+
 	which ash >/dev/null 2>&1
 	[ $? -eq 0 ] && updateShellInitialisation "$HOME/.ashrc"
-	
+
 	#which fish >/dev/null 2>&1
 	#if [ $? -eq 0 ]; then
 	#	CB_SHELL_INITIALISATION_CMD="set -x CB_HOME $CB_HOME && set -x PATH \$PATH \$CB_HOME/bin"
