@@ -300,23 +300,36 @@ setCBEnv() {
 
 	# custom setting script
 	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT setenv-start $*" 2>/dev/null
-		
-	CB_ANT_HOME=$CB_CURRENT_PATH/ant && ANT_HOME=$CB_ANT_HOME
-	[ -z "$(echo $PATH | grep $ANT_HOME/bin)" ] && PATH="$ANT_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add ant to path ($ANT_HOME/bin)."
 
-	CB_MAVEN_HOME=$CB_CURRENT_PATH/maven && MAVEN_HOME=$CB_MAVEN_HOME
-	[ -z "$(echo $PATH | grep $MAVEN_HOME/bin)" ] && PATH="$MAVEN_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add maven to path ($MAVEN_HOME/bin)."
+	if [ -d "$CB_CURRENT_PATH/node" ]; then
+		CB_NODE_HOME=$CB_CURRENT_PATH/node && NODE_HOME=$CB_NODE_HOME
+		[ -z "$(echo $PATH | grep $NODE_HOME)" ] && PATH="$NODE_HOME:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add node to path ($NODE_HOME)."
+		export CB_NODE_HOME NODE_HOME
+	fi
 	
-	CB_GRADLE_HOME=$CB_CURRENT_PATH/gradle && GRADLE_HOME=$CB_GRADLE_HOME
-	[ -z "$(echo $PATH | grep $GRADLE_HOME/bin)" ] && PATH="$GRADLE_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add gradle to path ($GRADLE_HOME/bin)."
+	if [ -d "$CB_CURRENT_PATH/ant" ]; then
+		CB_ANT_HOME=$CB_CURRENT_PATH/ant && ANT_HOME=$CB_ANT_HOME
+		[ -z "$(echo $PATH | grep $ANT_HOME/bin)" ] && PATH="$ANT_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add ant to path ($ANT_HOME/bin)."
+		export CB_ANT_HOME ANT_HOME 
+	fi
 
-	CB_NODE_HOME=$CB_CURRENT_PATH/node && NODE_HOME=$CB_NODE_HOME
-	[ -z "$(echo $PATH | grep $NODE_HOME/bin)" ] && PATH="$NODE_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add node to path ($NODE_HOME/bin)."
-
-	CB_JAVA_HOME=$CB_CURRENT_PATH/java &&JAVA_HOME=$CB_JAVA_HOME
-	[ -z "$(echo $PATH | grep $JAVA_HOME/bin)" ] && PATH="$JAVA_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add java to path ($JAVA_HOME/bin)."
-
-	export CB_ANT_HOME ANT_HOME CB_MAVEN_HOME MAVEN_HOME CB_GRADLE_HOME GRADLE_HOME CB_NODE_HOME NODE_HOME CB_JAVA_HOME JAVA_HOME PATH
+	if [ -d "$CB_CURRENT_PATH/maven" ]; then
+		CB_MAVEN_HOME=$CB_CURRENT_PATH/maven && MAVEN_HOME=$CB_MAVEN_HOME
+		[ -z "$(echo $PATH | grep $MAVEN_HOME/bin)" ] && PATH="$MAVEN_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add maven to path ($MAVEN_HOME/bin)."
+		export CB_MAVEN_HOME MAVEN_HOME
+	fi
+	
+	if [ -d "$CB_CURRENT_PATH/gradle" ]; then
+		CB_GRADLE_HOME=$CB_CURRENT_PATH/gradle && GRADLE_HOME=$CB_GRADLE_HOME
+		[ -z "$(echo $PATH | grep $GRADLE_HOME/bin)" ] && PATH="$GRADLE_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add gradle to path ($GRADLE_HOME/bin)."
+		export CB_GRADLE_HOME GRADLE_HOME
+	fi
+	
+	if [ -d "$CB_CURRENT_PATH/java" ]; then
+		CB_JAVA_HOME=$CB_CURRENT_PATH/java &&JAVA_HOME=$CB_JAVA_HOME
+		[ -z "$(echo $PATH | grep $JAVA_HOME/bin)" ] && PATH="$JAVA_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add java to path ($JAVA_HOME/bin)."
+		export CB_JAVA_HOME JAVA_HOME PATH
+	fi
 	
 	# custom setting script
 	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT setenv-end $*" 2>/dev/null
@@ -452,6 +465,43 @@ commonBuildAnt() {
 
 
 #########################################################################
+# commonBuildNode
+#########################################################################
+commonBuildNode() {
+	CB_PARAMETERS="$*"
+	NODE_EXEC=npm
+	if [ -z "$CB_NODE_HOME" ]; then	
+		! [ -d "$CB_CURRENT_PATH/node" ] && $PN_FULL --silent --install node --default
+		[ -d "$CB_CURRENT_PATH/node" ] && CB_NODE_HOME="$CB_CURRENT_PATH/node"
+
+		#cbInstalledNodeVersion=$(find "$CB_DEVTOOLS" -maxdepth 1 -type d -name "*node*" -prune -exec ls -d {} \; 2>/dev/null | tail -1 2>/dev/null | xargs -l basename 2>/dev/null)	
+		#if [ -z "$cbInstalledNodeVersion" ]; then
+		#	$PN_FULL --silent --install node
+		#	cbInstalledNodeVersion=$(find "$CB_DEVTOOLS" -maxdepth 1 -type d -name "*node*" -prune -exec ls -d {} \; 2>/dev/null | tail -1 2>/dev/null | xargs -l basename 2>/dev/null)
+		#fi
+		#[ -z "$cbInstalledNodeVersion" ] && echo "${CB_LINEHEADER}Can not find common-build node version, give up." && endWithError
+		#CB_NODE_HOME="$CB_DEVTOOLS/$cbInstalledNodeVersion"
+
+		if [ -z "$(echo $CB_NODE_HOME | grep $CB_DEVTOOLS 2>/dev/null)" ]; then
+			echo "${CB_LINEHEADER}CB_NODE_HOME is not set to a node version in devtools ($CB_DEVTOOLS): $CB_NODE_HOME."
+			endWithError
+		fi
+		
+		! [ "$CB_NODE_HOME" = "$NODE_HOME" ] && NODE_HOME="$CB_NODE_HOME" && export NODE_HOME
+		[ "$(echo ${PATH#*$CB_NODE_HOME*})" = "$(echo $PATH)" ] && PATH="$CB_NODE_HOME:$PATH" && export PATH 			
+		if ! which "$NODE_EXEC" > /dev/null 2>&1; then
+			echo "${CB_LINEHEADER}Could not find node version in path."
+			endWithError
+		fi
+	fi
+
+	#[ "$CB_OFFLINE" = "true" ] && CB_PARAMETERS="--offline $CB_PARAMETERS" && echo ${CB_LINEHEADER}Offline build.
+	eval "$NODE_EXEC $CB_PARAMETERS"
+	errorCode=$?
+}
+
+
+#########################################################################
 # commonBuild
 #########################################################################
 commonBuild() {
@@ -539,6 +589,8 @@ commonBuild() {
 		commonBuildMaven "$@"
 	elif [ -r "$CB_WORKING_PATH/build.xml" ]; then
 		commonBuildAnt "$@"
+	elif [ -r "$CB_WORKING_PATH/package.json" ]; then
+		commonBuildNode "$@"
 	else
 		commonBuildGradle "$@"
 	fi
@@ -827,6 +879,9 @@ installCb() {
 
 			[ "$CB_INSTALL_OVERWRITE_DIST" = "true" ] && eval "${CB_SCRIPT_PATH}/cb-install --force --silent $CB_INSTALL_VERSION"
 			[ "$CB_INSTALL_OVERWRITE_DIST" = "false" ] && eval "${CB_SCRIPT_PATH}/cb-install --silent $CB_INSTALL_VERSION"
+
+			[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Copy symbolic link..."
+			( cd $CB_HOME_PREVIOUS/current ; tar cf - . ) | ( cd $CB_HOME/current ; tar xf - )			
 		else
 			downloadPackage "$CB_INSTALL_PKG" "$CB_INSTALL_VERSION"
 			[ -n "$CB_PACKAGE_DOWNLOAD_NAME" ] && CB_PKG_FILTER=$CB_PACKAGE_DOWNLOAD_NAME 

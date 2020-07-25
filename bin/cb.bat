@@ -254,31 +254,42 @@ endlocal & (
 if .%1 == .--silent shift & set CB_INSTALL_SILENT=true
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% setenv-start %1 %2 %3 %4 %5 %6 %7 2>nul
 
-set CB_ANT_HOME=%CB_CURRENT_PATH%\ant
-set ANT_HOME=%CB_ANT_HOME%
+:SET_ENV_NODE
+if not exist %CB_CURRENT_PATH%\node goto :SET_ENV_ANT
+set "CB_NODE_HOME=%CB_CURRENT_PATH%\node"
+set "NODE_HOME=%CB_NODE_HOME%"
+echo %PATH% | findstr /C:"%NODE_HOME%" >nul 2>nul
+if %ERRORLEVEL% NEQ 0 set "PATH=%NODE_HOME%;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add node to path (%NODE_HOME%)
+
+:SET_ENV_ANT
+if not exist %CB_CURRENT_PATH%\ant goto :SET_ENV_MAVEN
+set "CB_ANT_HOME=%CB_CURRENT_PATH%\ant"
+set "ANT_HOME=%CB_ANT_HOME%"
 echo %PATH% | findstr /C:"%ANT_HOME%\bin" >nul 2>nul 
 if %ERRORLEVEL% NEQ 0 set "PATH=%ANT_HOME%\bin;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add ant to path (%ANT_HOME%\bin)
 
-set CB_MAVEN_HOME=%CB_CURRENT_PATH%\maven
-set MAVEN_HOME=%CB_MAVEN_HOME%
+:SET_ENV_MAVEN
+if not exist %CB_CURRENT_PATH%\maven goto :SET_ENV_GRADLE
+set "CB_MAVEN_HOME=%CB_CURRENT_PATH%\maven"
+set "MAVEN_HOME=%CB_MAVEN_HOME%"
 echo %PATH% | findstr /C:"%MAVEN_HOME%\bin" >nul 2>nul 
 if %ERRORLEVEL% NEQ 0 set "PATH=%MAVEN_HOME%\bin;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add maven to path (%MAVEN_HOME%\bin)
 
-set CB_GRADLE_HOME=%CB_CURRENT_PATH%\gradle
-set GRADLE_HOME=%CB_GRADLE_HOME%
+:SET_ENV_GRADLE
+if not exist %CB_CURRENT_PATH%\gradle goto :SET_ENV_JAVA
+set "CB_GRADLE_HOME=%CB_CURRENT_PATH%\gradle"
+set "GRADLE_HOME=%CB_GRADLE_HOME%"
 echo %PATH% | findstr /C:"%GRADLE_HOME%\bin" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 set "PATH=%GRADLE_HOME%\bin;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add gradle to path (%GRADLE_HOME%\bin)
 
-set CB_NODE_HOME=%CB_CURRENT_PATH%\node
-set NODE_HOME=%CB_NODE_HOME%
-echo %PATH% | findstr /C:"%NODE_HOME%\bin" >nul 2>nul
-if %ERRORLEVEL% NEQ 0 set "PATH=%NODE_HOME%\bin;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add node to path (%NODE_HOME%\bin)
-
-set CB_JAVA_HOME=%CB_CURRENT_PATH%\java
-set JAVA_HOME=%CB_JAVA_HOME%
+:SET_ENV_JAVA
+if not exist %CB_CURRENT_PATH%\java goto :SET_ENV_END
+set "CB_JAVA_HOME=%CB_CURRENT_PATH%\java"
+set "JAVA_HOME=%CB_JAVA_HOME%"
 echo %PATH% | findstr /C:"%JAVA_HOME%\bin" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 set "PATH=%JAVA_HOME%\bin;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add java to path (%JAVA_HOME%\bin)
 
+:SET_ENV_END
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% setenv-end %1 %2 %3 %4 %5 %6 %7 2>nul
 
 set CB_LINEHEADER=
@@ -351,6 +362,7 @@ if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-start 
 if exist build.gradle goto COMMON_BUILD_GRADLE
 if exist pom.xml goto COMMON_BUILD_MAVEN
 if exist build.xml goto COMMON_BUILD_ANT
+if exist package.json goto COMMON_BUILD_NODE
 
 :: gradle
 :COMMON_BUILD_GRADLE
@@ -416,7 +428,6 @@ goto END
 :: ant
 :COMMON_BUILD_ANT
 set ANT_EXEC=ant
-set "TMPFILE=%TEMP%\cb-ant-%RANDOM%%RANDOM%.tmp"
 if defined CB_ANT_HOME goto COMMON_BUILD_VERIFY_ANT
 if not exist %CB_CURRENT_PATH%\ant\bin (call %PN_FULL% --silent --install ant --default)
 if exist %CB_CURRENT_PATH%\ant\bin set "CB_ANT_HOME=%CB_CURRENT_PATH%\ant"
@@ -439,6 +450,34 @@ WHERE %ANT_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find ant version in path. & goto END_WITH_ERROR
 :COMMON_BUILD_ANT_EXEC
 cmd /C call %ANT_EXEC% %CB_PARAMETERS%
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
+goto END
+
+:: node
+:COMMON_BUILD_NODE
+set NODE_EXEC=npm
+if defined CB_NODE_HOME goto COMMON_BUILD_VERIFY_NODE
+if not exist %CB_CURRENT_PATH%\node (call %PN_FULL% --silent --install node --default)
+if exist %CB_CURRENT_PATH%\node set "CB_NODE_HOME=%CB_CURRENT_PATH%\node"
+::set "TMPFILE=%TEMP%\cb-node-%RANDOM%%RANDOM%.tmp"
+::dir %CB_DEVTOOLS%\*node* /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
+::for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install node
+::dir %CB_DEVTOOLS%\*node* /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
+::for %%R in ("%TMPFILE%") do if not %%~zR lss 1 set /pCB_NODE_HOME=<"%TMPFILE%"
+::del "%TMPFILE%" 2>nul
+::set "CB_NODE_HOME=%CB_DEVTOOLS%\%CB_NODE_HOME:~2%"
+:COMMON_BUILD_VERIFY_NODE
+echo %CB_NODE_HOME% | findstr /I %CB_DEVTOOLS% >nul 2>nul
+if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%CB_NODE_HOME is not set to a node version in devtools (%CB_DEVTOOLS%): %CB_NODE_HOME%. & goto END_WITH_ERROR
+echo %PATH% | findstr /C:"%CB_NODE_HOME%\bin" >nul 2>nul
+if %ERRORLEVEL% NEQ 0 set "PATH=%CB_NODE_HOME%;%PATH%"
+:: & echo %CB_LINEHEADER%Set %CB_NODE_HOME% to path.
+if not .%NODE_HOME% == .%CB_NODE_HOME% set "NODE_HOME=%CB_NODE_HOME%"
+:: & echo %CB_LINEHEADER%Set NODE_HOME to %NODE_HOME%.
+WHERE %NODE_EXEC% >nul 2>nul
+if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find node version in path. & goto END_WITH_ERROR
+:COMMON_BUILD_NODE_EXEC
+cmd /C call %NODE_EXEC% %CB_PARAMETERS%
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END
 
