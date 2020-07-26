@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #########################################################################
 #
@@ -264,7 +264,7 @@ getReleaseDownloadUrl() {
 #########################################################################
 downloadRelease() {
     if [ "$HTTP_REQUEST_CLI" = "curl" ]; then
-        curl -SsL "$1" -o "$2" 2>"$cbErrorTemp"
+        curl -# -SsL "$1" -o "$2" 2>"$cbErrorTemp"
     else
         wget -q -O "$2" "$1" 2>"$cbErrorTemp"
     fi
