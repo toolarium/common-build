@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #########################################################################
 #
@@ -730,12 +730,6 @@ downloadPackage() {
 
 				# in case it is zero size we delete it
 				if [ -r "$CB_DEV_REPOSITORY/$CB_PACKAGE_DOWNLOAD_NAME" ]; then
-
-
-				[ $(wc -c $CB_DEV_REPOSITORY/$CB_PACKAGE_DOWNLOAD_NAME | awk '{print $1}') -lt 10 ]
-				[ $(wc -c $CB_DEV_REPOSITORY/$CB_PACKAGE_DOWNLOAD_NAME | awk '{print $1}') -lt 10 ]
-				ls -l jptools-sf/gradle.properties | awk '{print $5}'
-
 					if [ $(getFileSize $CB_DEV_REPOSITORY/$CB_PACKAGE_DOWNLOAD_NAME) -lt 1000 ]; then
 						echo "${CB_LINEHEADER}Invalid package $CB_PACKAGE_NAME $CB_PACKAGE_VERSION, give up." | tee -a "$CB_LOGFILE"
 						rm -rf "$CB_DEV_REPOSITORY/$CB_PACKAGE_DOWNLOAD_NAME" >/dev/null 2>&1
