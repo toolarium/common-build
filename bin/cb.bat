@@ -658,9 +658,14 @@ cd /D %CB_WORKING_PATH%
 goto SET_INSTALLTION_DEFAULT
 
 :EXTRACT_FILE
-echo %1 | findstr /I /C:.exe >nul 2>nul	
 ::powershell -nologo -command "(Get-Item '%1').VersionInfo.ProductVersion" >> "%1.txt"	
+echo %1 | findstr /I /C:.exe >nul 2>nul	
 if %ERRORLEVEL% EQU 0 cmd /c "%1" & set "errorCode=%ERRORLEVEL%" & goto :eof
+echo %1 | findstr /I /C:.msi >nul 2>nul	
+if %ERRORLEVEL% EQU 0 cmd /c "%1" & set "errorCode=%ERRORLEVEL%" & goto :eof
+echo %1 | findstr /I /C:.msixbundle >nul 2>nul	
+if %ERRORLEVEL% EQU 0 cmd /c "%1" & set "errorCode=%ERRORLEVEL%" & goto :eof
+
 set "TMPFILE=%TEMP%\cb-extract-file-%RANDOM%%RANDOM%.tmp"
 if exist %CB_BIN%\%CB_UNZIP_CMD% %CB_BIN%\%CB_UNZIP_CMD% -Z -1 %1 | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
 if %ERRORLEVEL% NEQ 0 set "errorCode=%ERRORLEVEL%" & echo %CB_LINEHEADER%Could not extract package. & del %TMPFILE% >nul 2>nul & goto :eof
