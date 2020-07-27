@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 #########################################################################
 #
@@ -62,24 +62,14 @@ CB_CURL_PROGRESSBAR=" "
 
 echo "${CB_LINEHEADER}Check java $CB_PACKAGE_VERSION version" | tee -a "$CB_LOGFILE"
 downloadFiles "$CB_JAVA_INFO_DOWNLOAD_URL" "$CB_JAVA_JSON_INFO"
-
 #echo ${CB_LINEHEADER}Verify java packages | tee -a $CB_LOGFILE
-sed -e 's/[}"]*\(.\)[{"]*/\1/g;y/,/\n/' < "$CB_JAVA_JSON_INFO" \
-	| sed 's/binary:/\n{/g' \
-	| grep -E -v "(\[|\]|download_count|version|package:|scm_ref|updated_at|build:|major:|minor:|severity:|security:|checksum:|adopt_build_number:|release_name:|size:|installer:)" \
-	| grep -E -v "^[[:space:]]*$" \
-	| sed -e ':a' -e 'N;$!ba' -e 's/\n/,/g' \
-	| sed 's/,{ ,/\n{/g;s/{//g;s/ //g;s/^,//g;s/,}//g;s/,/ /g' \
-	| grep "architecture:$CB_JAVA_ARCH" | grep "jvm_impl:$CB_JAVA_JVM_IMPL" | grep "image_type:$CB_JAVA_IMAGE_TYPE" | grep "os:$CB_JAVA_OS" \
-	| sed 's/ /\n/g' \
-	| awk '{if ($0 ~ /.msi|.pkg/) {print "installer_"$0} else {print $0}}' \
-	| sed 's/:/: /g;s/: \//:\//g' > "${CB_JAVA_JSON_INFO}.filtered"
+cat $CB_JAVA_JSON_INFO | ${CB_BIN}/cb-json --filter architecture=$CB_JAVA_ARCH --filter jvm_impl=$CB_JAVA_JVM_IMPL --filter image_type=$CB_JAVA_IMAGE_TYPE --filter os=$CB_JAVA_OS > "${CB_JAVA_JSON_INFO}.filtered"
 mv -f "${CB_JAVA_JSON_INFO}.filtered" "$CB_JAVA_JSON_INFO" >/dev/null 2>&1
 
-CB_PACKAGE_DOWNLOAD_NAME=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | grep -v installer | grep "name" | awk '{print $2}') 
-CB_PACKAGE_DOWNLOAD_URL=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | grep -v installer | grep -v checksum_link | grep "link" | awk '{print $2}') 
-CB_PACKAGE_VERSION=$(grep "semver" "$CB_JAVA_JSON_INFO" 2>/dev/null | awk '{print $2}')
-CB_PACKAGE_VERSION_HASH=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | grep -v installer | grep "checksum_link" 2>/dev/null | awk '{print $2}')
+CB_PACKAGE_DOWNLOAD_NAME=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-json --value --name package.name) 
+CB_PACKAGE_DOWNLOAD_URL=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-json --value --name package.link) 
+CB_PACKAGE_VERSION=$(grep "semver" "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-json --value --name version.semver)
+CB_PACKAGE_VERSION_HASH=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-json --value --name package.checksum)
 
 mv "$CB_JAVA_JSON_INFO" "$CB_DEV_REPOSITORY/${CB_PACKAGE_DOWNLOAD_NAME}.json" >/dev/null 2>&1
 CB_CURL_PARAM= && CB_CURL_PROGRESSBAR=

@@ -1,0 +1,126 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-json
+#
+# Copyright by toolarium, all rights reserved.
+# MIT License: https://mit-license.org
+#
+#########################################################################
+
+
+PN=$(basename "$0" 2>/dev/null)
+
+
+#########################################################################
+# Format json
+#########################################################################
+catOut() { 
+	cat - 
+}
+
+
+#########################################################################
+# Format json
+#########################################################################
+formatJson() {
+	grep -Eo '"[^"]*" *(: *([0-9]*|"[^"]*")[^{}\["]*|,)?|[^"\]\[\}\{]*|\{|\},?|\[|\],?|[0-9 ]*,?' \
+		| awk '{if ($0 ~ /^[}\]]/ ) offset-=4; printf "%*c%s\n", offset, " ", $0; if ($0 ~ /^[{\	\[]/) offset+=4 }'\
+		| grep -E -v "^[ ]*$"
+}
+
+
+#########################################################################
+# Cut from a json output an element
+#########################################################################
+cutJsonElement() {
+	#| sed -e 's/^[\ ]*//g' 
+	#| grep -E -v \"^[[:space:]]*\$\" 
+	prepareResult="$(formatJson | grep -E -v \"^[[:space:]]*$\" | sed -e ':a' -e 'N;$!ba' -e 's/\n/\t/g')"
+	if [ -n "$tagElementFilter" ]; then
+		result=$(echo "$prepareResult" | grep -Po "\"$tagElementFilter\":.*" | formatJson | sed '/^ }/,$d')
+		secondLine=$(echo "$result" | sed -n '2p'|sed 's/ //')
+		if [ "$secondLine" = "{" ]; then
+			echo "$result" && echo " }"
+		else
+			# simple key / value
+			result=$(echo "$result" | sed -n '1p' | sed 's/,[ ]*$//')
+			if [ "$returnValue" = "true" ]; then
+				echo "$result" | awk -F\": '{print $2}' | awk -F\" '{print $2}'
+			else
+				echo "$result"
+			fi
+		fi		
+	else
+		# array & filter
+		prepareFilterResult=$(echo "$prepareResult" | sed 's/    {\t        "/\n{/g')
+
+		for i in $elementFilter; do			
+			filterString="\"${i%:*}\": \"${i#*:}\"" 
+			prepareResult=$(echo "$prepareFilterResult" | grep "$filterString")
+			prepareFilterResult="$prepareResult"
+		done			
+		echo "$prepareFilterResult" | sed 's/\t/\n/g' | sed 's/,[ ]*$//' | formatJson
+	fi
+}
+
+
+#########################################################################
+# Parse a json output an element
+#########################################################################
+parseJson() {
+	processed=$(catOut "$@")
+	for i in $(echo "$nameFilter" | tr "." "\n"); do
+		[ "#" = "$i" ] && tagElementFilter="" || tagElementFilter="$i"
+		processed="$(echo $processed | cutJsonElement)"
+	done
+	echo "$processed"
+}
+
+
+#########################################################################
+# printUsage
+#########################################################################
+printUsage() {
+	echo "$PN - common build json formater and parser"
+	echo "usage: $PN [OPTION]"
+	echo ""
+	echo "Overview of the available OPTIONs:"
+	echo " -h, --help           Show this help message."
+	echo " --format             Format a json output."
+	echo " --value              In case the last element is only a key / value, you will receive the value."
+	echo " --parse [name]       Parse a json output by the given name. The name could "
+	echo "                      contain multiple objects, e.g my.json.separation"
+	echo ""
+}
+
+
+#########################################################################
+# main
+#########################################################################
+parseContent="false"
+returnValue=false
+while [ $# -gt 0 ]; do
+    case "$1" in
+		-h) 			printUsage; exit 0;;
+		--help) 		printUsage; exit 0;;
+		--format) 		parseContent="false";;
+		--value) 		returnValue=true;;
+		--name) 		parseContent=true; shift; [ -n "$nameFilter" ] && nameFilter="${nameFilter}.$1" || nameFilter="$1";;
+		--filter) 		parseContent=true; shift; nameFilter="${nameFilter}#"; elementFilter="$elementFilter $(echo $1 | sed 's/=/:/g')";;
+		*) 				echo "Invalid parameter: $1"; echo ""; printUsage; exit 1;;
+    esac
+	shift
+done
+
+nameFilter=$(echo "$nameFilter" | tr -s '#')
+#echo $nameFilter
+#echo $elementFilter
+[ "$parseContent" = "true" ] && parseJson "$@"
+[ "$parseContent" = "false" ] && formatJson "$@"
+
+
+#########################################################################
+#  EOF
+#########################################################################
