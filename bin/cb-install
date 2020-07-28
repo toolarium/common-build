@@ -27,7 +27,9 @@ CB_FORCE_INSALL=false
 CB_INSTALL_ONLY_STABLE=true
 CB_INSTALLER_SILENT=false
 CB_INSTALLER_VERSION=0.7.3
-CB_RELEASE_URL=https://api.github.com/repos/toolarium/common-build/releases
+CB_JSON="$CB_HOME/bin/cb-json"
+CB_RELEASE_URL="https://api.github.com/repos/toolarium/common-build/releases"
+CB_JSON_SCRIPT_URL="https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-json"
 FULLTIMESTAMP="date '+%Y%d%m%H%M%S'"
 USER_FRIENDLY_FULLTIMESTAMP="date '+%d.%m.%Y %H:%M:%S'"
 cbErrorTemp=$(mktemp /tmp/toolarium-common-build_error.XXXXXXXXX)
@@ -174,34 +176,34 @@ checkHttpRequestCLI() {
 
 
 #########################################################################
+# get newest cb json support
+#########################################################################
+getCBJson() {
+	if ! [ -x "$CB_JSON" ]; then
+		CB_JSON="/tmp/cb-json"
+		export CB_JSON
+
+		CMD="curl -# -sSL"
+		[ "$HTTP_REQUEST_CLI" = "wget" ] && CMD="wget -q -O - /dev/null"
+		CMD="$CMD $CB_JSON_SCRIPT_URL 2>$cbErrorTemp > $CB_JSON"
+		echo "${CB_LINEHEADER}Get json support..."
+		eval $CMD && chmod 755 $CB_JSON
+	fi
+}
+
+
+#########################################################################
 # getLatestRelease
 #########################################################################
 getLatestRelease() {
-    if [ "$HTTP_REQUEST_CLI" = "curl" ]; then
-		CMD="curl -fsSL $CB_RELEASE_URL"
-    else
-		CMD="wget -q --header=\"Accept: application/json\" -O - $CB_RELEASE_URL"
-    fi
-
-	if [ "$1" = "true" ]; then
-		CMD="$CMD 2>$cbErrorTemp | grep -E -v \"(\[|\]|upload_url|assets_url|tag_name)\" \
-		| grep -E -v \"^[[:space:]]*\$\" \
-		| sed -e ':a' -e 'N;\$!ba' -e 's/\n/,/g' \
-		| sed 's/  {,  /\n{/g;s/\"//g' \
-		| grep \"prerelease: false\" \
-		| head -1 2>/dev/null \
-		| sed 's/,/\n/g' \
-		| grep -E -v \"^[[:space:]]*\$\" \
-		| grep -v \"tag_name\" \
-		| grep \"name:\" \
-		| awk '{print \$2}'"
-	else
-		CMD="$CMD 2>$cbErrorTemp | grep \"tag_name\" | awk '{print \$2}' | sed -n 's/\"\(.*\)\",/\1/p' | head -1 2>/dev/null"
-	fi
+	CMD="curl -# -fsSL"
+	[ "$HTTP_REQUEST_CLI" = "wget" ] && CMD="wget -q --header=\"Accept: application/json\" -O -"
+	CMD="$CMD $CB_RELEASE_URL 2>$cbErrorTemp | $CB_JSON"
+	[ "$1" = "true" ] && CMD="$CMD --filter \"prerelease=false\""
+	CMD="$CMD --value --name name"
 
 	version=$(eval "$CMD")
-	[ $? -eq 0 ] && echo ${version#v*} || echo ""
-	[ -r "$cbErrorTemp" ] && [ $(getFileSize $cbErrorTemp) -eq 0 ] && rm -f "$cbErrorTemp" >/dev/null 2>&1
+	[ $? -eq 0 ] && echo "$version" || echo ""
 }
 
 
@@ -209,26 +211,12 @@ getLatestRelease() {
 # getRelease
 #########################################################################
 getRelease() {
-    if [ "$HTTP_REQUEST_CLI" = "curl" ]; then
-		CMD="curl -fsSL $CB_RELEASE_URL"
-    else
-		CMD="wget -q --header=\"Accept: application/json\" -O - $CB_RELEASE_URL"
-    fi
+	CMD="curl -# -fsSL"
+	[ "$HTTP_REQUEST_CLI" = "wget" ] && CMD="wget -q --header=\"Accept: application/json\" -O -"
+	CMD="$CMD $CB_RELEASE_URL 2>$cbErrorTemp | $CB_JSON --filter \"name=(v)?$1\\\"\" --value --name name"
 
-	CMD="$CMD 2>$cbErrorTemp | grep -E -v \"(\[|\]|upload_url|assets_url|tag_name)\" \
-	| grep -E -v \"^[[:space:]]*\$\" \
-	| sed -e ':a' -e 'N;\$!ba' -e 's/\n/,/g' \
-	| sed 's/  {,  /\n{/g;s/\"//g' \
-	| grep \"name: v$1\" \
-	| head -1 2>/dev/null \
-	| sed 's/,/\n/g' \
-	| grep -E -v \"^[[:space:]]*\$\" \
-	| grep \"name:\" \
-	| awk '{print \$2}'"
-
- 	version=$(eval "$CMD")
-	[ $? -eq 0 ] && echo ${version#v*} || echo ""
-	[ -r "$cbErrorTemp" ] && [ $(getFileSize $cbErrorTemp) -eq 0 ] && rm -f "$cbErrorTemp" >/dev/null 2>&1
+ 	version=$(eval "$CMD" 2>>$cbErrorTemp)
+	[ $? -eq 0 ] && echo "$version" || echo ""
 }
 
 
@@ -236,26 +224,14 @@ getRelease() {
 # getReleaseDownloadUrl
 #########################################################################
 getReleaseDownloadUrl() {
-    if [ "$HTTP_REQUEST_CLI" = "curl" ]; then
-		CMD="curl -fsSL $CB_RELEASE_URL"
-    else
-		CMD="wget -q --header=\"Accept: application/json\" -O - $CB_RELEASE_URL"
-	fi
-
-	CMD="$CMD 2>$cbErrorTemp | grep -E -v \"(\[|\]|upload_url|assets_url|tag_name)\" \
-	| grep -E -v \"^[[:space:]]*\$\" \
-	| sed -e ':a' -e 'N;\$!ba' -e 's/\n/,/g' \
-	| sed 's/  {,  /\n{/g;s/\"//g' \
-	| grep \"name: v$1\" \
-	| head -1 2>/dev/null \
-	| sed 's/,/\n/g' \
-	| grep -E -v \"^[[:space:]]*\$\" \
-	| grep \"tarball_url:\" \
-	| awk '{print \$2}'"
-
-	downloadUrl=$(eval "$CMD")
-	[ $? -eq 0 ] && echo $downloadUrl || echo ""
-	[ -r "$cbErrorTemp" ] && [ $(getFileSize $cbErrorTemp) -eq 0 ] && rm -f "$cbErrorTemp" >/dev/null 2>&1
+	CMD="curl -# -fsSL"
+	[ "$HTTP_REQUEST_CLI" = "wget" ] && CMD="wget -q --header=\"Accept: application/json\" -O -"
+	CMD="$CMD $CB_RELEASE_URL 2>$cbErrorTemp | $CB_JSON"
+	[ "$1" = "true" ] && CMD="$CMD --filter \"prerelease=false\""
+	CMD="$CMD --filter \"name=(v)?$1\\\"\" --value --name tarball_url"
+	
+	downloadUrl=$(eval "$CMD" 2>>$cbErrorTemp)
+	[ $? -eq 0 ] && echo "$downloadUrl" || echo ""
 }
 
 
@@ -263,12 +239,12 @@ getReleaseDownloadUrl() {
 # downloadRelease
 #########################################################################
 downloadRelease() {
-    if [ "$HTTP_REQUEST_CLI" = "curl" ]; then
-        curl -# -SsL "$1" -o "$2" 2>"$cbErrorTemp"
-    else
-        wget -q -O "$2" "$1" 2>"$cbErrorTemp"
-    fi
+	CMD="curl -# -SsL \"$1\" -o \"$2\""
+	[ "$HTTP_REQUEST_CLI" = "wget" ] && CMD="wget -q -O \"$2\" \"$1\""
+
+	eval "$CMD" 2>$cbErrorTemp
 }
+
 
 #########################################################################
 # error handler
@@ -283,6 +259,7 @@ errorhandler() {
 # exit handler
 #########################################################################
 exithandler() {
+	rm /tmp/cb-json >/dev/null 2>&1
 	rm -f "$cbErrorTemp" >/dev/null 2>&1
 }
 
@@ -363,13 +340,17 @@ checkInternetConnection
 
 if [ "$CB_INSTALLER_SILENT" = "false" ]; then
 	[ -z "$CB_INSTALL_PARAMETERS" ] && echo "${CB_LINEHEADER}Check newest version of toolarium-common-build..."
-	[ -n "$CB_INSTALL_PARAMETERS" ] && echo "${CB_LINEHEADER}Check version $CB_INSTALL_PARAMETERS of toolarium-common-build..."
+	[ -n "$CB_INSTALL_PARAMETERS" ] && echo "${CB_LINEHEADER}Check version ${CB_INSTALL_PARAMETERS# *} of toolarium-common-build..."
 fi
+
+# check common build json support
+getCBJson
 
 CB_VERSION=
 if [ -n "$CB_INSTALL_PARAMETERS" ]; then
-	CB_VERSION=v$CB_INSTALL_PARAMETERS
-	releaseVersion=$(getRelease $CB_INSTALL_PARAMETERS)
+	CB_VERSION=$CB_INSTALL_PARAMETERS	
+	[ "${CB_VERSION#v*}" = "$CB_VERSION" ] || CB_VERSION="v$CB_VERSION"
+	releaseVersion=$(getRelease $CB_VERSION)
 else
 	releaseVersion=$(getLatestRelease $CB_INSTALL_ONLY_STABLE)
 fi
