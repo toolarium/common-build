@@ -54,11 +54,11 @@ cutJsonElement() {
 		fi		
 	else
 		# array & filter
-		prepareFilterResult=$(echo "$prepareResult" | sed 's/    {\t        "/\n{/g')
+		prepareFilterResult=$(echo "$prepareResult" | sed 's/    {\t        "/\n{"/g')
 
-		for i in $elementFilter; do			
-			filterString="\"${i%:*}\": \"${i#*:}\"" 
-			prepareResult=$(echo "$prepareFilterResult" | grep "$filterString")
+		for i in $elementFilter; do		
+			filterString="\"${i%:*}\": (\")?${i#*:}(\")?" 
+			prepareResult=$(echo "$prepareFilterResult" | grep -E "$filterString")
 			prepareFilterResult="$prepareResult"
 		done			
 		echo "$prepareFilterResult" | sed 's/\t/\n/g' | sed 's/,[ ]*$//' | formatJson
