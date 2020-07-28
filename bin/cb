@@ -1016,10 +1016,12 @@ CB_PARAMETERS=""
 executeCustomSettings "$CB_PARAMETERS"
 checkInternetConnection
 CB_EXECUTE_BUILD=true
+CB_VERBOSE=false
 
 while [ $# -gt 0 ]
 do
     case "$1" in
+		--verbose) 	CB_VERBOSE=true;;
 		--silent) 	CB_INSTALL_USER_COMMIT=false; CB_INSTALL_SILENT=true;;
 		--force)	CB_INSTALL_OVERWRITE_DIST="true";;
 		--default)	CB_SET_DEFAULT=true;;

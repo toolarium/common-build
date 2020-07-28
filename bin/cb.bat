@@ -20,6 +20,7 @@ set "PN_FULL=%CB_SCRIPT_PATH%%PN%"
 set "CB_WORKING_PATH=%CD%"
 set "CB_INSTALL_SILENT=false"
 set CB_CUSTOM_SETTING_SCRIPT=
+set "CB_VERBOSE=false"
 
 title %PN%
 if not defined CB_PACKAGE_URL (set "CB_PACKAGE_URL=")
@@ -103,6 +104,7 @@ if errorlevel 1 (set "CB_OFFLINE=true") else (set "CB_OFFLINE=")
 :CHECK_PARAMETER
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 if %0X==X goto COMMON_BUILD
+if .%1==.--verbose shift & set "CB_VERBOSE=true"
 if .%1==.--silent shift & set "CB_INSTALL_USER_COMMIT=false" & set "CB_INSTALL_SILENT=true"
 if .%1==.--force shift & set "CB_INSTALL_OVERWRITE_DIST=true"
 if .%1==.--default shift & set CB_SET_DEFAULT=true
