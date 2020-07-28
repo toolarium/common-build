@@ -119,6 +119,7 @@ nameFilter=$(echo "$nameFilter" | tr -s '#')
 #echo $elementFilter
 [ "$parseContent" = "true" ] && parseJson "$@"
 [ "$parseContent" = "false" ] && formatJson "$@"
+exit 0
 
 
 #########################################################################
