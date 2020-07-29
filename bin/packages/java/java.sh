@@ -57,11 +57,10 @@ CB_JAVA_JSON_INFO=$CB_LOGS/cb-javaFile.json
 CB_JAVA_INFO_DOWNLOAD_URL=$CB_JAVA_INFO_DOWNLOAD_URL_V3_LATEST
 
 # v3
-CB_CURL_PARAM=" "
-CB_CURL_PROGRESSBAR=" "
-
+CB_PACKAGE_SILENT_LOG="silent"
 echo "${CB_LINEHEADER}Check java $CB_PACKAGE_VERSION version" | tee -a "$CB_LOGFILE"
 downloadFiles "$CB_JAVA_INFO_DOWNLOAD_URL" "$CB_JAVA_JSON_INFO"
+
 #echo ${CB_LINEHEADER}Verify java packages | tee -a $CB_LOGFILE
 cat $CB_JAVA_JSON_INFO | ${CB_BIN}/cb-json --filter architecture=$CB_JAVA_ARCH --filter jvm_impl=$CB_JAVA_JVM_IMPL --filter image_type=$CB_JAVA_IMAGE_TYPE --filter os=$CB_JAVA_OS > "${CB_JAVA_JSON_INFO}.filtered"
 mv -f "${CB_JAVA_JSON_INFO}.filtered" "$CB_JAVA_JSON_INFO" >/dev/null 2>&1
@@ -72,5 +71,4 @@ CB_PACKAGE_VERSION=$(grep "semver" "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/
 CB_PACKAGE_VERSION_HASH=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-json --value --name package.checksum)
 
 mv "$CB_JAVA_JSON_INFO" "$CB_DEV_REPOSITORY/${CB_PACKAGE_DOWNLOAD_NAME}.json" >/dev/null 2>&1
-CB_CURL_PARAM= && CB_CURL_PROGRESSBAR=
 export CB_PACKAGE_BASE_URL CB_PACKAGE_DOWNLOAD_NAME CB_PACKAGE_VERSION_NAME
