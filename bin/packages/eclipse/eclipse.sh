@@ -10,12 +10,12 @@
 #########################################################################
 
 eclipseFilter=
-[ -z "$CB_ECLIPSE_VERSION" ] && CB_ECLIPSE_VERSION="oxygen|jee-package"
+[ -z "$CB_ECLIPSE_VERSION" ] && CB_ECLIPSE_VERSION="2020-06 jee-package"
 #[ -z "$CB_ECLIPSE_RELEASE_VERSION" ] && CB_ECLIPSE_RELEASE_VERSION="r"
 CB_PACKAGE_VERSION=$1
-[ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION="${CB_ECLIPSE_VERSION%|*}"
+[ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION="${CB_ECLIPSE_VERSION% *}"
 CB_ECLIPSE_PACKAGE_NAME=$2
-[ -z "$CB_ECLIPSE_PACKAGE_NAME" ] && CB_ECLIPSE_PACKAGE_NAME="${CB_ECLIPSE_VERSION#*|}"
+[ -z "$CB_ECLIPSE_PACKAGE_NAME" ] && CB_ECLIPSE_PACKAGE_NAME="${CB_ECLIPSE_VERSION#* }"
 [ -z "$CB_ECLIPSE_PACKAGE_NAME" ] && CB_ECLIPSE_PACKAGE_NAME=jee-package
 
 CB_ECLIPSE_INFO_DOWNLOAD_URL="https://api.eclipse.org/download/release/eclipse_packages"
@@ -44,6 +44,7 @@ CB_ECLIPSE_JSON_REDIRECT_INFO="$CB_LOGS/cb-eclipseFile-redirect.html"
 rm -f "$CB_ECLIPSE_JSON_MIRROR_INFO" >/dev/null 2>&1
 rm -f "$CB_ECLIPSE_JSON_REDIRECT_INFO" >/dev/null 2>&1
 
+CB_PACKAGE_DEST_VERSION_NAME="eclipse-$CB_PACKAGE_VERSION_NAME"
 CB_PACKAGE_SILENT_LOG="silent"
 CB_PACKAGE_USERAGENT=true
 CB_PACKAGE_COOKIE="$CB_LOGS/cb-eclipse-cookiejar"

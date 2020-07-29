@@ -706,8 +706,8 @@ downloadPackage() {
 		# 4) the CB_PACKAGE_DOWNLOAD_URL contains the package url to download; in case we have the CB_PACKAGE_BASE_URL then this is not necessary
 
 		# call package specific settings
-		#echo . $CB_SCRIPT_PATH/packages/$CB_PACKAGE_NAME/$CB_PACKAGE_NAME.sh $2
-		eval ". $CB_SCRIPT_PATH/packages/$CB_PACKAGE_NAME/$CB_PACKAGE_NAME.sh $2"
+		#echo . $CB_SCRIPT_PATH/packages/$CB_PACKAGE_NAME/$CB_PACKAGE_NAME.sh $1 $2
+		eval ". $CB_SCRIPT_PATH/packages/$CB_PACKAGE_NAME/$CB_PACKAGE_NAME.sh $1 $2"
 
 		# supported environment variables from cb: CB_LINE, CB_LOGFILE, CB_DEVTOOLS, CB_DEV_REPOSITORY, CB_WGET_CALL
 		if [ -z "$CB_PACKAGE_DOWNLOAD_URL" ]; then
@@ -809,9 +809,12 @@ installCb() {
 	[ -n "$1" ] && CB_INSTALL_VERSION=$1 && shift
 	[ "$1" = "--default" ] && shift && CB_SET_DEFAULT=true
 	[ "$1" = "-d" ] && shift && CB_SET_DEFAULT=true
+	[ -n "$1" ] && CB_INSTALL_VERSION_PARAM=$1 && shift	
+	[ "$1" = "--default" ] && shift && CB_SET_DEFAULT=true
+	[ "$1" = "-d" ] && shift && CB_SET_DEFAULT=true
 
 	# custom setting script
-	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT install-package-start $CB_INSTALL_PKG $CB_INSTALL_VERSION" 2>/dev/null
+	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT install-package-start $CB_INSTALL_PKG $CB_INSTALL_VERSION $CB_INSTALL_VERSION_PARAM" 2>/dev/null
 
 	if [ "$CB_INSTALL_PKG" = "cb" ]; then
 		CB_PKG_FILTER=cb
@@ -874,8 +877,12 @@ installCb() {
 			CB_TOOL_VERSION_DEFAULT_TMPFILE=$(mktemp /tmp/cb-tool-version-default.XXXXXXXXX)
 			cat $CB_TOOL_VERSION_DEFAULT 2>/dev/null | grep -v "#" | grep "=" > $CB_TOOL_VERSION_DEFAULT_TMPFILE 2>/dev/null
 			while IFS= read -r line; do
-				key="${line%=*}" && key="$(echo $key 2>/dev/null| sed 's/ //g' 2>/dev/null)"
-				[ "$key" = "$CB_INSTALL_PKG" ] && CB_INSTALL_VERSION="${line#*=}" && CB_INSTALL_VERSION="$(echo $CB_INSTALL_VERSION 2>/dev/null| sed 's/ //g' 2>/dev/null)"
+				key="${line%=*}" && key="$(echo $key 2>/dev/null| sed 's/ //g' 2>/dev/null)"								
+				if [ "$key" = "$CB_INSTALL_PKG" ]; then
+					CB_INSTALL_VERSION=$(echo "${line#*=}" | sed 's/^[ \t]*//;s/[ \t]*$//')					
+					CB_INSTALL_VERSION_PARAM="${CB_INSTALL_VERSION#* }"
+					CB_INSTALL_VERSION="${CB_INSTALL_VERSION% *}" 
+				fi
 			done <  $CB_TOOL_VERSION_DEFAULT_TMPFILE
 			rm -f $CB_TOOL_VERSION_DEFAULT_TMPFILE >/dev/null 2>&1
 		fi
@@ -891,13 +898,13 @@ installCb() {
 			[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Copy symbolic link..."
 			( cd $CB_HOME_PREVIOUS/current ; tar cf - . ) | ( cd $CB_HOME/current ; tar xf - )
 		else
-			downloadPackage "$CB_INSTALL_PKG" "$CB_INSTALL_VERSION"
+			downloadPackage "$CB_INSTALL_PKG" "$CB_INSTALL_VERSION" "$CB_INSTALL_VERSION_PARAM"
 			[ -n "$CB_PACKAGE_DOWNLOAD_NAME" ] && CB_PKG_FILTER=$CB_PACKAGE_DOWNLOAD_NAME
 		fi
 	fi
 
 	# custom setting script
-	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT install-package-end $CB_INSTALL_PKG $CB_INSTALL_VERSION" 2>/dev/null
+	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT install-package-end $CB_INSTALL_PKG $CB_INSTALL_VERSION $CB_INSTALL_VERSION_PARAM" 2>/dev/null
 
 	if [ -z "$errorCode" ] || [ "$errorCode" -eq 0 ]; then
 		#CB_TAR_PARAM="-k"

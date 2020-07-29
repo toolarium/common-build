@@ -223,6 +223,7 @@ if hasProjectTypeConfiguration "projectDescription"; then
 fi
 
 [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Set projectName:$projectName projectRootPackageName:$projectRootPackageName projectGroupId:$projectGroupId projectComponentId:$projectComponentId projectDescription:$projectDescription%"
+echo ""
 echo "$CB_LINE"
 
 if [ -r "$projectName" ]; then

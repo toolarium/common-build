@@ -28,7 +28,7 @@ if not exist %CB_SCRIPT_PATH%\packages\%CB_PACKAGE_NAME%\%CB_PACKAGE_NAME%.bat g
 :: 4) the CB_PACKAGE_DOWNLOAD_URL contains the package url to download; in case we have the CB_PACKAGE_BASE_URL then this is not necessary
 
 :: call package specific settings
-call %CB_SCRIPT_PATH%\packages\%CB_PACKAGE_NAME%\%CB_PACKAGE_NAME%.bat %2 
+call %CB_SCRIPT_PATH%\packages\%CB_PACKAGE_NAME%\%CB_PACKAGE_NAME%.bat %2 %3
 
 :: supported environment variables from cb: CB_LINE, CB_LOGFILE, CB_DEVTOOLS, CB_DEV_REPOSITORY, CB_WGET_CALL 
 if .%CB_LINE%==. (set "CB_ERROR_INFO=%%CB_LINE%%" & goto DOWNLOAD_ENVIRONMENT_ERROR)

@@ -22,7 +22,6 @@ del %cbInfoTemp% 2>nul & del %cbErrorTemp% 2>nul
 ::zip
 ::powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_WT_RELEASE_URL%"; $releases | ? { $_.tag_name -eq $Env:CB_WT_VERSION } | Select-Object -Property zipball_url |  select-object -First 1 -ExpandProperty zipball_url" 2>%cbErrorTemp% > %cbInfoTemp%
 :: msi
-powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_WT_RELEASE_URL%"; $releases | ? { $_.tag_name -eq $Env:CB_WT_VERSION } | Select -expand assets | select -first 1 -ExpandProperty browser_download_url"
 powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_WT_RELEASE_URL%"; $releases | ? { $_.tag_name -eq $Env:CB_WT_VERSION } | Select -expand assets | select -first 1 -ExpandProperty browser_download_url" 2>%cbErrorTemp% > %cbInfoTemp%
 if exist %cbInfoTemp% (set /pCB_WT_DOWNLOAD_VERSION_URL=<%cbInfoTemp%)
 if .%CB_WT_DOWNLOAD_VERSION_URL%==. set "ERROR_INFO=Could not get download url of verison %CB_PACKAGE_VERSION%." & goto CB_WT_INSTALL_FAILED

@@ -532,7 +532,7 @@ set "CB_WGET_PARAM=-c"
 set CB_PKG_FILTER=
 set CB_PACKAGE_DOWNLOAD_NAME=
 set CB_PKG_FILTER_WILDCARD=false
-
+set CB_PACKAGE_DEST_VERSION_NAME=
 set CB_PROCESSOR_ARCHITECTURE_NUMBER=64
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:32=%" set CB_PROCESSOR_ARCHITECTURE_NUMBER=32
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:64=%" set CB_PROCESSOR_ARCHITECTURE_NUMBER=64
@@ -541,12 +541,17 @@ if .%1 == .--default shift & set CB_SET_DEFAULT=true
 if .%1 == .-d shift & set CB_SET_DEFAULT=true
 set CB_INSTALL_PKG=%1
 if .%CB_INSTALL_PKG%==. echo %CB_LINEHEADER%No package found to install. & goto INSTALL_CB_END
-
 shift
 if .%1 == .--default shift & set CB_SET_DEFAULT=true
 if .%1 == .-d shift & set CB_SET_DEFAULT=true
 set CB_INSTALL_VERSION=%1
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-package-start %CB_INSTALL_PKG% %CB_INSTALL_VERSION% 2>nul
+shift
+if .%1 == .--default shift & set CB_SET_DEFAULT=true
+if .%1 == .-d shift & set CB_SET_DEFAULT=true
+set CB_INSTALL_VERSION_PARAM=%2
+if .%1 == .--default shift & set CB_SET_DEFAULT=true
+if .%1 == .-d shift & set CB_SET_DEFAULT=true
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-package-start %CB_INSTALL_PKG% %CB_INSTALL_VERSION% %CB_INSTALL_VERSION_PARAM% 2>nul
 
 if .%CB_INSTALL_PKG%==.cb goto INSTALL_CB_PACKAGE
 if .%CB_INSTALL_PKG%==.pkg goto INSTALL_PACKAGES
@@ -576,11 +581,11 @@ dir %CB_TOOL_VERSION_DEFAULT% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 goto TOOL_VERSION_DEFAULT_END
 set "CB_TOOL_VERSION_DEFAULT_TMPFILE=%TEMP%\cb-tool-version-default-%RANDOM%%RANDOM%.tmp"
 type %CB_TOOL_VERSION_DEFAULT% 2>nul | findstr /C:= > %CB_TOOL_VERSION_DEFAULT_TMPFILE% 2>nul
-for /f "tokens=1,* delims== " %%i in (%CB_TOOL_VERSION_DEFAULT_TMPFILE%) do (if .%%i == .%CB_INSTALL_PKG% set "CB_INSTALL_VERSION=%%j")
+for /f "tokens=1,2* delims== " %%i in (%CB_TOOL_VERSION_DEFAULT_TMPFILE%) do (if .%%i == .%CB_INSTALL_PKG% set "CB_INSTALL_VERSION=%%j" & set "CB_INSTALL_VERSION_PARAM=%%k")
 del %CB_TOOL_VERSION_DEFAULT_TMPFILE% >nul 2>nul
 :TOOL_VERSION_DEFAULT_END
 
-call %CB_SCRIPT_PATH%\include\download.bat %CB_INSTALL_PKG% %CB_INSTALL_VERSION% 
+call %CB_SCRIPT_PATH%\include\download.bat %CB_INSTALL_PKG% %CB_INSTALL_VERSION% %CB_INSTALL_VERSION_PARAM%
 if %ERRORLEVEL% NEQ 0 goto INSTALL_CB_END
 if not .%CB_PACKAGE_DOWNLOAD_NAME%==. set "CB_PKG_FILTER=%CB_PACKAGE_DOWNLOAD_NAME%" 
 
@@ -600,7 +605,7 @@ if exist %CB_BIN%\cb-copysymlink.bat if [%CB_INSTALL_SILENT%] equ [false] echo %
 if exist %CB_BIN%\cb-copysymlink.bat call %CB_BIN%\cb-copysymlink.bat --silent %CB_HOME_PREVIOUS%\current %CB_HOME%\current
 
 :: custom setting script
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-package-end %CB_INSTALL_PKG% %CB_INSTALL_VERSION% 2>nul
+if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-package-end %CB_INSTALL_PKG% %CB_INSTALL_VERSION% %CB_INSTALL_VERSION_PARAM% 2>nul
 echo %CB_LINE%>> "%CB_LOGFILE%"
 goto INSTALL_CB_END
 
@@ -719,6 +724,7 @@ if .%CB_SET_DEFAULT%==.true if exist %CB_PACKAGE_DIRECTORY_NAME% mklink /J %CB_C
 if .%CB_SET_DEFAULT%==.true if not exist %CB_PACKAGE_DIRECTORY_NAME% echo %CB_LINEHEADER%Could not set default for %CB_INSTALL_PKG%.
 if .%CB_SET_DEFAULT%==.true move %CB_TOOL_VERSION_INSTALLED_TMPFILE2% %CB_TOOL_VERSION_INSTALLED% >nul 2>nul
 del %CB_TOOL_VERSION_INSTALLED_TMPFILE% >nul 2>nul
+del %CB_TOOL_VERSION_INSTALLED_TMPFILE2% >nul 2>nul
 
 :EXTRACT_ARCHIVES_END
 :: custom setting script

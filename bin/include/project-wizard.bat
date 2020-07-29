@@ -119,6 +119,7 @@ set "projectDescription=The implementation of the %projectName%."
 set /p projectDescription=%CB_LINEHEADER%Please enter project description, e.g. [%projectDescription%]: 
 :SET_PROJECT_DESCRIPTION_END
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Set projectName:%projectName% projectRootPackageName:%projectRootPackageName% projectGroupId:%projectGroupId% projectComponentId:%projectComponentId% projectDescription:"%projectDescription%"
+echo.
 echo %CB_LINE%
 
 if exist %projectName% goto PROJECT_WIZARD_ERROR_END

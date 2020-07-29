@@ -11,11 +11,11 @@
 
 
 set eclipseFilter=
-if not defined CB_ECLIPSE_VERSION set "CB_ECLIPSE_VERSION=oxygen|jee-package"
+if not defined CB_ECLIPSE_VERSION set "CB_ECLIPSE_VERSION=2020-06 jee-package"
 set "CB_PACKAGE_VERSION=%1"
 set "CB_ECLIPSE_PACKAGE_NAME=%2"
-if .%CB_PACKAGE_VERSION% == . FOR /F "tokens=1,2 delims=|" %%i in ("%CB_ECLIPSE_VERSION%") do ( set "CB_PACKAGE_VERSION=%%i" )
-if .%CB_ECLIPSE_PACKAGE_NAME% == . set "CB_ECLIPSE_PACKAGE_NAME=%CB_ECLIPSE_VERSION:*|=%"
+if .%CB_PACKAGE_VERSION% == . FOR /F "tokens=1,2 delims= " %%i in ("%CB_ECLIPSE_VERSION%") do ( set "CB_PACKAGE_VERSION=%%i" )
+if .%CB_ECLIPSE_PACKAGE_NAME% == . set "CB_ECLIPSE_PACKAGE_NAME=%CB_ECLIPSE_VERSION:* =%"
 if .%CB_ECLIPSE_PACKAGE_NAME% == . set "CB_ECLIPSE_PACKAGE_NAME=jee-package"
 set "CB_ECLIPSE_INFO_DOWNLOAD_URL=https://api.eclipse.org/download/release/eclipse_packages"
 
@@ -44,6 +44,7 @@ set "CB_PACKAGE_DOWNLOAD_NAME=%CB_PACKAGE_DOWNLOAD_URL%"
 for /f "tokens=1 delims=/" %%G in ("%CB_PACKAGE_DOWNLOAD_NAME%") do (set "CB_PACKAGE_DOWNLOAD_NAME=%CB_PACKAGE_DOWNLOAD_NAME:*/=%")
 echo %CB_PACKAGE_DOWNLOAD_NAME% | findstr /C:"/" >NUL && (goto :PREPARE_PACKAGE_NAME) 
 
+set CB_PACKAGE_DEST_VERSION_NAME=eclipse-%CB_PACKAGE_VERSION_NAME%
 ::echo %CB_ECLIPSE_RELEASE_VERSION%
 ::echo %CB_PACKAGE_VERSION_NAME%
 ::echo %CB_PACKAGE_DOWNLOAD_NAME%
