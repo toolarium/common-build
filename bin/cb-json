@@ -38,8 +38,9 @@ cutJsonElement() {
 	#| sed -e 's/^[\ ]*//g' 
 	#| grep -E -v \"^[[:space:]]*\$\" 
 	prepareResult="$(formatJson | grep -E -v \"^[[:space:]]*$\" | sed -e ':a' -e 'N;$!ba' -e 's/\n/\t/g')"
-	if [ -n "$tagElementFilter" ]; then
-		result=$(echo "$prepareResult" | grep -Po "\"$tagElementFilter\":.*" | formatJson | sed '/^ }/,$d')
+	if [ -n "$tagElementFilter" ]; then	
+		#result=$(echo "$prepareResult" | grep -Po "\"$tagElementFilter\":.*" | formatJson | sed '/^ }/,$d')
+		result=$(echo "$prepareResult" | awk  "match(\$0,/\"$tagElementFilter\":.*/){print substr(\$0,RSTART)}" | formatJson | sed '/^ }/,$d')
 		secondLine=$(echo "$result" | sed -n '2p'|sed 's/ //')
 		if [ "$secondLine" = "{" ]; then
 			echo "$result" && echo " }"
