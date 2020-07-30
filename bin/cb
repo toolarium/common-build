@@ -136,6 +136,7 @@ executeCustomSettings() {
 checkInternetConnection() {
 	CB_OFFLINE=false
 	CMD=""
+	[ -z "$(whereis -b ping 2>/dev/null | awk '{print $2}')" ] && return
 
 	[ -z "$CB_ONLINE_ADDRESS" ] && CB_ONLINE_ADDRESS="8.8.8.8"
 	if [ "$CB_OS" = "linux" ]; then
@@ -249,18 +250,17 @@ projectWizard() {
 #########################################################################
 exploreProject()
 {
-	fileExplorer=
-	[ "$CB_OS" = "windows" ] && fileExplorer=$(which explorer.exe 2>&1)
-	[ "$CB_OS" = "cygwin" ] && fileExplorer=$(which explorer.exe 2>/dev/null)
-	[ "$CB_OS" = "mac" ] && fileExplorer=$(which open 2>/dev/null)
+	[ "$CB_OS" = "windows" ] && fileExplorer=$(whereis -b explorer.exe 2>/dev/null | awk '{print $2}')
+	[ "$CB_OS" = "cygwin" ] && fileExplorer=$(whereis -b explorer.exe 2>/dev/null | awk '{print $2}')
+	[ "$CB_OS" = "mac" ] && fileExplorer=$(whereis -b open 2>/dev/null | awk '{print $2}')
 
 	if [ "$CB_OS" = "linux" ]; then
-		fileExplorer=$(which xdg-open 2>/dev/null)
+		fileExplorer=$(whereis -b xdg-open 2>/dev/null | awk '{print $2}')
 		# kde
-		[ -z "$fileExplorer" ] && fileExplorer=$(which dolphin 2>/dev/null)
+		[ -z "$fileExplorer" ] && fileExplorer=$(whereis -b dolphin 2>/dev/null | awk '{print $2}')
 		# gnome
-		[ -z "$fileExplorer" ] && fileExplorer=$(which gnome-open 2>/dev/null)
-		[ -z "$fileExplorer" ] && fileExplorer=$(which nautilus 2>/dev/null)
+		[ -z "$fileExplorer" ] && fileExplorer=$(whereis -b gnome-open 2>/dev/null | awk '{print $2}')
+		[ -z "$fileExplorer" ] && fileExplorer=$(whereis -b nautilus 2>/dev/null | awk '{print $2}')
 	fi
 
 	if [ -n "$fileExplorer" ]; then
@@ -374,7 +374,8 @@ commonBuildGradle() {
 
 			! [ "$CB_GRADLE_HOME" = "$GRADLE_HOME" ] && GRADLE_HOME="$CB_GRADLE_HOME" && export GRADLE_HOME
 			[ "$(echo ${PATH#*$CB_GRADLE_HOME/bin*})" = "$(echo $PATH)" ] && PATH="$CB_GRADLE_HOME/bin:$PATH" && export PATH
-			if ! which "$GRADLE_EXEC" > /dev/null 2>&1; then
+			
+			if [ -z "$(whereis -b $GRADLE_EXEC 2>/dev/null | awk '{print $2}')" ]; then
 				echo "${CB_LINEHEADER}Could not find gradle version in path."
 				endWithError
 			fi
@@ -416,7 +417,8 @@ commonBuildMaven() {
 
 			! [ "$CB_MAVEN_HOME" = "$MAVEN_HOME" ] && MAVEN_HOME="$CB_MAVEN_HOME" && export MAVEN_HOME
 			[ "$(echo ${PATH#*$CB_MAVEN_HOME/bin*})" = "$(echo $PATH)" ] && PATH="$CB_MAVEN_HOME/bin:$PATH" && export PATH
-			if ! which "$MAVEN_EXEC" > /dev/null 2>&1; then
+			
+			if [ -z "$(whereis -b $MAVEN_EXEC 2>/dev/null | awk '{print $2}')" ]; then
 				echo "${CB_LINEHEADER}Could not find maven version in path."
 				endWithError
 			fi
@@ -454,7 +456,8 @@ commonBuildAnt() {
 
 		! [ "$CB_ANT_HOME" = "$ANT_HOME" ] && ANT_HOME="$CB_ANT_HOME" && export ANT_HOME
 		[ "$(echo ${PATH#*$CB_ANT_HOME/bin*})" = "$(echo $PATH)" ] && PATH="$CB_ANT_HOME/bin:$PATH" && export PATH
-		if ! which "$ANT_EXEC" > /dev/null 2>&1; then
+		
+		if [ -z "$(whereis -b $ANT_EXEC 2>/dev/null | awk '{print $2}')" ]; then
 			echo "${CB_LINEHEADER}Could not find ant version in path."
 			endWithError
 		fi
@@ -491,7 +494,8 @@ commonBuildNode() {
 
 		! [ "$CB_NODE_HOME" = "$NODE_HOME" ] && NODE_HOME="$CB_NODE_HOME" && export NODE_HOME
 		[ "$(echo ${PATH#*$CB_NODE_HOME*})" = "$(echo $PATH)" ] && PATH="$CB_NODE_HOME:$PATH" && export PATH
-		if ! which "$NODE_EXEC" > /dev/null 2>&1; then
+
+		if [ -z "$(whereis -b $NODE_EXEC 2>/dev/null | awk '{print $2}')" ]; then
 			echo "${CB_LINEHEADER}Could not find node version in path."
 			endWithError
 		fi
@@ -576,7 +580,7 @@ commonBuild() {
 	[ "$(echo ${PATH#*$CB_JAVA_HOME/bin*})" = "$(echo $PATH)" ] && PATH="$CB_JAVA_HOME_RUNTIME/bin:$PATH" && export PATH
 	#&& echo ${CB_LINEHEADER}Set $CB_JAVA_HOME to path!
 
-	if ! which $JAVAC_EXEC> /dev/null 2>&1; then
+	if [ -z "$(whereis -b $JAVAC_EXEC 2>/dev/null | awk '{print $2}')" ]; then
 		echo "${CB_LINEHEADER}Could not find java version in path."
 		endWithError
 	fi
@@ -607,8 +611,8 @@ commonBuild() {
 # checkHttpRequestCLI
 #########################################################################
 checkHttpRequestCLI() {
-	which curl >/dev/null 2>&1 && echo "curl" && return
-	which wget >/dev/null 2>&1 && echo "wget" && return
+	[ -n "$(whereis -b curl 2>/dev/null | awk '{print $2}')" ] && echo "curl" && return
+	[ -n "$(whereis -b wget 2>/dev/null | awk '{print $2}')" ] && echo "wget" && return
 	echo ""
 }
 
@@ -619,7 +623,7 @@ checkHttpRequestCLI() {
 downloadFiles() {
 	errorCode=1
 	if [ -z "$2" ]; then
-		! which wget >/dev/null 2>&1 && echo "${CB_LINEHEADER}Can not download wildcard by curl, please install wget." | tee -a "$CB_LOGFILE" && return
+		[ -z "$(whereis -b wget 2>/dev/null | awk '{print $2}')" ] && echo "${CB_LINEHEADER}Can not download wildcard by curl, please install wget." | tee -a "$CB_LOGFILE" && return
 	fi
 
     if [ "$HTTP_REQUEST_CLI" = "curl" ]; then
@@ -928,7 +932,8 @@ installCb() {
 					[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Extract package $i" >> "$CB_LOGFILE"
 
 					if [ -z "${i%%*.zip}" ]; then
-						if ! which unzip >/dev/null 2>&1; then
+					
+						if [ -z "$(whereis -b unzip 2>/dev/null | awk '{print $2}')" ]; then
 							echo "${CB_LINEHEADER}Could not find unzip, please install unzip."
 							CMD=""
 						else
