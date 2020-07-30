@@ -37,7 +37,9 @@ formatJson() {
 cutJsonElement() {
 	#| sed -e 's/^[\ ]*//g' 
 	#| grep -E -v \"^[[:space:]]*\$\" 
-	prepareResult="$(formatJson | grep -E -v \"^[[:space:]]*$\" | sed -e ':a' -e 'N;$!ba' -e 's/\n/\t/g')"
+	# linux only: prepareResult="$(formatJson | grep -E -v \"^[[:space:]]*$\" | sed -e ':a' -e 'N;$!ba' -e 's/\n/\t/g')"
+	# linux and osx:
+	prepareResult="$(formatJson | grep -E -v \"^[[:space:]]*$\" | sed -e ':a' -e 'N;$!ba' -e 's/\n/'$'\t''/g')"
 	if [ -n "$tagElementFilter" ]; then	
 		#result=$(echo "$prepareResult" | grep -Po "\"$tagElementFilter\":.*" | formatJson | sed '/^ }/,$d')
 		result=$(echo "$prepareResult" | awk  "match(\$0,/\"$tagElementFilter\":.*/){print substr(\$0,RSTART)}" | formatJson | sed '/^ }/,$d')
@@ -55,14 +57,18 @@ cutJsonElement() {
 		fi		
 	else
 		# array & filter
-		prepareFilterResult=$(echo "$prepareResult" | sed 's/    {\t        "/\n{"/g')
+		# linux-only: prepareFilterResult=$(echo "$prepareResult" | sed 's/    {\t        "/\n{"/g')
+		# linux and osx:
+		prepareFilterResult=$(echo "$prepareResult" | sed 's/    {'$'\t''        "/\n{"/g')
 
 		for i in $elementFilter; do		
 			filterString="\"${i%:*}\": (\")?${i#*:}(\")?" 
 			prepareResult=$(echo "$prepareFilterResult" | grep -E "$filterString")
 			prepareFilterResult="$prepareResult"
 		done			
-		echo "$prepareFilterResult" | sed 's/\t/\n/g' | sed 's/,[ ]*$//' | formatJson
+		# linux only: echo "$prepareFilterResult" | sed 's/\t/\n/g' | sed 's/,[ ]*$//' | formatJson
+		# linux and osx:
+		echo "$prepareFilterResult" | sed 's/'$'\t''/\n/g' | sed 's/,[ ]*$//' | formatJson
 	fi
 }
 

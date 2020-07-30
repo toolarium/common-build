@@ -883,9 +883,12 @@ installCb() {
 			while IFS= read -r line; do
 				key="${line%=*}" && key="$(echo $key 2>/dev/null| sed 's/ //g' 2>/dev/null)"								
 				if [ "$key" = "$CB_INSTALL_PKG" ]; then
-					CB_INSTALL_VERSION=$(echo "${line#*=}" | sed 's/^[ \t]*//;s/[ \t]*$//')					
+					# linux only: CB_INSTALL_VERSION=$(echo "${line#*=}" | sed 's/^[ \t]*//;s/[ \t]*$//')					
+					# linux and osx:
+					CB_INSTALL_VERSION=$(echo "${line#*=}" | sed 's/^[ '$'\t'']*//;s/[ '$'\t'']*$//')
 					CB_INSTALL_VERSION_PARAM="${CB_INSTALL_VERSION#* }"
 					CB_INSTALL_VERSION="${CB_INSTALL_VERSION% *}" 
+					break
 				fi
 			done <  $CB_TOOL_VERSION_DEFAULT_TMPFILE
 			rm -f $CB_TOOL_VERSION_DEFAULT_TMPFILE >/dev/null 2>&1
