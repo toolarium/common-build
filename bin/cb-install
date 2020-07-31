@@ -48,7 +48,20 @@ case $CB_OS in
 	'aix') CB_OS="aix";;
 	*) ;;
 esac
-CB_SHELL_INITIALISATION_CMD="export CB_HOME=$CB_HOME && export PATH=\"\$CB_HOME/bin:\$PATH\""
+
+
+#########################################################################
+# Check if the binary exists
+#########################################################################
+existBinary() {
+	if [ "$CB_OS" = "linux" ]; then
+		eval "whereis -b $1 2>/dev/null | awk '{print \$2}'"
+	elif [ "$CB_OS" = "cygwin" ]; then
+		eval "whereis -b $1 2>/dev/null | awk '{print \$2}'"
+	elif [ "$CB_OS" = "mac" ]; then
+		eval "whereis -b $1 2>/dev/null | awk '{print \$1}'"
+	fi
+}
 
 
 #########################################################################
@@ -71,9 +84,9 @@ getCurrentShell() {
 
 	currentShell=$(eval $CMD | awk '{print $1}')
 	if [ -z $currentShell ]; then
-		[ "$(echo ${SHELL##*/})" = "bash" ] && currentShell=".bashrc"
 		[ "$(echo ${SHELL##*/})" = "zsh" ] && currentShell=".zshrc"
-		[ "$(echo ${SHELL##*/})" = "zsh" ] && currentShell=".ashrc"
+		[ "$(echo ${SHELL##*/})" = "ash" ] && currentShell=".ashrc"
+		[ "$(echo ${SHELL##*/})" = "bash" ] && currentShell=".bashrc"
 	fi
 
 	echo $currentShell
@@ -144,7 +157,7 @@ installationFailed() {
 # checkInternetConnection
 #########################################################################
 checkInternetConnection() {
-	[ -z "$(whereis -b ping 2>/dev/null | awk '{print $2}')" ] && return
+	[ -z "$(existBinary ping)" ] && return
 
 	[ -z "$CB_ONLINE_ADDRESS" ] && CB_ONLINE_ADDRESS="8.8.8.8"
 	if [ "$CB_OS" = "linux" ]; then
@@ -170,8 +183,8 @@ checkInternetConnection() {
 # checkHttpRequestCLI
 #########################################################################
 checkHttpRequestCLI() {
-	[ -n "$(whereis -b curl 2>/dev/null | awk '{print $2}')" ] && echo "curl" && return
-	[ -n "$(whereis -b wget 2>/dev/null | awk '{print $2}')" ] && echo "wget" && return
+	[ -n "$(existBinary curl)" ] && echo "curl" && return
+	[ -n "$(existBinary wget)" ] && echo "wget" && return
 	echo ""
 }
 
@@ -270,10 +283,10 @@ exithandler() {
 #########################################################################
 updateShellInitialisation() {
 	[ -z "$1" ] && return
-	shellProfile=$1
+	shellProfile="$1"
 
 	# in case it does not exist, just create empty file
-	! [ -f "$shellProfile" ] && touch $shellProfile && chmod 750 $shellProfile
+	! [ -f "$shellProfile" ] && touch "$shellProfile" && chmod 750 "$shellProfile"
 
 	if [ -w "$shellProfile" ]; then
 		backupFileName="${shellProfile}_cb-$(eval $FULLTIMESTAMP)"
@@ -291,7 +304,7 @@ updateShellInitialisation() {
 			#TEST: CB_HOME="$CB_HOME/aa"
 			CB_HOME_ESCAPED=$(echo "$CB_HOME" | sed 's/\//\\\//g')
 			[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Update file $shellProfile"
-			cat "$shellProfile" | sed "s/CB_HOME\=.*\&/CB_HOME\=$CB_HOME_ESCAPED\ \&\&/g" > "$newFileName"
+			cat "$shellProfile" | sed "s/CB_HOME\=.*\&/CB_HOME\=\"$CB_HOME_ESCAPED\"\ \&\&/g" > "$newFileName"
 			chmod --reference="$shellProfile $newFileName" >/dev/null 2>&1
 			chmod +r+w "$newFileName" >/dev/null 2>&1
 			mv -f "$newFileName" "$shellProfile" >/dev/null 2>&1
@@ -409,13 +422,13 @@ if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Set CB_HOME to $CB_DEVTOOLS/$CB_VERSION_NAME"
 	CB_HOME="$CB_DEVTOOLS/$CB_VERSION_NAME"
 	export CB_HOME="$CB_HOME" && export PATH="$CB_HOME/bin:$PATH"
+	CB_SHELL_INITIALISATION_CMD="export CB_HOME=\"$CB_HOME\" && export PATH=\"\$CB_HOME/bin:\$PATH\""
 
-
-	[ -n "$(whereis -b bash 2>/dev/null | awk '{print $2}')" ] && updateShellInitialisation "$HOME/.bashrc"
-	[ -n "$(whereis -b ash 2>/dev/null | awk '{print $2}')" ] && updateShellInitialisation "$HOME/.ashrc"
-	[ -n "$(whereis -b zsh 2>/dev/null | awk '{print $2}')" ] && updateShellInitialisation "$HOME/.zshrc"
+	[ -n "$(existBinary bash)" ] && updateShellInitialisation "$HOME/.bashrc"
+	[ -n "$(existBinary ash)" ] && updateShellInitialisation "$HOME/.ashrc"
+	[ -n "$(existBinary zsh)" ] && updateShellInitialisation "$HOME/.zshrc"
 	
-	#if [ -n "$(whereis -b fish 2>/dev/null | awk '{print $2}')" ]; then
+	#if [ -n "$(existBinary fish)" ]; then
 	#	CB_SHELL_INITIALISATION_CMD="set -x CB_HOME $CB_HOME && set -x PATH \$PATH \$CB_HOME/bin"
 	#	updateShellInitialisation "$HOME/.config/fish/config.fish"
 	#fi
