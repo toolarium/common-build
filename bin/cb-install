@@ -125,9 +125,11 @@ Version() {
 # installationSuccess
 #########################################################################
 installationSuccess() {
-	msgInfo=""
-	[ "$1" = "ash" ] && msgInfo="or type in . ~/.ashrc"
-	[ "$1" = "bash" ] && msgInfo="or type in . ~/.bashrc"
+	msgInfo="or type in . ~/.bashrc"
+	[ "$(echo ${SHELL##*/})" = "zsh" ] && msgInfo="or type in . ~/.zshrc"
+	[ "$(echo ${SHELL##*/})" = "ash" ] && msgInfo="or type in . ~/.ashrc"
+	[ "$(echo ${SHELL##*/})" = "bash" ] && msgInfo="or type in . ~/.bashrc"
+	
 	if [ "$CB_INSTALLER_SILENT" = "false" ]; then
 		echo ""
 		echo "$CB_LINE"
@@ -420,8 +422,8 @@ fi
 
 if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Set CB_HOME to $CB_DEVTOOLS/$CB_VERSION_NAME"
-	CB_HOME="$CB_DEVTOOLS/$CB_VERSION_NAME"
-	export CB_HOME="$CB_HOME" && export PATH="$CB_HOME/bin:$PATH"
+	export CB_HOME="$CB_DEVTOOLS/$CB_VERSION_NAME"
+	export PATH="$CB_HOME/bin:$PATH"
 	CB_SHELL_INITIALISATION_CMD="export CB_HOME=\"$CB_HOME\" && export PATH=\"\$CB_HOME/bin:\$PATH\""
 
 	[ -n "$(existBinary bash)" ] && updateShellInitialisation "$HOME/.bashrc"
@@ -434,7 +436,7 @@ if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	#fi
 fi
 
-installationSuccess $(getCurrentShell)
+installationSuccess
 
 
 #########################################################################
