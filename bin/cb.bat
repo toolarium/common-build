@@ -139,53 +139,43 @@ echo %PN% - common build v%CB_VERSION%
 echo usage: %PN% [OPTION]
 echo.
 echo Overview of the available OPTIONs:
-echo  -h, --help           				Show this help message.
-echo  -v, --version        				Print version information.
-echo  --new [name] [package] [descr.]	Create a new project.
-echo  --java [version]     				Set a different java version for this run, e.g. --java 14.
-echo  --silent             				Suppress the console output from the common-build.
-echo  --force            				Flag to force new installtion.
-echo  --offline            				Set the offline mode; it will be detect automatical.
-echo  --install [pkg] [-d, --default]	Install the common build environment.
-echo  --packages           				Print supported packages.
-echo  -exp, --explore      				Starts in Windows environment a new explorer.
-echo  --setenv             				Set all environment variable and stop execution.
+echo  -h, --help           Show this help message.
+echo  -v, --version        Print the version information.
+echo  --new                Create a new project. You can prefill wizard settings 
+echo                       by setting the corresponding entries as parameter, e.g.
+echo                       --new 1 my-project my.root.pkg my my
+echo  --java [version]     Set a different java version for this run, e.g. --java 14.
+echo  --silent             Suppress the console output from the common-build.
+echo  --force              Flag to force new installtion.
+echo  --offline            Set the offline mode; it will be detect automatically.
+echo  --install [pkg]      Install the a software package. Optionally you can set the
+echo                       version number (does not work for every package); otherwise
+echo                       the default version number is used (from the configuration
+echo                       file  tool-version-default.properties)
+echo                       Additionally a parameter -d or --default marks this version 
+echo                       as default.
+echo  --packages           Shows the supported packages.
+echo  -exp, --explore      Starts the file explorer with the current path.
+echo  --setenv             Set all internal used environment variables.
 echo.
 echo Environment variable:
-::echo  CB_DEVTOOLS          			Defines the devtools directory, default c:\devtools.
-echo  CB_HOME              				Defines the home environment, default %%CB_DEVTOOLS%%\cb.
-::echo  CB_JAVA_HOME         			Defines the java version (it must be installed in a sub folder
-::echo                       			of %%CB_DEVTOOLS%%, default is empty to choose the default)
-::echo  CB_GRADLE_HOME       			Defines the gradle version (similar CB_JAVA_HOME)
-::echo  CB_MAVEN_HOME        			Defines the maven version (similar CB_JAVA_HOME)
-::echo  CB_ANT_HOME          			Defines ant version (similar CB_JAVA_HOME)
-::echo  CB_NODE_HOME         			Defines node / npm version (similar CB_JAVA_HOME)
-echo  CB_PACKAGE_URL       				Url where additional zip packages to install are available (default, no url).
-echo  CB_PACKAGE_USER      				The user for the access to the CB_PACKAGE_URL.
-echo  CB_PACKAGE_PASSWORD  				In case the value is ask, the password can be entered securely 
-echo                       				on the command line.
-echo  CB_CUSTOM_SETTING    				Can be use to reference to an own start script (see sample scripts).
-::echo  CB_INSTALL_OVERWRITE Defines if existing packages should be overwritten (default false).
+echo  CB_DEVTOOLS          Defines the devtools directory, default c:\devtools.
+echo  CB_HOME              Defines the home environment, default %%CB_DEVTOOLS%%\cb.
 echo.
 echo Special files:
-echo  .java-version        				Can be used to reference to a specific java version (only major 
-echo                       				version, e.g. 11)
+echo  .java-version        Can be used to refer to a specific java version, e.g. 11
 echo.
-echo Example:
-echo  -Install specific java version: cb --install java 14
-echo  -Install specific java version as default: cb --install java 11 --default
-echo  -Install gradle version and force new installation: cb --force --install gradle 6.5
-echo  -Install specific maven version: cb --install maven 3.6.3
-echo  -Install specific ant version: cb --install ant 1.10.8
-echo  -Install default node version: cb --install node
-echo.
-echo The common build will not effect your environment variables by default. It use only the CB_HOME.
-echo If you'd like to have a stable environment variable as example for java, just set the JAVA_HOME
-echo to %%CB_HOME%%\current\java
-echo This works similar for other tools.
-echo.
-echo Please check the homepage for more information: https://github.com/toolarium/common-build
-echo.
+echo Customizing:
+echo  CB_CUSTOM_SETTING    The common build is flexible. You can define a script which
+echo                       that is called as a hook for all operations. You can find an
+echo                       example sciipt in %%CB_HOME%%\bin\sample\cb-custom-sample.bat
+echo  CB_PACKAGE_URL       To support software packages outside the common build, you 
+echo                       can define an URL that covers a directory of zip files.
+echo  CB_PACKAGE_USER      The user for accessing the CB_PACKAGE_URL.
+echo  CB_PACKAGE_PASSWORD  In case the value is ask, the password can be entered securely 
+echo                       on the command line.
+
+call %CB_SCRIPT_PATH%include\how-to.bat 2>nul
 goto END
 
 

@@ -55,11 +55,11 @@ esac
 #########################################################################
 existBinary() {
 	if [ "$CB_OS" = "linux" ]; then
-		eval "whereis -b $1 2>/dev/null | awk '{print \$2}'"
+		eval "whereis -b $1 2>/dev/null | awk '{print $2}'"
 	elif [ "$CB_OS" = "cygwin" ]; then
-		eval "whereis -b $1 2>/dev/null | awk '{print \$2}'"
+		eval "whereis -b $1 2>/dev/null | awk '{print $2}'"
 	elif [ "$CB_OS" = "mac" ]; then
-		eval "whereis -b $1 2>/dev/null | awk '{print \$1}'"
+		eval "whereis -b $1 2>/dev/null | awk '{print $1}'"
 	fi
 }
 
@@ -102,7 +102,7 @@ Usage() {
 	echo ""
 	echo "Overview of the available OPTIONs:"
 	echo " -h, --help           Show this help message."
-	echo " -v, --version        Print version information."
+	echo " -v, --version        Print the version information."
 	echo " --silent             Suppress the console output."
 	echo " --force              Force to reinstall the common-build."
 	echo " --draft              Also considers draft / pre-release versions."
@@ -131,14 +131,15 @@ installationSuccess() {
 	[ "$(echo ${SHELL##*/})" = "bash" ] && msgInfo="or type in . ~/.bashrc"
 	
 	if [ "$CB_INSTALLER_SILENT" = "false" ]; then
+		echo "${CB_LINEHEADER}Successfully installed toolarium-common-build v$releaseVersion."
+		echo "${CB_LINEHEADER}The \$PATH is extended and you can start working with the command cb."
 		echo ""
-		echo "$CB_LINE"
-		echo "Successfully installed toolarium-common-build $releaseVersion"
-		echo "in folder $CB_HOME. "
+		read -p "Press any key to continue..." input
 		echo ""
-		echo "The \$PATH is extended and you can start working with the command cb."
-		echo "Please re-login $msgInfo, before you start."
-		echo "$CB_LINE"
+		eval $CB_HOME/bin/include/how-to.sh 2>/dev/null | more
+		echo "${CB_LINEHEADER}Please re-login $msgInfo, before you start."
+		[ -z "$(existBinary unzip)" ] && echo "${CB_LINEHEADER}Missing package unzip, please install it before you continue!"
+		echo ""
 	fi
 }
 
@@ -342,11 +343,13 @@ do
 done
 
 if [ "$CB_INSTALLER_SILENT" = "false" ]; then
+	CB_VERSION_INFO=
+	[ -n "$CB_VERSION" ] && CB_VERSION_INFO=" $CB_VERSION"
 	echo "$CB_LINE"
-	echo "${CB_LINEHEADER}Started toolarium-common-build installation on $(hostname), $(eval "$USER_FRIENDLY_FULLTIMESTAMP")"
-	echo "${CB_LINEHEADER}Use $CB_DEVTOOLS path as devtools folder"
+	echo "${CB_LINEHEADER}Thank you for installing toolarium-common-build$CB_VERSION_INFO on $(hostname)"
+	echo "${CB_LINEHEADER}Use $CB_DEVTOOLS path as devtools folder, $(eval "$USER_FRIENDLY_FULLTIMESTAMP")"
 	echo "$CB_LINE"
-	read -p "Press any key to continue..." input
+	read -p " Press any key to continue..." input
 	echo ""
 fi
 

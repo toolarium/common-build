@@ -44,7 +44,6 @@ set "USER_FRIENDLY_DATESTAMP=%DD%.%MM%.%YYYY%" & set "USER_FRIENDLY_TIMESTAMP=%H
 set "USER_FRIENDLY_FULLTIMESTAMP=%USER_FRIENDLY_DATESTAMP% %USER_FRIENDLY_TIMESTAMP%"
 set "CB_INSTALL_ONLY_STABLE=true"
 set CB_VERSION=
-set CB_VERSION_INFO=
 set "CB_INSTALLER_SILENT=false"
 
 
@@ -80,10 +79,11 @@ goto END
 :COMMON_BUILD_INSTALL
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 set "CB_VERSION=%CB_VERSION: =%"
-if [%CB_INSTALLER_SILENT%] equ [false] (if not .%CB_VERSION% == . set "CB_VERSION_INFO= %CB_VERSION%"
+if [%CB_INSTALLER_SILENT%] equ [false] (
 	echo %CB_LINE%
-	echo %CB_LINEHEADER%Started toolarium-common-build installation%CB_VERSION_INFO% on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%
-	echo %CB_LINEHEADER%Use %CB_DEVTOOLS% path as devtools folder
+	if not .%CB_VERSION% == . echo %CB_LINEHEADER%Thank you for installing toolarium-common-build %CB_VERSION% on %COMPUTERNAME%
+	if .%CB_VERSION% == . echo %CB_LINEHEADER%Thank you for installing toolarium-common-build on %COMPUTERNAME%
+	echo %CB_LINEHEADER%Use %CB_DEVTOOLS% path as devtools folder, %USER_FRIENDLY_FULLTIMESTAMP%
 	echo %CB_LINE%
 	pause
 	echo.)
@@ -175,7 +175,7 @@ setx CB_HOME "%CB_DEVTOOLS%\%CB_VERSION_NAME%" >nul 2>nul
 
 :: upate path
 if [%CB_PREVIOUS_VERSION_NAME%] neq [%CB_VERSION_NAME%] goto CB_SET_PATH
-if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Found previous version %CB_PREVIOUS_VERSION_NAME% in PATH, don't change PATH variable
+if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Found previous version %CB_PREVIOUS_VERSION_NAME% in PATH
 goto SET_PATH_END
 
 :CB_SET_PATH
@@ -220,13 +220,11 @@ echo %CB_LINE%
 goto END
 
 :INSTALL_SUCCESSFULL_END
-if [%CB_INSTALLER_SILENT%] equ [false] (echo.
-	echo %CB_LINE%
-	echo Successfully installed toolarium-common-build v%CB_REMOTE_VERSION%
-	echo in folder %CB_HOME%.
+if [%CB_INSTALLER_SILENT%] equ [false] (
+	echo %CB_LINEHEADER%Successfully installed toolarium-common-build v%CB_REMOTE_VERSION%.
+	echo %CB_LINEHEADER%The %%PATH%% is extended and you can start working with the command cb. 	
 	echo.
-	echo The %%PATH%% is already extended and you can start working with the command cb.
-	echo %CB_LINE%)
+	if exist %CB_HOME%\bin\include\how-to.bat pause & call %CB_HOME%\bin\include\how-to.bat 2>nul | more)
 goto END
 
 
@@ -238,7 +236,7 @@ echo usage: %PN% [OPTION]
 echo.
 echo Overview of the available OPTIONs:
 echo  -h, --help           Show this help message.
-echo  -v, --version        Print version information.
+echo  -v, --version        Print the version information.
 echo  --silent             Suppress the console output.
 echo  --force              Force to reinstall the common-build.
 echo  --draft              Also considers draft / pre-release versions.
