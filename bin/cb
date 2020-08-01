@@ -148,26 +148,10 @@ executeCustomSettings() {
 # checkInternetConnection
 #########################################################################
 checkInternetConnection() {
-	CB_OFFLINE=false
-	CMD=""
-	[ -z "$(existBinary ping)" ] && return
-
 	[ -z "$CB_ONLINE_ADDRESS" ] && CB_ONLINE_ADDRESS="8.8.8.8"
-	if [ "$CB_OS" = "linux" ]; then
-		CMD="ping $CB_ONLINE_ADDRESS -c 1 -w 1"
-	elif [ "$CB_OS" = "cygwin" ]; then
-		CMD="ping $CB_ONLINE_ADDRESS 1 1"
-	elif [ "$CB_OS" = "windows" ]; then
-		CMD="ping $CB_ONLINE_ADDRESS -n 1 -w 1000"
-	#elif [ "$CB_OS" = "mac" ]; then
-	#	CMD="ping $CB_ONLINE_ADDRESS -c 1 -w 1"
-	fi
-
-	if [ -n "$CMD" ]; then
-		if ! eval "$CMD" >/dev/null 2>&1; then
-			CB_OFFLINE=true
-		fi
-	fi
+	[ -z "$CB_ONLINE_ADDRESS_PORT" ] && CB_ONLINE_ADDRESS_PORT="53"
+	[ -z "$CB_ONLINE_TIMEOUT" ] && CB_ONLINE_TIMEOUT="2"
+	timeout "$CB_ONLINE_TIMEOUT bash" -c "</dev/tcp/$CB_ONLINE_ADDRESS/$CB_ONLINE_ADDRESS_PORT" >/dev/null 2>&1 && CB_OFFLINE=true || CB_OFFLINE=false
 }
 
 
