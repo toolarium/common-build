@@ -31,8 +31,11 @@ jobs:
 
       # Install
       - name: Test version
-        run: bash -c "cb --version"
+        run: |
+             ls -ltra ~/
+             cat ~/.bashrc
+             bash -c ". ~/.bashrc && cb --version"
 
       - name: Create a project
-        run: bash -c "cb --new 1 my-project my.rootpackage.name my my The implementation of the my-project."
+        run: bash -c "~/.bashrc && cb --new 1 my-project my.rootpackage.name my my The implementation of the my-project."
 
