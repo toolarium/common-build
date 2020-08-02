@@ -1,0 +1,861 @@
+
+[
+    {
+        "binary": {
+            "architecture": "aarch64",
+            "download_count": 225,
+            "heap_size": "normal",
+            "image_type": "jdk",
+            "jvm_impl": "hotspot",
+            "os": "linux",
+            "package": {
+                "checksum": "fb27ea52ed901c14c9fe8ad2fc10b338b8cf47d6762571be1fe3fb7c426bab7c",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_aarch64_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 225,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_aarch64_linux_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-jdk_aarch64_linux_hotspot_11.0.8_10.tar.gz",
+                "size": 190206674
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:29:38Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "x64",
+            "download_count": 35949,
+            "heap_size": "normal",
+            "image_type": "jdk",
+            "jvm_impl": "hotspot",
+            "os": "linux",
+            "package": {
+                "checksum": "6e4cead158037cb7747ca47416474d4f408c9126be5b96f9befd532e0a762b47",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 35949,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_linux_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-jdk_x64_linux_hotspot_11.0.8_10.tar.gz",
+                "size": 193398310
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:30:29Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "aarch64",
+            "download_count": 76,
+            "heap_size": "normal",
+            "image_type": "jre",
+            "jvm_impl": "hotspot",
+            "os": "linux",
+            "package": {
+                "checksum": "286c869dbaefda9b470ae71d1250fdecf9f06d8da97c0f7df9021d381d749106",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_aarch64_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 76,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_aarch64_linux_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-jre_aarch64_linux_hotspot_11.0.8_10.tar.gz",
+                "size": 41285736
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:31:26Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "x64",
+            "download_count": 1960,
+            "heap_size": "normal",
+            "image_type": "jre",
+            "jvm_impl": "hotspot",
+            "os": "linux",
+            "package": {
+                "checksum": "98615b1b369509965a612232622d39b5cefe117d6189179cbad4dcef2ee2f4e1",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_x64_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 1960,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_x64_linux_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-jre_x64_linux_hotspot_11.0.8_10.tar.gz",
+                "size": 42904191
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:31:46Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "ppc64le",
+            "download_count": 178,
+            "heap_size": "normal",
+            "image_type": "jdk",
+            "jvm_impl": "hotspot",
+            "os": "linux",
+            "package": {
+                "checksum": "d206a63cd719b65717f7f20ee3fe49f0b8b2db922986b4811c828db57212699e",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_ppc64le_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 178,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_ppc64le_linux_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-jdk_ppc64le_linux_hotspot_11.0.8_10.tar.gz",
+                "size": 176566452
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:30:09Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "s390x",
+            "download_count": 132,
+            "heap_size": "normal",
+            "image_type": "jdk",
+            "jvm_impl": "hotspot",
+            "os": "linux",
+            "package": {
+                "checksum": "5619e1437c7cd400169eb7f1c831c2635fdb2776a401147a2fc1841b01f83ed6",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 132,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_s390x_linux_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-jdk_s390x_linux_hotspot_11.0.8_10.tar.gz",
+                "size": 168944099
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:30:18Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "ppc64le",
+            "download_count": 54,
+            "heap_size": "normal",
+            "image_type": "jre",
+            "jvm_impl": "hotspot",
+            "os": "linux",
+            "package": {
+                "checksum": "89231e1667d7cc4202d1a401497bb287d4eb12281c90c17e2570211cc4e901a3",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_ppc64le_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 54,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_ppc64le_linux_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-jre_ppc64le_linux_hotspot_11.0.8_10.tar.gz",
+                "size": 39028863
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:31:37Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "x64",
+            "download_count": 22584,
+            "heap_size": "normal",
+            "image_type": "jdk",
+            "installer": {
+                "checksum": "c9ce3e78a7ec7f8c23041af63a66bfe18bbf75c7bfa8f8a51148a098f3653699",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_mac_hotspot_11.0.8_10.pkg.sha256.txt",
+                "download_count": 19016,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_mac_hotspot_11.0.8_10.pkg",
+                "name": "OpenJDK11U-jdk_x64_mac_hotspot_11.0.8_10.pkg",
+                "size": 189801489
+            },
+            "jvm_impl": "hotspot",
+            "os": "mac",
+            "package": {
+                "checksum": "4a8dadd58cdc32c7e59978971d56aec610be7ee0ddf0dc1d137bb8b78456499f",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_mac_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 3568,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_mac_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-jdk_x64_mac_hotspot_11.0.8_10.tar.gz",
+                "size": 185054456
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:30:51Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "x64",
+            "download_count": 87469,
+            "heap_size": "normal",
+            "image_type": "jdk",
+            "installer": {
+                "checksum": "148b487e0dde39ec5c0f32aa2397c17968b6cf6818822cea2b2394dfd0157396",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_windows_hotspot_11.0.8_10.msi.sha256.txt",
+                "download_count": 75858,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_windows_hotspot_11.0.8_10.msi",
+                "name": "OpenJDK11U-jdk_x64_windows_hotspot_11.0.8_10.msi",
+                "size": 171630592
+            },
+            "jvm_impl": "hotspot",
+            "os": "windows",
+            "package": {
+                "checksum": "473e552748b23bd95ad097249e97f5d923d8dde3b956a9487ab17c860a6baa48",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_windows_hotspot_11.0.8_10.zip.sha256.txt",
+                "download_count": 11611,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_windows_hotspot_11.0.8_10.zip",
+                "name": "OpenJDK11U-jdk_x64_windows_hotspot_11.0.8_10.zip",
+                "size": 194374669
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:33:37Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "x64",
+            "download_count": 1032,
+            "heap_size": "normal",
+            "image_type": "jre",
+            "installer": {
+                "checksum": "f93b95ef2f536965fb206dbabb00fab96ed2911e951d4d0f51aa440df0cb5a14",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_x64_mac_hotspot_11.0.8_10.pkg.sha256.txt",
+                "download_count": 327,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_x64_mac_hotspot_11.0.8_10.pkg",
+                "name": "OpenJDK11U-jre_x64_mac_hotspot_11.0.8_10.pkg",
+                "size": 42686211
+            },
+            "jvm_impl": "hotspot",
+            "os": "mac",
+            "package": {
+                "checksum": "b0cd349e7e428721a3bcfec619e071d25c0397e3e43b7ce22acfd7d834a8ca4b",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_x64_mac_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 705,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_x64_mac_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-jre_x64_mac_hotspot_11.0.8_10.tar.gz",
+                "size": 38072488
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:31:54Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "x64",
+            "download_count": 55802,
+            "heap_size": "normal",
+            "image_type": "jre",
+            "installer": {
+                "checksum": "c94202eec5a406bf86352270cb0c9c17cb6c3ffc9c7d78c41e67b181e1d6f151",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_x64_windows_hotspot_11.0.8_10.msi.sha256.txt",
+                "download_count": 49176,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_x64_windows_hotspot_11.0.8_10.msi",
+                "name": "OpenJDK11U-jre_x64_windows_hotspot_11.0.8_10.msi",
+                "size": 30556160
+            },
+            "jvm_impl": "hotspot",
+            "os": "windows",
+            "package": {
+                "checksum": "fefa05395dbccfe072a8b6fbfebecf797ed81e18cb1aa4ed093c653d316b3f56",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_x64_windows_hotspot_11.0.8_10.zip.sha256.txt",
+                "download_count": 6626,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_x64_windows_hotspot_11.0.8_10.zip",
+                "name": "OpenJDK11U-jre_x64_windows_hotspot_11.0.8_10.zip",
+                "size": 41657562
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:33:44Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "arm",
+            "download_count": 199,
+            "heap_size": "normal",
+            "image_type": "jdk",
+            "jvm_impl": "hotspot",
+            "os": "linux",
+            "package": {
+                "checksum": "d00370967e4657e137cc511e81d6accbfdb08dba91e6268abef8219e735fbfc5",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_arm_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 199,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_arm_linux_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-jdk_arm_linux_hotspot_11.0.8_10.tar.gz",
+                "size": 182327847
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:29:48Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "x32",
+            "download_count": 7138,
+            "heap_size": "normal",
+            "image_type": "jdk",
+            "installer": {
+                "checksum": "4150d41630885b7545ee04468c128efc68d9afaf08d00a7379ccdf5574e38e2f",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x86-32_windows_hotspot_11.0.8_10.msi.sha256.txt",
+                "download_count": 5832,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x86-32_windows_hotspot_11.0.8_10.msi",
+                "name": "OpenJDK11U-jdk_x86-32_windows_hotspot_11.0.8_10.msi",
+                "size": 153178112
+            },
+            "jvm_impl": "hotspot",
+            "os": "windows",
+            "package": {
+                "checksum": "02d0f9aca8dd75a02bfaf26f7e4088673a07483ecc546bd1bae2727d46845270",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x86-32_windows_hotspot_11.0.8_10.zip.sha256.txt",
+                "download_count": 1306,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x86-32_windows_hotspot_11.0.8_10.zip",
+                "name": "OpenJDK11U-jdk_x86-32_windows_hotspot_11.0.8_10.zip",
+                "size": 173035117
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:31:22Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "x32",
+            "download_count": 3637,
+            "heap_size": "normal",
+            "image_type": "jre",
+            "installer": {
+                "checksum": "1f5a39ac8b44a0c0f5e39dd5fd88da81cd8a1deb655eea98191d6631137737e6",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_x86-32_windows_hotspot_11.0.8_10.msi.sha256.txt",
+                "download_count": 2969,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_x86-32_windows_hotspot_11.0.8_10.msi",
+                "name": "OpenJDK11U-jre_x86-32_windows_hotspot_11.0.8_10.msi",
+                "size": 26468352
+            },
+            "jvm_impl": "hotspot",
+            "os": "windows",
+            "package": {
+                "checksum": "00e0eb7112a4cdbaae663110e4c7af6377d2fa01f69c20222790293b4f427f26",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_x86-32_windows_hotspot_11.0.8_10.zip.sha256.txt",
+                "download_count": 668,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_x86-32_windows_hotspot_11.0.8_10.zip",
+                "name": "OpenJDK11U-jre_x86-32_windows_hotspot_11.0.8_10.zip",
+                "size": 36143213
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:32:02Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "s390x",
+            "download_count": 55,
+            "heap_size": "normal",
+            "image_type": "jre",
+            "jvm_impl": "hotspot",
+            "os": "linux",
+            "package": {
+                "checksum": "dc0e715c17abcb12bedf77c638e58e67d828d3c4bf24a898f0d4b053caaeb25f",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_s390x_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 55,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_s390x_linux_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-jre_s390x_linux_hotspot_11.0.8_10.tar.gz",
+                "size": 37628018
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:31:41Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "ppc64",
+            "download_count": 40,
+            "heap_size": "normal",
+            "image_type": "jdk",
+            "jvm_impl": "hotspot",
+            "os": "aix",
+            "package": {
+                "checksum": "230d79af880edce41c4a09a4395349a464fc4222921a4c0555ff382f7c2ab175",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_ppc64_aix_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 40,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_ppc64_aix_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-jdk_ppc64_aix_hotspot_11.0.8_10.tar.gz",
+                "size": 181778646
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:29:58Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "ppc64",
+            "download_count": 38,
+            "heap_size": "normal",
+            "image_type": "jre",
+            "jvm_impl": "hotspot",
+            "os": "aix",
+            "package": {
+                "checksum": "bf1f839f37bcb5cc56bc45044b0b828432bdfe743dd44350c7f852ced95766e6",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_ppc64_aix_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 38,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_ppc64_aix_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-jre_ppc64_aix_hotspot_11.0.8_10.tar.gz",
+                "size": 43609536
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:31:33Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "x64",
+            "download_count": 12,
+            "heap_size": "normal",
+            "image_type": "testimage",
+            "jvm_impl": "hotspot",
+            "os": "linux",
+            "package": {
+                "checksum": "059cf38449f7ce33942b9296baf9a9f7b9a842efd7cddfc7610c1c6e8c0164ef",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_x64_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 12,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_x64_linux_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-testimage_x64_linux_hotspot_11.0.8_10.tar.gz",
+                "size": 40015682
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:32:28Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "x64",
+            "download_count": 4,
+            "heap_size": "normal",
+            "image_type": "testimage",
+            "jvm_impl": "hotspot",
+            "os": "mac",
+            "package": {
+                "checksum": "4f3f1daf74c16647b2bf595530ddbf040a78001abb93fca341c632789e2d87f5",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_x64_mac_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 4,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_x64_mac_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-testimage_x64_mac_hotspot_11.0.8_10.tar.gz",
+                "size": 33856910
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:32:31Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "x64",
+            "download_count": 14,
+            "heap_size": "normal",
+            "image_type": "testimage",
+            "jvm_impl": "hotspot",
+            "os": "windows",
+            "package": {
+                "checksum": "62d0942b98628ccb805e5b81c7d75d880f3e8090731ad8e59a8642f13fed3714",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_x64_windows_hotspot_11.0.8_10.zip.sha256.txt",
+                "download_count": 14,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_x64_windows_hotspot_11.0.8_10.zip",
+                "name": "OpenJDK11U-testimage_x64_windows_hotspot_11.0.8_10.zip",
+                "size": 27497917
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:33:48Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "s390x",
+            "download_count": 1,
+            "heap_size": "normal",
+            "image_type": "testimage",
+            "jvm_impl": "hotspot",
+            "os": "linux",
+            "package": {
+                "checksum": "53bf778ac48abacbb24c46bc6b7ba1cd65e85c5b5d64922fd06b76a20cdc8999",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_s390x_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 1,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_s390x_linux_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-testimage_s390x_linux_hotspot_11.0.8_10.tar.gz",
+                "size": 38170675
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:32:24Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "x32",
+            "download_count": 6,
+            "heap_size": "normal",
+            "image_type": "testimage",
+            "jvm_impl": "hotspot",
+            "os": "windows",
+            "package": {
+                "checksum": "93b4f95238fd18492270b005c6430b7403c4f54798e750dbe947730355e7815f",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_x86-32_windows_hotspot_11.0.8_10.zip.sha256.txt",
+                "download_count": 6,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_x86-32_windows_hotspot_11.0.8_10.zip",
+                "name": "OpenJDK11U-testimage_x86-32_windows_hotspot_11.0.8_10.zip",
+                "size": 24695970
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:32:34Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "arm",
+            "download_count": 2,
+            "heap_size": "normal",
+            "image_type": "testimage",
+            "jvm_impl": "hotspot",
+            "os": "linux",
+            "package": {
+                "checksum": "8827a090cb5ee1d60c96ccaffc6acc7b0cd9092a00af7d10dd4732f7cce1130a",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_arm_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 2,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_arm_linux_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-testimage_arm_linux_hotspot_11.0.8_10.tar.gz",
+                "size": 48604604
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:32:11Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "ppc64le",
+            "download_count": 1,
+            "heap_size": "normal",
+            "image_type": "testimage",
+            "jvm_impl": "hotspot",
+            "os": "linux",
+            "package": {
+                "checksum": "f2a59b19956270e0a438ee7447a4fb931f47857b0a4040a24206ba8934c3b935",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_ppc64le_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 1,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_ppc64le_linux_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-testimage_ppc64le_linux_hotspot_11.0.8_10.tar.gz",
+                "size": 40419435
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:32:20Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "aarch64",
+            "download_count": 2,
+            "heap_size": "normal",
+            "image_type": "testimage",
+            "jvm_impl": "hotspot",
+            "os": "linux",
+            "package": {
+                "checksum": "b2ba62e3814723cabff4fe8690f84f351fbe755b1b80c5f39eb5323c59725c54",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_aarch64_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 2,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_aarch64_linux_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-testimage_aarch64_linux_hotspot_11.0.8_10.tar.gz",
+                "size": 36655683
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:32:06Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "ppc64",
+            "download_count": 1,
+            "heap_size": "normal",
+            "image_type": "testimage",
+            "jvm_impl": "hotspot",
+            "os": "aix",
+            "package": {
+                "checksum": "1097e8861143ed9002b20fd2fdae8bae257f198e6d72f4e09406da284157cd8c",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_ppc64_aix_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 1,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-testimage_ppc64_aix_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-testimage_ppc64_aix_hotspot_11.0.8_10.tar.gz",
+                "size": 47195239
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:32:16Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    },
+    {
+        "binary": {
+            "architecture": "arm",
+            "download_count": 84,
+            "heap_size": "normal",
+            "image_type": "jre",
+            "jvm_impl": "hotspot",
+            "os": "linux",
+            "package": {
+                "checksum": "ffa627b2d0c6001448bb8f1f24f7c9921dad37e67637f6ed0a9a479e680a3393",
+                "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_arm_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                "download_count": 84,
+                "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jre_arm_linux_hotspot_11.0.8_10.tar.gz",
+                "name": "OpenJDK11U-jre_arm_linux_hotspot_11.0.8_10.tar.gz",
+                "size": 41860378
+            },
+            "project": "jdk",
+            "scm_ref": "jdk-11.0.8+10_adopt",
+            "updated_at": "2020-07-15T14:31:29Z"
+        },
+        "release_name": "jdk-11.0.8+10",
+        "version": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    }
+]

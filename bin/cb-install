@@ -136,14 +136,14 @@ installationSuccess() {
 		echo "${CB_LINEHEADER}Successfully installed toolarium-common-build v$releaseVersion."
 		echo "${CB_LINEHEADER}The \$PATH is extended and you can start working with the command cb."
 		echo ""
-		unset input
-		read -p "Press any key to continue..." input
+		read -p "Press any key to continue..." inputHowTo
 		echo ""
 		eval $CB_HOME/bin/include/how-to.sh 2>/dev/null | more
 
 		echo "$CB_LINE"
 		echo "${CB_LINEHEADER}Please re-login $msgInfo, before you start."
 		[ -n "$(existBinary unzip)" ] || echo "${CB_LINEHEADER}Missing package unzip, please install it before you continue!"
+		[ -n "$(existBinary find)" ] || echo "${CB_LINEHEADER}Missing package find, please install it before you continue!"
 		echo "$CB_LINE"
 		echo ""
 	fi
@@ -275,7 +275,7 @@ updateShellInitialisation() {
 	shellProfile="$1"
 
 	# in case it does not exist, just create empty file
-	! [ -f "$shellProfile" ] && touch "$shellProfile" && chmod 750 "$shellProfile"
+	! [ -f "$shellProfile" ] && touch "$shellProfile" && chmod +r+w "$shellProfile"
 
 	if [ -w "$shellProfile" ]; then
 		backupFileName="${shellProfile}_cb-$(eval $FULLTIMESTAMP)"
@@ -398,6 +398,7 @@ if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/.gitattributes" >/dev/null 2>&1
 	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/.gitignore" >/dev/null 2>&1
 	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/README.md" >/dev/null 2>&1
+	rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME/testdata" >/dev/null 2>&1
 
 	# keep backward compatibility
 	if [ -d "$CB_DEVTOOLS/$CB_VERSION_NAME/src" ]; then

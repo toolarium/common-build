@@ -145,6 +145,8 @@ if /I [%CB_DEVTOOLS_DRIVE%] NEQ [%CB_USER_DRIVE%] (%CB_USER_DRIVE%)
 del %CB_DEVTOOLS%\%CB_VERSION_NAME%\.gitattributes 2>nul
 del %CB_DEVTOOLS%\%CB_VERSION_NAME%\.gitignore 2>nul
 del %CB_DEVTOOLS%\%CB_VERSION_NAME%\README.md 2>nul
+del %CB_DEVTOOLS%\%CB_VERSION_NAME%\testdata\* >nul 2>nul
+rmdir %CB_DEVTOOLS%\%CB_VERSION_NAME%\testdata /s /q >nul 2>nul
 
 :: keep backward compatibility
 if not exist %CB_DEVTOOLS%\%CB_VERSION_NAME%\src goto EXTRACT_CB_END
