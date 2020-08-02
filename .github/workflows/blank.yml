@@ -24,8 +24,8 @@ jobs:
       run: curl -fsSL https://git.io/JJezw | /bin/bash      
 
     - name: Test version
-      run: cb --version
+      run: bash -c cb --version
 
     - name: Create a project
-      run: cb --new 1 my-project my.rootpackage.name my my The implementation of the my-project.
+      run: bash -c cb --new 1 my-project my.rootpackage.name my my The implementation of the my-project.
 
