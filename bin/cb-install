@@ -154,10 +154,9 @@ installationSuccess() {
 # installationFailed
 #########################################################################
 installationFailed() {
-	echo ""
 	echo "$CB_LINE"
 	echo "Failed installation: $1"
- 	[ -r "$cbErrorTemp" ] && echo "" && cat $cbErrorTemp 2>/dev/null
+ 	[ -r "$cbErrorTemp" ] && cat $cbErrorTemp 2>/dev/null
 	echo "$CB_LINE"
 }
 

@@ -570,7 +570,7 @@ commonBuild() {
 
 	JAVA_HOME=$CB_JAVA_HOME
 	export JAVA_HOME
-	[ "$(echo ${PATH#*$CB_JAVA_HOME/bin*})" = "$(echo $PATH)" ] && PATH="$CB_JAVA_HOME_RUNTIME/bin:$PATH" && export PATH
+	[ "$(echo ${PATH#*$CB_JAVA_HOME/bin*})" = "$(echo $PATH)" ] && PATH="$CB_JAVA_HOME/bin:$PATH" && export PATH
 	#&& echo ${CB_LINEHEADER}Set $CB_JAVA_HOME to path!
 
 	if ! [ -n "$(existBinary $JAVAC_EXEC)" ]; then
@@ -619,9 +619,8 @@ downloadFiles() {
 		! [ -n "$(existBinary wget)" ] && echo "${CB_LINEHEADER}Can not download wildcard by curl, please install wget." | tee -a "$CB_LOGFILE" && return
 	fi
 
-	! [ -n "$(existBinary unzip)" ] && echo "${CB_LINEHEADER}Missing package unzip, please install it before you continue!" | tee -a "$CB_LOGFILE" && return
+	! [ -n "$(existBinary unzip)" ] && echo "${CB_LINEHEADER}Missing package unzip, please install it before you continue!" | tee -a "$CB_LOGFILE" && echo "$CB_LINE" && endWithError
 
-	
     if [ -z "${HTTP_REQUEST_CLI##*curl*}" ]; then
 		! [ -n "$CB_CURL_CONTINUE" ] && CB_CURL_CONTINUE="-C -"
 		! [ -n "$CB_CURL_REDIRECT" ] && CB_CURL_REDIRECT="-L"
