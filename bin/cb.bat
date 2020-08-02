@@ -37,7 +37,7 @@ set CB_UNZIP_CMD=unzip.exe
 set "CB_PROJECT_JAVA_VERSION_FILE=.java-version"
 set "CB_JAVA_VERSION_FILE=.cb-java-version"
 set CB_PARAMETERS=
-del %CB_JAVA_VERSION_FILE% 2>nul
+del /f /q "%CB_JAVA_VERSION_FILE%" 2>nul
 
 if not defined CB_HOME (echo %CB_LINE% & echo %CB_LINEHEADER%Missing CB_HOME environment variable, please install with the cb-install.bat. & echo %CB_LINE% & goto END_WITH_ERROR)
 cd /D %CB_HOME% 2>nul
@@ -298,7 +298,7 @@ set "cbJavaVersion=" & set "cbJavaMajorVersion=" & set "cbJavaVersionFilter=*" &
 set JAVAC_EXEC=javac
 
 :: current run java switch
-if exist %CB_JAVA_VERSION_FILE% (set /pcbJavaVersion=<%CB_JAVA_VERSION_FILE% & del %CB_JAVA_VERSION_FILE% 2>nul)
+if exist %CB_JAVA_VERSION_FILE% (set /pcbJavaVersion=<%CB_JAVA_VERSION_FILE% & del /f /q "%CB_JAVA_VERSION_FILE%" 2>nul)
 if defined cbJavaVersion set cbJavaVersion=%cbJavaVersion: =%
 if defined cbJavaVersion echo %CB_LINEHEADER%Set java version %cbJavaVersion% (by command line --java)
 if defined cbJavaVersion goto COMMON_BUILD_VERIFY_JAVA_INSTALLATION
@@ -329,7 +329,7 @@ if defined cbJavaVersion for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FUL
 if not defined cbJavaVersion for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install java 
 dir %CB_DEVTOOLS%\%CB_DEVTOOLS_JAVA_PREFIX%%cbJavaVersionFilter% /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
 for %%R in ("%TMPFILE%") do if not %%~zR lss 1 set /pcbJavaVersion=<"%TMPFILE%" & set "cbJavaVersionAvailable=true"
-del "%TMPFILE%" 2>nul
+del /f /q "%TMPFILE%" 2>nul
 set "cbJavaVersion=%cbJavaVersion:~2%"
 set "versionInformation=,"
 if defined cbJavaVersion set "versionInformation=%cbJavaVersion%,"
@@ -369,7 +369,7 @@ if exist %CB_CURRENT_PATH%\gradle\bin set "CB_GRADLE_HOME=%CB_CURRENT_PATH%\grad
 ::for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install gradle
 ::dir %CB_DEVTOOLS%\*gradle* /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
 ::for %%R in ("%TMPFILE%") do if not %%~zR lss 1 set /pCB_GRADLE_HOME=<"%TMPFILE%"
-::del "%TMPFILE%" 2>nul
+::del /f /q "%TMPFILE%" 2>nul
 ::set "CB_GRADLE_HOME=%CB_DEVTOOLS%\%CB_GRADLE_HOME:~2%"
 :COMMON_BUILD_VERIFY_GRADLE
 echo %CB_GRADLE_HOME% | findstr /I %CB_DEVTOOLS% >nul 2>nul
@@ -400,7 +400,7 @@ if exist %CB_CURRENT_PATH%\maven\bin set "CB_MAVEN_HOME=%CB_CURRENT_PATH%\maven"
 ::for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install maven
 ::dir %CB_DEVTOOLS%\*maven* /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
 ::for %%R in ("%TMPFILE%") do if not %%~zR lss 1 set /pCB_MAVEN_HOME=<"%TMPFILE%"
-::del "%TMPFILE%" 2>nul
+::del /f /q "%TMPFILE%" 2>nul
 ::set "CB_MAVEN_HOME=%CB_DEVTOOLS%\%CB_MAVEN_HOME:~2%"
 :COMMON_BUILD_VERIFY_MAVEN
 echo %CB_MAVEN_HOME% | findstr /I %CB_DEVTOOLS%  >nul 2>nul
@@ -428,7 +428,7 @@ if exist %CB_CURRENT_PATH%\ant\bin set "CB_ANT_HOME=%CB_CURRENT_PATH%\ant"
 ::for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install ant
 ::dir %CB_DEVTOOLS%\*ant* /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
 ::for %%R in ("%TMPFILE%") do if not %%~zR lss 1 set /pCB_ANT_HOME=<"%TMPFILE%"
-::del "%TMPFILE%" 2>nul
+::del /f /q "%TMPFILE%" 2>nul
 ::set "CB_ANT_HOME=%CB_DEVTOOLS%\%CB_ANT_HOME:~2%"
 :COMMON_BUILD_VERIFY_ANT
 echo %CB_ANT_HOME% | findstr /I %CB_DEVTOOLS% >nul 2>nul
@@ -456,7 +456,7 @@ if exist %CB_CURRENT_PATH%\node set "CB_NODE_HOME=%CB_CURRENT_PATH%\node"
 ::for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install node
 ::dir %CB_DEVTOOLS%\*node* /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
 ::for %%R in ("%TMPFILE%") do if not %%~zR lss 1 set /pCB_NODE_HOME=<"%TMPFILE%"
-::del "%TMPFILE%" 2>nul
+::del /f /q "%TMPFILE%" 2>nul
 ::set "CB_NODE_HOME=%CB_DEVTOOLS%\%CB_NODE_HOME:~2%"
 :COMMON_BUILD_VERIFY_NODE
 echo %CB_NODE_HOME% | findstr /I %CB_DEVTOOLS% >nul 2>nul
@@ -563,7 +563,7 @@ cd /D %TEMP%
 %CB_BIN%\%CB_WGET_CMD% %CB_TOOL_VERSION_DEFAULT_URL% %CB_WGET_PARAM% %CB_WGET_SECURITY_CREDENTIALS% %CB_WGET_PROGRESSBAR% %CB_WGET_LOG%
 cd /D %CB_WORKING_PATH%
 for %%R in ("%TOOL_VERSION_DEFAULT_TMP%") do if not %%~zR lss 1 move %TOOL_VERSION_DEFAULT_TMP% %CB_TOOL_VERSION_DEFAULT% >nul 2>nul
-del %TOOL_VERSION_DEFAULT_TMP% >nul 2>nul
+del /f /q "%TOOL_VERSION_DEFAULT_TMP%" >nul 2>nul
 echo %DATETIMESTAMP%> %CB_TOOL_VERSION_DEFAULT_CHECK%
 goto TOOL_VERSION_DEFAULT_START
 :READ_TOOL_VERSION_DEFAULT
@@ -572,7 +572,7 @@ if %ERRORLEVEL% NEQ 0 goto TOOL_VERSION_DEFAULT_END
 set "CB_TOOL_VERSION_DEFAULT_TMPFILE=%TEMP%\cb-tool-version-default-%RANDOM%%RANDOM%.tmp"
 type %CB_TOOL_VERSION_DEFAULT% 2>nul | findstr /C:= > %CB_TOOL_VERSION_DEFAULT_TMPFILE% 2>nul
 for /f "tokens=1,2* delims== " %%i in (%CB_TOOL_VERSION_DEFAULT_TMPFILE%) do (if .%%i == .%CB_INSTALL_PKG% set "CB_INSTALL_VERSION=%%j" & set "CB_INSTALL_VERSION_PARAM=%%k")
-del %CB_TOOL_VERSION_DEFAULT_TMPFILE% >nul 2>nul
+del /f /q "%CB_TOOL_VERSION_DEFAULT_TMPFILE%" >nul 2>nul
 :TOOL_VERSION_DEFAULT_END
 
 call %CB_SCRIPT_PATH%\include\download.bat %CB_INSTALL_PKG% %CB_INSTALL_VERSION% %CB_INSTALL_VERSION_PARAM%
@@ -665,10 +665,10 @@ if %ERRORLEVEL% EQU 0 cmd /c "%1" & set "errorCode=%ERRORLEVEL%" & goto :eof
 
 set "TMPFILE=%TEMP%\cb-extract-file-%RANDOM%%RANDOM%.tmp"
 if exist %CB_BIN%\%CB_UNZIP_CMD% %CB_BIN%\%CB_UNZIP_CMD% -Z -1 %1 | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
-if %ERRORLEVEL% NEQ 0 set "errorCode=%ERRORLEVEL%" & echo %CB_LINEHEADER%Could not extract package. & del %TMPFILE% >nul 2>nul & goto :eof
+if %ERRORLEVEL% NEQ 0 set "errorCode=%ERRORLEVEL%" & echo %CB_LINEHEADER%Could not extract package. & del /f /q "%TMPFILE%" >nul 2>nul & goto :eof
 for %%R in ("%TMPFILE%") do if not %%~zR lss 1 set /ptopDirectory=<"%TMPFILE%"
-del %TMPFILE% >nul 2>nul
-if .%topDirectory% == . echo %CB_LINEHEADER%Could not get root directory of %1, give up. & del %TMPFILE% >nul 2>nul & goto :eof
+del /f /q "%TMPFILE%" >nul 2>nul
+if .%topDirectory% == . echo %CB_LINEHEADER%Could not get root directory of %1, give up. & del /f /q "%TMPFILE%" >nul 2>nul & goto :eof
 set "topDirectory=%topDirectory:~2%" 
 set "topDirectory=%topDirectory:/=%"
 if not .%CB_PACKAGE_DEST_VERSION_NAME% == . set "topDirectory=%CB_PACKAGE_DEST_VERSION_NAME%"
@@ -709,12 +709,12 @@ for /f "tokens=1,* delims== " %%i in (%CB_TOOL_VERSION_INSTALLED_TMPFILE%) do (
 )
 if .%CB_UPDATED% == .false if .%CB_ENTRY_FOUND%==.false echo %CB_INSTALL_PKG% = %CB_INSTALLED_VERSION% >> %CB_TOOL_VERSION_INSTALLED_TMPFILE2% & set CB_SET_DEFAULT=true
 if [%CB_INSTALL_SILENT%] equ [false] if .%CB_SET_DEFAULT%==.true echo %CB_LINEHEADER%Set default for package %CB_INSTALL_PKG% to version %CB_INSTALLED_VERSION%
-if .%CB_SET_DEFAULT%==.true if exist %CB_CURRENT_PATH%\%CB_INSTALL_PKG% rmdir %CB_CURRENT_PATH%\%CB_INSTALL_PKG% >nul 2>nul
+if .%CB_SET_DEFAULT%==.true if exist %CB_CURRENT_PATH%\%CB_INSTALL_PKG% rmdir /q %CB_CURRENT_PATH%\%CB_INSTALL_PKG% >nul 2>nul
 if .%CB_SET_DEFAULT%==.true if exist %CB_PACKAGE_DIRECTORY_NAME% mklink /J %CB_CURRENT_PATH%\%CB_INSTALL_PKG% %CB_PACKAGE_DIRECTORY_NAME% >nul 2>nul
 if .%CB_SET_DEFAULT%==.true if not exist %CB_PACKAGE_DIRECTORY_NAME% echo %CB_LINEHEADER%Could not set default for %CB_INSTALL_PKG%.
 if .%CB_SET_DEFAULT%==.true move %CB_TOOL_VERSION_INSTALLED_TMPFILE2% %CB_TOOL_VERSION_INSTALLED% >nul 2>nul
-del %CB_TOOL_VERSION_INSTALLED_TMPFILE% >nul 2>nul
-del %CB_TOOL_VERSION_INSTALLED_TMPFILE2% >nul 2>nul
+del /f /q "%CB_TOOL_VERSION_INSTALLED_TMPFILE%" >nul 2>nul
+del /f /q "%CB_TOOL_VERSION_INSTALLED_TMPFILE2%" >nul 2>nul
 
 :EXTRACT_ARCHIVES_END
 :: custom setting script
