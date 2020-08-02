@@ -53,8 +53,9 @@ customNewProjectStart() {
 	
 	# define own project types
 	CB_CUSTOM_PROJECT_CONFIGFILE=$(mktemp /tmp/cb-project-types-custom.XXXXXXXXX)
-	echo "java-library = Simple java library" >> $CB_CUSTOM_PROJECT_CONFIGFILE
-	echo "my-own-type = My own type" >> $CB_CUSTOM_PROJECT_CONFIGFILE
+	echo "java-library = Simple java library|projectName|projectRootPackageName|projectGroupId|projectComponentId|projectDescription" >> $CB_CUSTOM_PROJECT_CONFIGFILE
+	echo "config = Configuration Project|projectName|projectGroupId|projectComponentId|projectDescription" >> $CB_CUSTOM_PROJECT_CONFIGFILE
+	echo "my-own-type = My own type|projectName|projectGroupId|projectDescription" >> $CB_CUSTOM_PROJECT_CONFIGFILE
 }
 
 

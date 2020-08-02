@@ -48,11 +48,13 @@ export CB_LINE CB_LINEHEADER
 #########################################################################
 existBinary() {
 	if [ "$CB_OS" = "linux" ]; then
-		eval "whereis -b $1 2>/dev/null | awk '{print $2}'"
+		whereis -b "$1" 2>/dev/null | awk '{print $2}'
 	elif [ "$CB_OS" = "cygwin" ]; then
-		eval "whereis -b $1 2>/dev/null | awk '{print $2}'"
+		whereis -b "$1" 2>/dev/null | awk '{print $2}'
 	elif [ "$CB_OS" = "mac" ]; then
-		eval "whereis -b $1 2>/dev/null | awk '{print $1}'"
+		whereis "$1" 2>/dev/null
+	else
+		whereis -b "$1" 2>/dev/null | awk '{print $2}'
 	fi
 }
 
@@ -245,11 +247,13 @@ exploreProject()
 
 	if [ "$CB_OS" = "linux" ]; then
 		fileExplorer=$(existBinary xdg-open)
+		
 		# kde
-		[ -z "$fileExplorer" ] && fileExplorer=$(existBinary dolphin)
+		[ -n "$fileExplorer" ] || fileExplorer=$(existBinary dolphin)
+		
 		# gnome
-		[ -z "$fileExplorer" ] && fileExplorer=$(existBinary gnome-open)
-		[ -z "$fileExplorer" ] && fileExplorer=$(existBinary nautilus)
+		[ -n "$fileExplorer" ] || fileExplorer=$(existBinary gnome-open)
+		[ -n "$fileExplorer" ] || fileExplorer=$(existBinary nautilus)
 	fi
 
 	if [ -n "$fileExplorer" ]; then
@@ -364,7 +368,7 @@ commonBuildGradle() {
 			! [ "$CB_GRADLE_HOME" = "$GRADLE_HOME" ] && GRADLE_HOME="$CB_GRADLE_HOME" && export GRADLE_HOME
 			[ "$(echo ${PATH#*$CB_GRADLE_HOME/bin*})" = "$(echo $PATH)" ] && PATH="$CB_GRADLE_HOME/bin:$PATH" && export PATH
 			
-			if [ -z "$(existBinary $GRADLE_EXEC)" ]; then
+			if ! [ -n "$(existBinary $GRADLE_EXEC)" ]; then
 				echo "${CB_LINEHEADER}Could not find gradle version in path."
 				endWithError
 			fi
@@ -407,7 +411,7 @@ commonBuildMaven() {
 			! [ "$CB_MAVEN_HOME" = "$MAVEN_HOME" ] && MAVEN_HOME="$CB_MAVEN_HOME" && export MAVEN_HOME
 			[ "$(echo ${PATH#*$CB_MAVEN_HOME/bin*})" = "$(echo $PATH)" ] && PATH="$CB_MAVEN_HOME/bin:$PATH" && export PATH
 			
-			if [ -z "$(existBinary $MAVEN_EXEC)" ]; then
+			if ! [ -n "$(existBinary $MAVEN_EXEC)" ]; then
 				echo "${CB_LINEHEADER}Could not find maven version in path."
 				endWithError
 			fi
@@ -446,7 +450,7 @@ commonBuildAnt() {
 		! [ "$CB_ANT_HOME" = "$ANT_HOME" ] && ANT_HOME="$CB_ANT_HOME" && export ANT_HOME
 		[ "$(echo ${PATH#*$CB_ANT_HOME/bin*})" = "$(echo $PATH)" ] && PATH="$CB_ANT_HOME/bin:$PATH" && export PATH
 		
-		if [ -z "$(existBinary $ANT_EXEC)" ]; then
+		if ! [ -n "$(existBinary $ANT_EXEC)" ]; then
 			echo "${CB_LINEHEADER}Could not find ant version in path."
 			endWithError
 		fi
@@ -484,7 +488,7 @@ commonBuildNode() {
 		! [ "$CB_NODE_HOME" = "$NODE_HOME" ] && NODE_HOME="$CB_NODE_HOME" && export NODE_HOME
 		[ "$(echo ${PATH#*$CB_NODE_HOME*})" = "$(echo $PATH)" ] && PATH="$CB_NODE_HOME:$PATH" && export PATH
 
-		if [ -z "$(existBinary $NODE_EXEC)" ]; then
+		if ! [ -n "$(existBinary $NODE_EXEC)" ]; then
 			echo "${CB_LINEHEADER}Could not find node version in path."
 			endWithError
 		fi
@@ -569,7 +573,7 @@ commonBuild() {
 	[ "$(echo ${PATH#*$CB_JAVA_HOME/bin*})" = "$(echo $PATH)" ] && PATH="$CB_JAVA_HOME_RUNTIME/bin:$PATH" && export PATH
 	#&& echo ${CB_LINEHEADER}Set $CB_JAVA_HOME to path!
 
-	if [ -z "$(existBinary $JAVAC_EXEC)" ]; then
+	if ! [ -n "$(existBinary $JAVAC_EXEC)" ]; then
 		echo "${CB_LINEHEADER}Could not find java version in path."
 		endWithError
 	fi
@@ -600,8 +604,8 @@ commonBuild() {
 # checkHttpRequestCLI
 #########################################################################
 checkHttpRequestCLI() {
-	[ -n "$(existBinary curl)" ] && echo "curl" && return
-	[ -n "$(existBinary wget)" ] && echo "wget" && return
+	[ -n "$(existBinary curl)" ] && echo $(existBinary curl) && return
+	[ -n "$(existBinary wget)" ] && echo $(existBinary wget) && return
 	echo ""
 }
 
@@ -612,10 +616,13 @@ checkHttpRequestCLI() {
 downloadFiles() {
 	errorCode=1
 	if [ -z "$2" ]; then
-		[ -z "$(existBinary wget)" ] && echo "${CB_LINEHEADER}Can not download wildcard by curl, please install wget." | tee -a "$CB_LOGFILE" && return
+		! [ -n "$(existBinary wget)" ] && echo "${CB_LINEHEADER}Can not download wildcard by curl, please install wget." | tee -a "$CB_LOGFILE" && return
 	fi
 
-    if [ "$HTTP_REQUEST_CLI" = "curl" ]; then
+	! [ -n "$(existBinary unzip)" ] && echo "${CB_LINEHEADER}Missing package unzip, please install it before you continue!" | tee -a "$CB_LOGFILE" && return
+
+	
+    if [ -z "${HTTP_REQUEST_CLI##*curl*}" ]; then
 		! [ -n "$CB_CURL_CONTINUE" ] && CB_CURL_CONTINUE="-C -"
 		! [ -n "$CB_CURL_REDIRECT" ] && CB_CURL_REDIRECT="-L"
 		! [ -n "$CB_CURL_SECURITY_CREDENTIALS" ] && CB_CURL_SECURITY_CREDENTIALS="--insecure"
@@ -679,6 +686,7 @@ downloadFiles() {
 downloadPackage() {
 	if [ -z $1 ]; then
 		echo "${CB_LINEHEADER}Error occured in download: Missing package name." | tee -a "$CB_LOGFILE"
+		errorCode=1
 		return
 	fi
 
@@ -891,8 +899,10 @@ installCb() {
 			[ "$CB_INSTALL_OVERWRITE_DIST" = "true" ] && eval "${CB_SCRIPT_PATH}/cb-install --force --silent $CB_INSTALL_VERSION"
 			[ "$CB_INSTALL_OVERWRITE_DIST" = "false" ] && eval "${CB_SCRIPT_PATH}/cb-install --silent $CB_INSTALL_VERSION"
 
-			[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Copy symbolic link..."
-			( cd $CB_HOME_PREVIOUS/current ; tar cf - . ) | ( cd $CB_HOME/current ; tar xf - )
+			if [ -d "$CB_HOME_PREVIOUS/current" ]; then
+				[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Copy symbolic link..."
+				( cd $CB_HOME_PREVIOUS/current ; tar cf - . ) | ( cd $CB_HOME/current ; tar xf - )
+			fi
 		else
 			downloadPackage "$CB_INSTALL_PKG" "$CB_INSTALL_VERSION" "$CB_INSTALL_VERSION_PARAM"
 			[ -n "$CB_PACKAGE_DOWNLOAD_NAME" ] && CB_PKG_FILTER=$CB_PACKAGE_DOWNLOAD_NAME
@@ -925,7 +935,7 @@ installCb() {
 
 					if [ -z "${i%%*.zip}" ]; then
 					
-						if [ -z "$(existBinary unzip)" ]; then
+						if ! [ -n "$(existBinary unzip)" ]; then
 							echo "${CB_LINEHEADER}Could not find unzip, please install unzip."
 							CMD=""
 						else
