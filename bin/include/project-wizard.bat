@@ -80,6 +80,7 @@ if not .%projectName% == . echo %CB_LINEHEADER%Project name [%projectName%] & go
 set projectName=my-project
 set /p projectName=%CB_LINEHEADER%Please enter project name, e.g. [%projectName%]: 
 :SET_PROJECT_NAME_END
+if exist %projectName% echo %CB_LINEHEADER%Project %projectName% already exist! & set "projectName=" & goto END_PROJECT_TYPES
 
 echo "%projectTypeConfiguration%" | findstr /C:"projectRootPackageName" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 goto SET_PROJECT_PACKAGENAME_END

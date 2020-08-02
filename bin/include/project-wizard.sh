@@ -195,9 +195,16 @@ selectProjectType "$projectType"
 projectTypeConfiguration=$(getProjectTypeConfiguration "$projectTypeId")
 
 # select project details
-[ -z "$1" ] && selectInput "project name" "my-project"
-[ -n "$1" ] && selectInput "project name" "my-project" "$1" && shift
-projectName="$inputResult"
+while ! [ -n "$projectName" ]; do
+	[ -z "$1" ] && selectInput "project name" "my-project"
+	[ -n "$1" ] && selectInput "project name" "my-project" "$1" && shift
+	
+	if [ -d "$inputResult" ]; then
+		echo "${CB_LINEHEADER}Project $projectName already exist!"
+	else
+		projectName="$inputResult"
+	fi
+done
 
 if hasProjectTypeConfiguration "projectRootPackageName"; then
 	[ -z "$1" ] && selectInput "project package name" "my.rootpackage.name"
