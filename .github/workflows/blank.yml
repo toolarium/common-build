@@ -16,16 +16,20 @@ jobs:
   build:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-
+    
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Get master branch
+        uses: actions/checkout@v2    
+        
     # Runs a single command using the runners shell
-    - name: Install common build
-      run: curl -fsSL https://git.io/JJezw | /bin/bash      
+      - name: Install common build
+        run: $GITHUB_WORKSPACE/bin/cb-install
 
-    - name: Test version
-      run: bash -c "cb --version"
+      - name: Test version
+        run: bash -c "cb --version"
 
-    - name: Create a project
-      run: bash -c "cb --new 1 my-project my.rootpackage.name my my The implementation of the my-project."
+      - name: Create a project
+        run: bash -c "cb --new 1 my-project my.rootpackage.name my my The implementation of the my-project."
 
