@@ -22,11 +22,13 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Get master branch
         uses: actions/checkout@v2    
-        
-    # Runs a single command using the runners shell
-      - name: Install common build
-        run: $GITHUB_WORKSPACE/bin/cb-install
 
+      # Install
+      - name: Install common build
+        run: chmod +x $GITHUB_WORKSPACE/bin/cb-install
+             $GITHUB_WORKSPACE/bin/cb-install
+
+      # Install
       - name: Test version
         run: bash -c "cb --version"
 
