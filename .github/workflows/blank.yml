@@ -34,8 +34,11 @@ jobs:
         run: |
              ls -ltra ~/
              cat ~/.bashrc
-             bash -c ". ~/.bashrc && cb --version"
+             . ~/.bashrc
+             cb --version
 
       - name: Create a project
-        run: bash -c "~/.bashrc && cb --new 1 my-project my.rootpackage.name my my The implementation of the my-project."
+        run: |
+             . ~/.bashrc
+             cb --new 1 my-project my.rootpackage.name my my The implementation of the my-project.
 
