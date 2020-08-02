@@ -25,8 +25,9 @@ jobs:
 
       # Install
       - name: Install common build
-        run: chmod +x $GITHUB_WORKSPACE/bin/cb-install
-             $GITHUB_WORKSPACE/bin/cb-install
+        run: |
+             chmod +x $GITHUB_WORKSPACE/bin/cb-install
+             bash -c "$GITHUB_WORKSPACE/bin/cb-install"
 
       # Install
       - name: Test version
