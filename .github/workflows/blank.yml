@@ -32,9 +32,10 @@ jobs:
       # Install
       - name: Test version
         run: |
-             ls -ltra ~/
-             cat ~/.bashrc
+             echo modified .basrc
+             tail -4 ~/.bashrc
              . ~/.bashrc
+             echo $PATH
              cb --version
 
       - name: Create a project
