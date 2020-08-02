@@ -32,10 +32,11 @@ jobs:
       # Install
       - name: Test version
         run: |
-             echo modified .basrc
-             tail -4 ~/.bashrc
+             echo Modified ~/.basrc:
+             tail -2 ~/.bashrc
              . ~/.bashrc
              echo $PATH
+             echo $CB_HOME             
              cb --version
 
       - name: Create a project
