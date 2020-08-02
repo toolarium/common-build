@@ -145,13 +145,13 @@ if /I [%CB_DEVTOOLS_DRIVE%] NEQ [%CB_USER_DRIVE%] (%CB_USER_DRIVE%)
 del /f /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\.gitattributes 2>nul
 del /f /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\.gitignore 2>nul
 del /f /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\README.md 2>nul
-call %CB_DEVTOOLS%\%CB_VERSION_NAME%\cb-deltree --silent "%CB_DEVTOOLS%\%CB_VERSION_NAME%\testdata"
+call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree --silent "%CB_DEVTOOLS%\%CB_VERSION_NAME%\testdata" 2>nul
 
 :: keep backward compatibility
 if not exist %CB_DEVTOOLS%\%CB_VERSION_NAME%\src goto EXTRACT_CB_END
 mkdir %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin
 copy %CB_DEVTOOLS%\%CB_VERSION_NAME%\src\main\cli\*.bat %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin >nul 2>nul
-call %CB_DEVTOOLS%\%CB_VERSION_NAME%\cb-deltree --silent "%CB_DEVTOOLS%\%CB_VERSION_NAME%\src"
+call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree --silent "%CB_DEVTOOLS%\%CB_VERSION_NAME%\src"
 :EXTRACT_CB_END
 
 :: read previous version
@@ -250,8 +250,6 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 del /f /q %cbInfoTemp% 2>nul
 del /f /q %cbErrorTemp% 2>nul
-echo %CB_SCRIPT_PATH% | findstr /I %TEMP% >nul 2>nul
-if %ERRORLEVEL% EQU 0 del /f /q %0
 
 title %CD%
 endlocal & (
