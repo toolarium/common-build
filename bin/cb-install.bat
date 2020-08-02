@@ -250,6 +250,9 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 del /f /q %cbInfoTemp% 2>nul
 del /f /q %cbErrorTemp% 2>nul
+echo %CB_SCRIPT_PATH% | findstr /I %TEMP% >nul 2>nul
+if %ERRORLEVEL% EQU 0 del /f /q %0
+
 title %CD%
 endlocal & (
   set "CB_HOME=%CB_HOME%"

@@ -26,7 +26,7 @@ if not %ERRORLEVEL% EQU 0 goto VERIFY_PROJECT_CONFIGFILE_END
 set "TMPFILE=%TEMP%\cb-new-project-%RANDOM%%RANDOM%.tmp"
 dir /o-D/b %USERPROFILE%\.gradle\common-gradle-build\???.???.??? | findstr /C:^. 2>nul | findstr/n ^^ | findstr 1:> "%TMPFILE%"
 for %%R in ("%TMPFILE%") do if not %%~zR lss 1 set /pcommonGradleBuildVersion=<"%TMPFILE%"
-del "%TMPFILE%" 2>nul
+del /f /q "%TMPFILE%" 2>nul
 set "commonGradleBuildVersion=%commonGradleBuildVersion:~2%"
 if not .%commonGradleBuildVersion% == . set "COMMON_GRADLE_BUILD_URL=%USERPROFILE%\.gradle\common-gradle-build\%commonGradleBuildVersion%\gradle"
 :VERIFY_COMMON_GRADLE_BUILD
@@ -135,12 +135,12 @@ set %1=%~2
 goto :eof
 
 :PROJECT_WIZARD_ERROR_END
-del %CB_PROJECT_CONFIGFILE_TMPFILE% 2>nul
+del /f /q "%CB_PROJECT_CONFIGFILE_TMPFILE%" 2>nul
 echo %CB_LINEHEADER%Project %projectName% already exist, abort.
 echo %CB_LINE%
 exit /b 1
 
 :PROJECT_WIZARD_END
-del %CB_PROJECT_CONFIGFILE_TMPFILE% 2>nul
+del /f /q "%CB_PROJECT_CONFIGFILE_TMPFILE%" 2>nul
 echo %CB_LINE%
 exit /b 0

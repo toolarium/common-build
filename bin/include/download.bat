@@ -50,7 +50,7 @@ if .%CB_PACKAGE_VERSION_NAME%==. (set "CB_PACKAGE_VERSION_NAME=%CB_PACKAGE_DOWNL
 :: if we already have it we ignore
 
 :: overwrite
-if .%CB_INSTALL_OVERWRITE_DIST% == .true del %CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME% >nul 2>nul
+if .%CB_INSTALL_OVERWRITE_DIST% == .true del /f /q "%CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME%" >nul 2>nul
 if exist %CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME% goto DOWNLOAD_END
 
 :: download and log
@@ -59,25 +59,24 @@ echo %CB_BIN%\%CB_WGET_CMD% -O%CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME% %CB
 %CB_BIN%\%CB_WGET_CMD% -O%CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME% %CB_WGET_SECURITY_CREDENTIALS% %CB_WGET_PROGRESSBAR% %CB_WGET_PARAM% %CB_WGET_LOG% "%CB_PACKAGE_DOWNLOAD_URL%"
 
 :: in case it is zero size we delete it
-for %%A in (%CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME%) do if %%~zA==0 del %CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME% >nul 2>nul
+for %%A in (%CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME%) do if %%~zA==0 del /f /q "%CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME%" >nul 2>nul
 goto DOWNLOAD_END
 
 :DOWNLOAD_PACKAGE_ERROR
 echo %CB_LINEHEADER%Error occured in download: %CB_ERROR_INFO% & echo %CB_LINEHEADER%Error occured in download: %CB_ERROR_INFO%>> "%CB_LOGFILE%"
-del %TMPFILE% >nul 2>nul
+del /f /q "%TMPFILE%" >nul 2>nul
 exit /b 1
 
 :DOWNLOAD_PACKAGE_NOTFOUND_ERROR
 echo %CB_LINEHEADER%Package %CB_PACKAGE_NAME% is currently not supported! & echo %CB_LINEHEADER%Package %CB_PACKAGE_NAME% is currently not supported!>> "%CB_LOGFILE%"
-del %TMPFILE% >nul 2>nul
+del /f /q "%TMPFILE%" >nul 2>nul
 exit /b 1
 
 :DOWNLOAD_ENVIRONMENT_ERROR
 echo %CB_LINEHEADER%Could not found expected environment variable %CB_ERROR_INFO% & echo %CB_LINEHEADER%Could not found expected environment variable %CB_ERROR_INFO%>> "%CB_LOGFILE%"
-del %TMPFILE% >nul 2>nul
+del /f /q "%TMPFILE%" >nul 2>nul
 exit /b 1
 
 :DOWNLOAD_END
-del %TMPFILE% >nul 2>nul
-del %TMPFILE% >nul 2>nul
+del /f /q "%TMPFILE%" >nul 2>nul
 exit /b 0
