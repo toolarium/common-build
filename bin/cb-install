@@ -133,13 +133,14 @@ installationSuccess() {
 	[ "$(echo ${SHELL##*/})" = "bash" ] && msgInfo="or type in . ~/.bashrc"
 	
 	if [ "$CB_INSTALLER_SILENT" = "false" ]; then
-		echo "${CB_LINEHEADER}Successfully installed toolarium-common-build v$releaseVersion."
+		echo "${CB_LINEHEADER}Successfully installed toolarium-common-build $releaseVersion."
 		echo "${CB_LINEHEADER}The \$PATH is extended and you can start working with the command cb."
 		echo ""
 		read -p "Press any key to continue..." inputHowTo
 		echo ""
 		eval $CB_HOME/bin/include/how-to.sh 2>/dev/null | more
 
+		echo ""
 		echo "$CB_LINE"
 		echo "${CB_LINEHEADER}Please re-login $msgInfo, before you start."
 		[ -n "$(existBinary unzip)" ] || echo "${CB_LINEHEADER}Missing package unzip, please install it before you continue!"

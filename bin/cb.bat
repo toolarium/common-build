@@ -356,6 +356,14 @@ if exist pom.xml goto COMMON_BUILD_MAVEN
 if exist build.xml goto COMMON_BUILD_ANT
 if exist package.json goto COMMON_BUILD_NODE
 
+:: if there is no known configuration file just end
+echo %CB_LINE%
+echo %CB_LINEHEADER%No configuration file found for common build known build tools.
+echo %CB_LINEHEADER%Change into a project or create a new project, see cb --help.
+echo %CB_LINE%
+goto END_WITH_ERROR
+
+
 :: gradle
 :COMMON_BUILD_GRADLE
 set GRADLE_EXEC=gradle

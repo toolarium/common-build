@@ -591,7 +591,12 @@ commonBuild() {
 	elif [ -r "$CB_WORKING_PATH/package.json" ]; then
 		commonBuildNode "$@"
 	else
-		commonBuildGradle "$@"
+		# if there is no known configuration file just end	
+		echo "$CB_LINE"
+		echo "${CB_LINEHEADER}No configuration file found for common build known build tools."
+		echo "${CB_LINEHEADER}Change into a project or create a new project, see cb --help."
+		echo "$CB_LINE"
+		endWithError
 	fi
 
 	# custom setting script
