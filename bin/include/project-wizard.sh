@@ -61,7 +61,7 @@ readConfigurationFile() {
 	fi
 	
 	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Used configuration file: $CB_PROJECT_CONFIGFILE"
-	cat "$CB_PROJECT_CONFIGFILE" 2>/dev/null | grep -v "#" | grep "=" > "$CB_PROJECT_CONFIGFILE_TMPFILE" 2>/dev/null
+	cat "$CB_PROJECT_CONFIGFILE" 2>/dev/null | tr -d '\15\32' | grep -v "#" | grep "=" > "$CB_PROJECT_CONFIGFILE_TMPFILE" 2>/dev/null
 }
 
 
