@@ -3,7 +3,7 @@
 The common-build project has the goal to simplify the development environment setup. It works for the main environment such as Linux, Windows and Mac.
 It can be used as a "transparent" wrapper of the most common build tools such as Gradle, Maven or Ant.
 
-It simplifies additional the installation of java versions. All software will be installed in a so called "devtools" directory. All settings you can overwrite
+It simplifies additional the installation of tools e.g. java versions. All software will be installed in a so called "devtools" directory. All settings you can overwrite
 by corresponding environment variables.
 
 
@@ -23,7 +23,8 @@ or with full link
 ```powershell
 powershell -Command "iwr https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install.bat -OutFile ${env:TEMP}/cb-install.bat" & %TEMP%\cb-install.bat
 ```
-The common-build supports also cygwi. Please just use the Linux installation.
+The common-build supports also cygwin. Please just use the Linux installation.
+Currently only Windows 10 is properly tested.
 
 
 **Linux**
@@ -38,6 +39,7 @@ or with full link
 ```bash
 curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash
 ```
+Currenlty it's tested on debian, ubuntu, centos and fedora.
 
 **MacOS** (please support me for testing)
 
@@ -51,3 +53,5 @@ or with full link
 ```bash
 curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash
 ```
+
+Currently it's not final tested.
