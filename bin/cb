@@ -82,6 +82,12 @@ if [ -z "$CB_HOME" ]; then
 	echo "$CB_LINE"
 	endWithError
 fi
+if ! [ -n "$(existBinary find)" ]; then
+	echo "$CB_LINE"
+	echo "${CB_LINEHEADER}Missing package find, please install it before you continue."
+	echo "$CB_LINE"
+	endWithError
+fi
 
 [ "$CB_OS" = "cygwin" ] && CB_HOME=$(cygpath "$CB_HOME" 2>/dev/null) && CB_SCRIPT_PATH=$(cygpath "$CB_SCRIPT_PATH" 2>/dev/null) && CB_WORKING_PATH=$(cygpath "$CB_WORKING_PATH" 2>/dev/null)
 [ -z "$CB_PACKAGE_URL" ] && CB_PACKAGE_URL=""
@@ -774,9 +780,12 @@ installCb() {
 	# custom setting script
 	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT install-start $*" 2>/dev/null
 
+	machineName=$(hostname 2>/dev/null)
+	! [ -n "$machineName" ] && machineName="$HOSTNAME"
+	
 	if [ "$CB_INSTALL_SILENT" = "false" ]; then
 		echo "$CB_LINE"
-		echo "${CB_LINEHEADER}Start common-build installation on $(hostname), $USER_FRIENDLY_FULLTIMESTAMP"
+		echo "${CB_LINEHEADER}Start common-build installation on $machineName, $USER_FRIENDLY_FULLTIMESTAMP"
 		echo "${CB_LINEHEADER}Use $CB_DEVTOOLS path as devtools folder"
 		echo "$CB_LINE"
 	fi
@@ -794,7 +803,7 @@ installCb() {
 	! [ -d "$CB_DEV_REPOSITORY" ] && mkdir -p "$CB_DEV_REPOSITORY" 2>/dev/null
 
 	echo "$CB_LINE" >> "$CB_LOGFILE"
-	echo "Started common-build installation on $(hostname), $USER_FRIENDLY_FULLTIMESTAMP" >> "$CB_LOGFILE"
+	echo "Started common-build installation on $machineName, $USER_FRIENDLY_FULLTIMESTAMP" >> "$CB_LOGFILE"
 	echo "common-build: $CB_HOME" >> "$CB_LOGFILE"
 	echo "devtools: $CB_DEVTOOLS" >> "$CB_LOGFILE"
 	# echo wget: $CB_WGET_VERSION, gradle: $CB_GRADLE_VERSION, java: $CB_JAVA_VERSION>> "$CB_LOGFILE"

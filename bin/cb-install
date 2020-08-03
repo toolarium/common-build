@@ -331,9 +331,12 @@ done
 
 if [ "$CB_INSTALLER_SILENT" = "false" ]; then
 	CB_VERSION_INFO=
+	machineName=$(hostname 2>/dev/null)
+	! [ -n "$machineName" ] && machineName="$HOSTNAME"
+	
 	[ -n "$CB_VERSION" ] && CB_VERSION_INFO=" $CB_VERSION"
 	echo "$CB_LINE"
-	echo "${CB_LINEHEADER}Thank you for installing toolarium-common-build$CB_VERSION_INFO on $(hostname)"
+	echo "${CB_LINEHEADER}Thank you for installing toolarium-common-build$CB_VERSION_INFO on $machineName"
 	echo "${CB_LINEHEADER}Use $CB_DEVTOOLS path as devtools folder, $(eval "$USER_FRIENDLY_FULLTIMESTAMP")"
 	echo "$CB_LINE"
 	read -p "Press any key to continue..." input
@@ -343,6 +346,7 @@ fi
 HTTP_REQUEST_CLI=$(checkHttpRequestCLI)
 ! [ -n "$HTTP_REQUEST_CLI" ] && installationFailed "Either curl or wget is required, please install it before you continue!" && exit 1
 ! [ -n "$(existBinary unzip)" ] && installationFailed "Missing package unzip, please install it before you continue!" && exit 1
+! [ -n "$(existBinary find)" ] && echo "${CB_LINEHEADER}Missing package find, please install it before you continue!" && exit 1
 checkInternetConnection
 
 if [ "$CB_INSTALLER_SILENT" = "false" ]; then
