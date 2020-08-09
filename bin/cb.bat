@@ -391,6 +391,7 @@ WHERE %GRADLE_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find gradle version in path. & goto END_WITH_ERROR
 :COMMON_BUILD_GRADLE_EXEC
 if defined CB_OFFLINE set "CB_PARAMETERS=--offline %CB_PARAMETERS%" & echo %CB_LINEHEADER%Offline build.
+if exist package.json call :PREPARE_COMMON_BUILD_NODE
 cmd /C call %GRADLE_EXEC% %CB_PARAMETERS%
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END
@@ -454,19 +455,11 @@ if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1
 goto END
 
 :: node
-:COMMON_BUILD_NODE
+:PREPARE_COMMON_BUILD_NODE
 set NODE_EXEC=npm
-if defined CB_NODE_HOME goto COMMON_BUILD_VERIFY_NODE
-if not exist %CB_CURRENT_PATH%\node (call %PN_FULL% --silent --install node --default)
-if exist %CB_CURRENT_PATH%\node set "CB_NODE_HOME=%CB_CURRENT_PATH%\node"
-::set "TMPFILE=%TEMP%\cb-node-%RANDOM%%RANDOM%.tmp"
-::dir %CB_DEVTOOLS%\*node* /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
-::for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install node
-::dir %CB_DEVTOOLS%\*node* /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
-::for %%R in ("%TMPFILE%") do if not %%~zR lss 1 set /pCB_NODE_HOME=<"%TMPFILE%"
-::del /f /q "%TMPFILE%" 2>nul
-::set "CB_NODE_HOME=%CB_DEVTOOLS%\%CB_NODE_HOME:~2%"
-:COMMON_BUILD_VERIFY_NODE
+if not defined CB_NODE_HOME ( 
+	if not exist %CB_CURRENT_PATH%\node call %PN_FULL% --silent --install node --default
+	if exist %CB_CURRENT_PATH%\node set "CB_NODE_HOME=%CB_CURRENT_PATH%\node")
 echo %CB_NODE_HOME% | findstr /I %CB_DEVTOOLS% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%CB_NODE_HOME is not set to a node version in devtools (%CB_DEVTOOLS%): %CB_NODE_HOME%. & goto END_WITH_ERROR
 echo %PATH% | findstr /C:"%CB_NODE_HOME%\bin" >nul 2>nul
@@ -476,7 +469,9 @@ if not .%NODE_HOME% == .%CB_NODE_HOME% set "NODE_HOME=%CB_NODE_HOME%"
 :: & echo %CB_LINEHEADER%Set NODE_HOME to %NODE_HOME%.
 WHERE %NODE_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find node version in path. & goto END_WITH_ERROR
-:COMMON_BUILD_NODE_EXEC
+goto :eof
+:COMMON_BUILD_NODE
+call :PREPARE_COMMON_BUILD_NODE
 cmd /C call %NODE_EXEC% %CB_PARAMETERS%
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END

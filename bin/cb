@@ -404,7 +404,8 @@ commonBuildGradle() {
 	fi
 
 	[ "$CB_OFFLINE" = "true" ] && CB_PARAMETERS="--offline $CB_PARAMETERS" && echo "${CB_LINEHEADER}Offline build."
-
+	[ -r "$CB_WORKING_PATH/package.json" ] && prepareCommonBuildNode
+	
     eval "$GRADLE_EXEC $CB_PARAMETERS"
 	errorCode=$?
 }
@@ -491,9 +492,9 @@ commonBuildAnt() {
 
 
 #########################################################################
-# commonBuildNode
+# prepareCommonBuildNode
 #########################################################################
-commonBuildNode() {
+prepareCommonBuildNode() {
 	CB_PARAMETERS="$*"
 	NODE_EXEC=npm
 	if [ -z "$CB_NODE_HOME" ]; then
@@ -521,6 +522,15 @@ commonBuildNode() {
 			endWithError
 		fi
 	fi
+}
+
+
+#########################################################################
+# commonBuildNode
+#########################################################################
+commonBuildNode() {
+	CB_PARAMETERS="$*"
+	prepareCommonBuildNode
 
 	#[ "$CB_OFFLINE" = "true" ] && CB_PARAMETERS="--offline $CB_PARAMETERS" && echo ${CB_LINEHEADER}Offline build.
 	eval "$NODE_EXEC $CB_PARAMETERS"
