@@ -69,6 +69,12 @@ if [ -n "$mirrorId" ]; then
 	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Found mirror url: $CB_PACKAGE_DOWNLOAD_URL"
 fi
 
+mkdir -p "$CB_DEVTOOLS/$CB_PACKAGE_DEST_VERSION_NAME/bin"
+eclipseBin="$CB_DEVTOOLS/$CB_PACKAGE_DEST_VERSION_NAME/bin/eclipse.sh"
+echo "#!/bin/bash" >> "$eclipseBin"
+echo ". cb --setenv">> "$eclipseBin"
+echo "$CB_DEVTOOLS/$CB_PACKAGE_DEST_VERSION_NAME/eclipse/eclipse">> "$eclipseBin"
+
 unset CB_PACKAGE_SILENT_LOG
 unset CB_PACKAGE_USERAGENT
 unset CB_PACKAGE_COOKIE

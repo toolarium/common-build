@@ -5,3 +5,13 @@
 *.bat           text eol=crlf
 *.properties    text eol=crlf
 VERSION         text eol=crlf
+
+# Denote all files that are truly binary and should not be modified.
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.xls binary
+*.xlsx binary
+*.doc binary
+*.docx binary

@@ -2,10 +2,29 @@
 .gradle
 
 # Ignore Gradle build output directory
-build
+build/
 
-# # Ignore logs output directory
-logs
+# Ignore logs output directory
+logs/
 
 # Ignore temp output directory
-temp
+temp/
+
+# java build artifacts class files
+*.class
+
+# eclipse project files
+.classpath
+.project
+
+# android built artifacts
+*.apk
+*.ap_
+*.dex
+
+# android Studio
+*.iml
+.idea
+
+# OSX files
+.DS_Store

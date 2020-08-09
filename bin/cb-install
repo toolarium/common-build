@@ -53,15 +53,37 @@ esac
 #########################################################################
 # Check if the binary exists
 #########################################################################
+CB_HAS_WHEREIS=
+CB_HAS_WHICH=
 existBinary() {
-	if [ "$CB_OS" = "linux" ]; then
-		eval whereis -b "$1" 2>/dev/null | awk '{print $2}'
-	elif [ "$CB_OS" = "cygwin" ]; then
-		eval whereis -b "$1" 2>/dev/null | awk '{print $2}'
-	elif [ "$CB_OS" = "mac" ]; then
-		whereis "$1" 2>/dev/null
+	if [ -z "$CB_HAS_WHEREIS" ]; then
+		eval whereis whereis >/dev/null 2>&1				
+		[ $? -eq 0 ] && CB_HAS_WHEREIS=true || CB_HAS_WHEREIS=false
+	fi
+	if [ "$CB_HAS_WHEREIS" = "false" ]; then
+		if [ -z "$CB_HAS_WHICH" ]; then
+			which which >/dev/null 2>&1
+			[ $? -eq 0 ] && CB_HAS_WHICH=true || CB_HAS_WHICH=false
+		fi
+		if [ "$CB_HAS_WHICH" = "false" ]; then
+			echo "${CB_LINEHEADER}Can not find which nor whereis command!" 
+			return 1
+		fi
+	fi
+
+	if [ "$CB_HAS_WHEREIS" = "true" ]; then
+		if [ "$CB_OS" = "mac" ]; then
+			result=$(whereis "$1" 2>/dev/null)
+		else
+			result=$(whereis -b "$1" 2>/dev/null | awk '{print $2}')
+		fi
+		
+		[ -n "$result" ] && echo "$result"
+		[ -n "$result" ] && return 0 || return 1
 	else
-		whereis -b "$1" 2>/dev/null | awk '{print $2}'
+		result=$(which "$1" 2>/dev/null)
+		[ -n "$result" ] && echo "$result"
+		[ $? -eq 0 ] && return 0 || return 1
 	fi
 }
 
