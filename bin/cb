@@ -254,8 +254,6 @@ projectWizard() {
 	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT new-project-start $*" 2>/dev/null
 
 	if eval ". $ABS_PROG_PATH/include/project-wizard.sh $@"; then
-		eval "cd $projectName && $ABS_PROG_PATH/$PN $projectStartParameter -PprojectType=$projectType -PprojectRootPackageName=$projectRootPackageName -PprojectGroupId=$projectGroupId -PprojectComponentId=$projectComponentId -PprojectDescription='$projectDescription'"
-
 		# custom setting script
 		[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT new-project-end $*" 2>/dev/null
 	else
@@ -862,6 +860,7 @@ installCb() {
 	# custom setting script
 	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT install-package-start $CB_INSTALL_PKG $CB_INSTALL_VERSION $CB_INSTALL_VERSION_PARAM" 2>/dev/null
 
+	CB_PACKAGE_PERMISSION_CMD=
 	if [ "$CB_INSTALL_PKG" = "cb" ]; then
 		CB_PKG_FILTER=cb
 		CB_PKG_FILTER_WILDCARD=
@@ -1017,6 +1016,10 @@ installCb() {
 							cat "$CB_INSTALL_ERRORFILE"
 						else
 							[ "$CB_INSTALL_SILENT" = "false" ] && [ -d "$CB_PACKAGE_DIRECTORY_NAME" ] && echo "${CB_LINEHEADER}Directory $CB_PACKAGE_DIRECTORY_NAME will be updated."
+							
+							if [ -n "$CB_PACKAGE_PERMISSION_CMD" ]; then
+								eval "cd $CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME && $CB_PACKAGE_PERMISSION_CMD" >> "$CB_LOGFILE"
+							fi
 						fi
 						rm -f "$CB_INSTALL_ERRORFILE" >/dev/null 2>&1
 					fi

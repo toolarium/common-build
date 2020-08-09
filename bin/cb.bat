@@ -199,18 +199,10 @@ SHIFT
 GOTO CHECK_PARAMETER_WIZARD
 
 :START_WIZARD
-set "projectStartParameter= "
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% new-project-start %CB_WIZARD_PARAMETERS% 2>nul
-
 call %CB_SCRIPT_PATH%\include\project-wizard.bat %CB_WIZARD_PARAMETERS%
 if not %ERRORLEVEL% equ 0 goto END_WITH_ERROR
-
-cd %projectName%
-set BACKUP_CB_WORKING_PATH=%CB_WORKING_PATH%
-::echo call %PN_FULL% %projectStartParameter% "-PprojectType=%projectType%" "-PprojectRootPackageName=%projectRootPackageName%" "-PprojectGroupId=%projectGroupId%" "-PprojectComponentId=%projectComponentId%" "-PprojectDescription="%projectDescription% ""
-call %PN_FULL% %projectStartParameter% "-PprojectType=%projectType%" "-PprojectRootPackageName=%projectRootPackageName%" "-PprojectGroupId=%projectGroupId%" "-PprojectComponentId=%projectComponentId%" "-PprojectDescription="%projectDescription% ""
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% new-project-end %CB_WIZARD_PARAMETERS% 2>nul
-cd %BACKUP_CB_WORKING_PATH%
 goto END
 
 
@@ -393,6 +385,7 @@ if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find gradle version in path.
 if defined CB_OFFLINE set "CB_PARAMETERS=--offline %CB_PARAMETERS%" & echo %CB_LINEHEADER%Offline build.
 if exist package.json call :PREPARE_COMMON_BUILD_NODE
 cmd /C call %GRADLE_EXEC% %CB_PARAMETERS%
+if %ERRORLEVEL% NEQ 0 goto END_WITH_ERROR
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END
 
@@ -423,6 +416,7 @@ WHERE %MAVEN_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find maven version in path. & goto END_WITH_ERROR
 :COMMON_BUILD_MAVEN_EXEC
 cmd /C call %MAVEN_EXEC% %CB_PARAMETERS%
+if %ERRORLEVEL% NEQ 0 goto END_WITH_ERROR
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END
 
@@ -451,6 +445,7 @@ WHERE %ANT_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find ant version in path. & goto END_WITH_ERROR
 :COMMON_BUILD_ANT_EXEC
 cmd /C call %ANT_EXEC% %CB_PARAMETERS%
+if %ERRORLEVEL% NEQ 0 goto END_WITH_ERROR
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END
 
@@ -473,6 +468,7 @@ goto :eof
 :COMMON_BUILD_NODE
 call :PREPARE_COMMON_BUILD_NODE
 cmd /C call %NODE_EXEC% %CB_PARAMETERS%
+if %ERRORLEVEL% NEQ 0 goto END_WITH_ERROR
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END
 

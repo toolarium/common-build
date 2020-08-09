@@ -31,6 +31,16 @@ exithandler() {
 
 
 #########################################################################
+# End with error
+#########################################################################
+endWithError() {
+	# custom setting script
+	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT error-end $*" 2>/dev/null
+	exit 1
+}
+
+
+#########################################################################
 # Read the configuration file
 #########################################################################
 readConfigurationFile() {
@@ -42,7 +52,7 @@ readConfigurationFile() {
 
 		# if we have a local common gradle build use the project types configuration file
 		if [ -z "$COMMON_GRADLE_BUILD_URL" ]; then
-			[ "$CB_OS" = "cygwin" ] && commonGradleBuildBasePath="$(cygpath $USERPROFILE)/.gradle/common-gradle-build" || commonGradleBuildBasePath="$HOME/.gradle/common-gradle-build"
+			#[ "$CB_OS" = "cygwin" ] && commonGradleBuildBasePath="$(cygpath $USERPROFILE)/.gradle/common-gradle-build" || commonGradleBuildBasePath="$HOME/.gradle/common-gradle-build"
 			
 			if [ -d "$commonGradleBuildBasePath" ]; then
 				commonGradleBuildVersion=$(find "$commonGradleBuildBasePath" -maxdepth 1 -type d -name "*\.*\.*" -prune -exec ls -d {} \; 2>/dev/null | tail -1 2>/dev/null | xargs -l basename 2>/dev/null)
@@ -74,9 +84,8 @@ printProjectTypes() {
 	count=1
 	while IFS= read -r line; do 
 		configValue="${line#*=}"
-		typeName="${configValue%%|*}"
-		
-		echo "   [$count] ${line%=*}  		${typeName}"
+		typeName="${configValue%%|*}"		
+		echo "   [$count] ${line%%=*}   		${typeName}"
 		count=$((count+1))
 	done < "$CB_PROJECT_CONFIGFILE_TMPFILE"
 }
@@ -113,7 +122,7 @@ searchProjectType() {
 	key=
 	count=1
 	while IFS= read -r line; do
-		[ "$count" = "$1" ] && key="${line%=*}" && break
+		[ "$count" = "$1" ] && key="${line%%=*}" && break
 		count=$((count+1))
 	done < "$CB_PROJECT_CONFIGFILE_TMPFILE"
 	echo "$key" 2>/dev/null | sed 's/ //g' 2>/dev/null
@@ -170,6 +179,19 @@ selectInput() {
 
 
 #########################################################################
+# Project replace parameters
+#########################################################################
+projectReplaceParameters() {
+	actionName="$1"
+	shift
+	command="$*"	
+	command=$(echo "$command" | sed "s/@@projectType@@/$projectType/g;s/@@projectName@@/$projectName/g;s/@@projectRootPackageName@@/$projectRootPackageName/g;s/@@projectGroupId@@/$projectGroupId/g;s/@@projectComponentId@@/$projectComponentId/g;s/@@projectDescription@@/$projectDescription/g;")
+	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Prepared $actionName action: $command"	
+	echo $command
+}
+
+
+#########################################################################
 # main
 #########################################################################
 trap 'exithandler $?; exit' 0
@@ -193,59 +215,146 @@ readConfigurationFile
 # select project type
 selectProjectType "$projectType"
 projectTypeConfiguration=$(getProjectTypeConfiguration "$projectTypeId")
+projectTypeConfigurationParameter=$projectTypeConfiguration
 
 # select project details
-while ! [ -n "$projectName" ]; do
-	[ -z "$1" ] && selectInput "project name" "my-project"
-	[ -n "$1" ] && selectInput "project name" "my-project" "$1" && shift
-	
-	if [ -d "$inputResult" ]; then
-		echo "${CB_LINEHEADER}Project $projectName already exist!"
-	else
-		projectName="$inputResult"
-	fi
-done
+if hasProjectTypeConfiguration "projectName"; then
+	while ! [ -n "$projectName" ]; do
+		[ -z "$1" ] && selectInput "project name" "my-project"
+		[ -n "$1" ] && selectInput "project name" "my-project" "$1" && shift
+		
+		if [ -d "$inputResult" ]; then
+			echo "${CB_LINEHEADER}Project $projectName already exist!"
+		else
+			projectName="$inputResult"
+		fi
+	done
+	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
+fi
 
+[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Selected project type [$projectType]/[$projectTypeId], configurationType: $projectTypeConfiguration, configurationParameter: $projectTypeConfigurationParameter"	
 if hasProjectTypeConfiguration "projectRootPackageName"; then
 	[ -z "$1" ] && selectInput "project package name" "my.rootpackage.name"
 	[ -n "$1" ] && selectInput "project package name" "my.rootpackage.name" "$1" && shift
 	projectRootPackageName="$inputResult"
+	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 fi
 
 if hasProjectTypeConfiguration "projectGroupId"; then
 	[ -z "$1" ] && selectInput "project group id" "${projectName%%-*}"
 	[ -n "$1" ] && selectInput "project group id" "${projectName%%-*}" "$1" && shift
 	projectGroupId="$inputResult"
+	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 fi
 
 if hasProjectTypeConfiguration "projectComponentId"; then
 	[ -z "$1" ] && selectInput "project component id" "${projectName%%-*}"
 	[ -n "$1" ] && selectInput "project component id" "${projectName%%-*}" "$1" && shift
 	projectComponentId="$inputResult"
+	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 fi
 
 if hasProjectTypeConfiguration "projectDescription"; then
 	selectInput "project description" "The implementation of the $projectName." "$*"
 	projectDescription="$inputResult"
+	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 fi
 
-[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Set projectName:$projectName projectRootPackageName:$projectRootPackageName projectGroupId:$projectGroupId projectComponentId:$projectComponentId projectDescription:$projectDescription%"
+if hasProjectTypeConfiguration ".*install.*=.*"; then
+	echo ""
+	echo "$CB_LINE"
+	echo "${CB_LINEHEADER}Check package dependencies..."
+	echo "$CB_LINE"
+	installPackages=$(echo "$projectTypeConfigurationParameter" | head -1)
+	installPackages=$(echo "${installPackages#*=}" | sed 's/^[[:space:]]*//g;s/[[:space:]]*$//g')
+	
+	if [ -n "$installPackages" ]; then
+		[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Check package dependencies: $installPackages"
+		for i in $(echo "${installPackages#*=}" | sed 's/,/\n/g' | sed 's/^[[:space:]]*//g;s/[[:space:]]*$//g'); do
+			echo "${CB_LINEHEADER}Check package dependency $i"
+			$PN_FULL --silent --install "$i"
+			[ $? -ne 0 ] && endWithError
+		done
+	else
+		echo "${CB_LINEHEADER}Invalid package dependency defined in $CB_PROJECT_CONFIGFILE: $installPackages"
+	fi
+	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
+fi
+
+[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Set projectName:$projectName projectRootPackageName:$projectRootPackageName projectGroupId:$projectGroupId projectComponentId:$projectComponentId projectDescription:$projectDescription projectTypeConfigurationParameter:$projectTypeConfigurationParameter"
 echo ""
 echo "$CB_LINE"
-
 if [ -r "$projectName" ]; then
 	echo "${CB_LINEHEADER}Project $projectName already exist, abort."
 	echo "$CB_LINE"
 	endWithError
 else
 	echo "${CB_LINEHEADER}Create project $projectName..."
-	mkdir -p "$projectName" 2>/dev/null
-	echo "apply from: \"https://git.io/JfDQT\"" > "$projectName/build.gradle"
-	projectStartParameter="--no-daemon"	
 	echo "$CB_LINE"
-	 
 	export projectStartParameter projectName projectRootPackageName projectGroupId  projectComponentId  projectDescription projectType
+
+	if hasProjectTypeConfiguration ".*initAction.*=.*"; then
+		initAction=$(echo "$projectTypeConfigurationParameter" | head -1)
+		initAction=$(echo "${initAction#*=}"| sed 's/^[[:space:]]*//g;s/[[:space:]]*$//g')
+
+		if [ -n "$initAction" ]; then
+			echo "${CB_LINEHEADER}Initialization..."
+			command=$(projectReplaceParameters init "cb --silent --setenv && $initAction")
+			projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
+			if ! eval "$command"; then
+				echo "${CB_LINEHEADER}Could not execute init action: [$command]."
+				endWithError
+			fi
+		else
+			echo "${CB_LINEHEADER}Invalid init action defined in $CB_PROJECT_CONFIGFILE: $initAction"
+		fi
+	fi
+
+	if hasProjectTypeConfiguration ".*mainAction.*=.*"; then
+		mainAction=$(echo "$projectTypeConfigurationParameter" | head -1)
+		mainAction=$(echo "${mainAction#*=}"| sed 's/^[[:space:]]*//g;s/[[:space:]]*$//g')
+		
+		if [ -n "$mainAction" ]; then
+			command=$(projectReplaceParameters main "cb --silent --setenv && $mainAction")
+			projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
+
+			if ! eval "$command"; then
+				echo "${CB_LINEHEADER}Could not execute main action: [$command]."
+				endWithError
+			fi
+		else
+			echo "${CB_LINEHEADER}Invalid init action defined in $CB_PROJECT_CONFIGFILE: $initAction"
+		fi
+	else
+		mkdir -p "$projectName" 2>/dev/null
+		echo "apply from: \"https://git.io/JfDQT\"" > "$projectName/build.gradle"
+		projectStartParameter="--no-daemon"	
+
+		if ! eval "cd $projectName && $PN_FULL $projectStartParameter -PprojectType=$projectType -PprojectRootPackageName=$projectRootPackageName -PprojectGroupId=$projectGroupId -PprojectComponentId=$projectComponentId -PprojectDescription='$projectDescription'"; then
+			endWithError
+		fi
+	fi
+
+	if hasProjectTypeConfiguration ".*postAction.*=.*"; then
+		postAction=$(echo "$projectTypeConfigurationParameter" | head -1)
+		postAction=$(echo "${postAction#*=}"| sed 's/^[[:space:]]*//g;s/[[:space:]]*$//g')
+		
+		if [ -n "$postAction" ]; then
+			echo "$CB_LINE"
+			echo "${CB_LINEHEADER}Finishing..."
+			command=$(projectReplaceParameters post "cb --silent --setenv && $postAction")
+			projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
+
+			if ! eval "$command"; then
+				echo "${CB_LINEHEADER}Could not execute post action: [$command]."
+				endWithError
+			fi
+		else
+			echo "${CB_LINEHEADER}Invalid post action defined in $CB_PROJECT_CONFIGFILE: $postAction"
+		fi
+	fi
 fi
+echo "$CB_LINE"
 
 
 #########################################################################
