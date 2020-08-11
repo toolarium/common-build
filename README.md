@@ -1,4 +1,4 @@
-![Screenshot](docs/logo/common-build.png)
+![Screenshot](docs/logo/common-build-small.png)
 # common-build
 
 The common-build project has the goal to simplify the development environment setup. It works for the main environment such as Linux, Windows and Mac.
