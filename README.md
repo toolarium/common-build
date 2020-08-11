@@ -1,5 +1,5 @@
-![Screenshot](docs/logo/common-build-small.png)
 # common-build
+![Screenshot](docs/logo/common-build-small.png)
 
 The common-build project has the goal to simplify the development environment setup. It works for the main environment such as Linux, Windows and Mac.
 It can be used as a "transparent" wrapper of the most common build tools such as Gradle, Maven or Ant.
