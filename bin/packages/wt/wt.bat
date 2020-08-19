@@ -11,6 +11,8 @@
 
 set "CB_WT_RELEASE_URL=https://api.github.com/repos/microsoft/terminal/releases"
 set "CB_WT_ONLY_STABLE=true"
+set "CB_PACKAGE_NO_DEFAULT=true"
+
 set cbInfoTemp=%TEMP%\toolarium-common-build_wt-info%RANDOM%%RANDOM%.txt & set cbErrorTemp=%TEMP%\toolarium-common-build_wt-error%RANDOM%%RANDOM%.txt
 del %cbInfoTemp% 2>nul & del %cbErrorTemp% 2>nul
 if .%CB_WT_ONLY_STABLE% == .true powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_WT_RELEASE_URL%"; $releases | ? { $_.prerelease -ne 'false' } | Select-Object -Property tag_name |  select-object -First 1 -ExpandProperty tag_name" 2>%cbErrorTemp% > %cbInfoTemp%

@@ -12,3 +12,4 @@
 set "CB_PACKAGE_VERSION="
 set "CB_PACKAGE_DOWNLOAD_URL=https://updates.insomnia.rest/downloads/windows/latest?ref=&app=com.insomnia.app"
 set "CB_PACKAGE_DOWNLOAD_NAME=Insomnia.Core.exe"
+set "CB_PACKAGE_NO_DEFAULT=true"

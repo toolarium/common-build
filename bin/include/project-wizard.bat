@@ -74,7 +74,7 @@ if .%projectType% == . echo %CB_LINEHEADER%Invalid input %projectTypeId% & echo.
 set "projectTypeConfiguration=|%projectTypeConfiguration%"
 :END_PROJECT_TYPES
 set "projectTypeConfigurationParameter=%projectTypeConfiguration%"
-::set "projectTypeConfigurationParameter=%projectTypeConfigurationParameter:*|=%"
+set "projectTypeConfigurationParameter=%projectTypeConfigurationParameter:*|=%"
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Selected project type [%projectType%]/[%projectTypeId%], configurationType: "%projectTypeConfiguration%", configurationParameter: "%projectTypeConfigurationParameter%"
 
 echo "%projectTypeConfiguration%" | findstr /C:"projectName" >nul 2>nul

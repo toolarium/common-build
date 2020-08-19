@@ -238,6 +238,13 @@ endlocal & (
 if .%1 == .--silent shift & set CB_INSTALL_SILENT=true
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% setenv-start %1 %2 %3 %4 %5 %6 %7 2>nul
 
+:SET_GIT
+if not exist %CB_CURRENT_PATH%\git goto :SET_ENV_NODE
+set "CB_GIT_HOME=%CB_CURRENT_PATH%\git"
+set "GIT_HOME=%CB_GIT_HOME%"
+echo %PATH% | findstr /C:"%GIT_HOME%" >nul 2>nul
+if %ERRORLEVEL% NEQ 0 set "PATH=%GIT_HOME%;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add git to path (%GIT_HOME%)
+
 :SET_ENV_NODE
 if not exist %CB_CURRENT_PATH%\node goto :SET_ENV_ANT
 set "CB_NODE_HOME=%CB_CURRENT_PATH%\node"
@@ -523,6 +530,8 @@ set CB_PACKAGE_DOWNLOAD_NAME=
 set CB_PKG_FILTER_WILDCARD=false
 set CB_PACKAGE_DEST_VERSION_NAME=
 set CB_PROCESSOR_ARCHITECTURE_NUMBER=64
+set CB_PACKAGE_INSTALL_PARAMETER=
+set CB_PACKAGE_NO_DEFAULT=false
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:32=%" set CB_PROCESSOR_ARCHITECTURE_NUMBER=32
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:64=%" set CB_PROCESSOR_ARCHITECTURE_NUMBER=64
 
@@ -656,11 +665,11 @@ goto SET_INSTALLTION_DEFAULT
 :EXTRACT_FILE
 ::powershell -nologo -command "(Get-Item '%1').VersionInfo.ProductVersion" >> "%1.txt"	
 echo %1 | findstr /I /C:.exe >nul 2>nul	
-if %ERRORLEVEL% EQU 0 cmd /c "%1" & set "errorCode=%ERRORLEVEL%" & goto :eof
+if %ERRORLEVEL% EQU 0 cmd /c "%1 %CB_PACKAGE_INSTALL_PARAMETER%" & set "errorCode=%ERRORLEVEL%" & goto :eof
 echo %1 | findstr /I /C:.msi >nul 2>nul	
-if %ERRORLEVEL% EQU 0 cmd /c "%1" & set "errorCode=%ERRORLEVEL%" & goto :eof
+if %ERRORLEVEL% EQU 0 cmd /c "%1 %CB_PACKAGE_INSTALL_PARAMETER%" & set "errorCode=%ERRORLEVEL%" & goto :eof
 echo %1 | findstr /I /C:.msixbundle >nul 2>nul	
-if %ERRORLEVEL% EQU 0 cmd /c "%1" & set "errorCode=%ERRORLEVEL%" & goto :eof
+if %ERRORLEVEL% EQU 0 cmd /c "%1 %CB_PACKAGE_INSTALL_PARAMETER%" & set "errorCode=%ERRORLEVEL%" & goto :eof
 
 set "TMPFILE=%TEMP%\cb-extract-file-%RANDOM%%RANDOM%.tmp"
 if exist %CB_BIN%\%CB_UNZIP_CMD% %CB_BIN%\%CB_UNZIP_CMD% -Z -1 %1 | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
@@ -686,6 +695,7 @@ goto EXTRACT_ARCHIVES_END
 if %errorCode% NEQ 0 goto EXTRACT_ARCHIVES_END
 if .%2 == .--default set CB_SET_DEFAULT=true
 if .%2 == .-d set CB_SET_DEFAULT=true
+if .%CB_PACKAGE_NO_DEFAULT% == .true goto EXTRACT_ARCHIVES_END
 
 set CB_INSTALLED_VERSION=%CB_INSTALL_VERSION%
 set CB_INSTALLED_VERSION=%CB_INSTALLED_VERSION: =%
@@ -709,6 +719,7 @@ for /f "tokens=1,* delims== " %%i in (%CB_TOOL_VERSION_INSTALLED_TMPFILE%) do (
 if .%CB_UPDATED% == .false if .%CB_ENTRY_FOUND%==.false echo %CB_INSTALL_PKG% = %CB_INSTALLED_VERSION% >> %CB_TOOL_VERSION_INSTALLED_TMPFILE2% & set CB_SET_DEFAULT=true
 if [%CB_INSTALL_SILENT%] equ [false] if .%CB_SET_DEFAULT%==.true echo %CB_LINEHEADER%Set default for package %CB_INSTALL_PKG% to version %CB_INSTALLED_VERSION%
 if .%CB_SET_DEFAULT%==.true if exist %CB_CURRENT_PATH%\%CB_INSTALL_PKG% rmdir /q %CB_CURRENT_PATH%\%CB_INSTALL_PKG% >nul 2>nul
+if .%CB_PACKAGE_DIRECTORY_NAME%==. goto EXTRACT_ARCHIVES_END
 if .%CB_SET_DEFAULT%==.true if exist %CB_PACKAGE_DIRECTORY_NAME% mklink /J %CB_CURRENT_PATH%\%CB_INSTALL_PKG% %CB_PACKAGE_DIRECTORY_NAME% >nul 2>nul
 if .%CB_SET_DEFAULT%==.true if not exist %CB_PACKAGE_DIRECTORY_NAME% echo %CB_LINEHEADER%Could not set default for %CB_INSTALL_PKG%.
 if .%CB_SET_DEFAULT%==.true move %CB_TOOL_VERSION_INSTALLED_TMPFILE2% %CB_TOOL_VERSION_INSTALLED% >nul 2>nul

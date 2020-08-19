@@ -542,6 +542,7 @@ commonBuildNode() {
 commonBuild() {
 	JAVAC_EXEC=javac
 	cbJavaVersion=
+	readVersion
 
 	if [ -r "$CB_JAVA_VERSION_FILE" ]; then
 		#current run java switch
