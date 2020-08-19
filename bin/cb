@@ -826,6 +826,7 @@ installCb() {
 	CB_LOGS=$CB_HOME/logs
 	CB_DEV_REPOSITORY=$CB_DEVTOOLS/.repository
 	CB_LOGFILE=$CB_LOGS/$FULLTIMESTAMP-$CB_USER.log
+	CB_PACKAGE_INSTALL_PARAMETER=""
 	CB_PACKAGE_NO_DEFAULT=false
 	CB_PACKAGE_ALREADY_EXIST=false
 	
@@ -994,7 +995,7 @@ installCb() {
 						elif [ -z "${i%%*.exe}" ]; then
 							[ "$CB_OS" = "cygwin" ] && eval "cmd /c $(cygpath --windows $i | sed 's/\\/\\\\/g')" >> "$CB_LOGFILE"
 						elif [ -z "${i%%*.sh}" ]; then
-							eval "$i" >> "$CB_LOGFILE"
+							eval "$i $CB_PACKAGE_INSTALL_PARAMETER" >> "$CB_LOGFILE"
 						else
 							[ -z "${i%%*.tar}" ] && CMD="tar $CB_TAR_PARAM -xf $i 2>&1" && TOPDIR_CMD="tar -tvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
 							[ -z "${i%%*.tar.gz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i 2>&1" && TOPDIR_CMD="tar -ztvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
