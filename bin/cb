@@ -826,7 +826,9 @@ installCb() {
 	CB_LOGS=$CB_HOME/logs
 	CB_DEV_REPOSITORY=$CB_DEVTOOLS/.repository
 	CB_LOGFILE=$CB_LOGS/$FULLTIMESTAMP-$CB_USER.log
-
+	CB_PACKAGE_NO_DEFAULT=false
+	CB_PACKAGE_ALREADY_EXIST=false
+	
 	! [ -d "$CB_DEVTOOLS" ] && mkdir -p "$CB_DEVTOOLS" 2>/dev/null
 	! [ -d "$CB_HOME" ] && mkdir -p "$CB_HOME" 2>/dev/null
 	! [ -d "$CB_BIN" ] && mkdir -p "$CB_BIN" 2>/dev/null
@@ -859,7 +861,7 @@ installCb() {
 	[ "$1" = "-d" ] && shift && CB_SET_DEFAULT=true
 
 	# custom setting script
-	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT install-package-start $CB_INSTALL_PKG $CB_INSTALL_VERSION $CB_INSTALL_VERSION_PARAM" 2>/dev/null
+	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT download-package-start $CB_INSTALL_PKG $CB_INSTALL_VERSION $CB_INSTALL_VERSION_PARAM" 2>/dev/null
 
 	CB_PACKAGE_PERMISSION_CMD=
 	if [ "$CB_INSTALL_PKG" = "cb" ]; then
@@ -955,127 +957,133 @@ installCb() {
 	fi
 
 	# custom setting script
-	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT install-package-end $CB_INSTALL_PKG $CB_INSTALL_VERSION $CB_INSTALL_VERSION_PARAM" 2>/dev/null
+	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT download-package-end $CB_INSTALL_PKG $CB_INSTALL_VERSION $CB_INSTALL_VERSION_PARAM" 2>/dev/null
 
-	if [ -z "$errorCode" ] || [ "$errorCode" -eq 0 ]; then
-		#CB_TAR_PARAM="-k"
-		CB_TAR_PARAM=""
-		CB_UNZIP_PARAM="-n"
-		CB_XZ_PARAM="-k"
-		[ "$CB_INSTALL_OVERWRITE_DIST" = "true" ] && CB_UNZIP_PARAM="-o" && CB_TAR_PARAM="--overwrite" && CB_XZ_PARAM="-f"
-		[ -n "$CB_PACKAGE_DEST_VERSION_NAME" ] && mkdir -p "$CB_DEVTOOLS/$CB_PACKAGE_DEST_VERSION_NAME" >/dev/null 2>&1 && CB_UNZIP_PARAM="$CB_UNZIP_PARAM -d $CB_DEVTOOLS/$CB_PACKAGE_DEST_VERSION_NAME" && CB_TAR_PARAM="-C $CB_DEVTOOLS/$CB_PACKAGE_DEST_VERSION_NAME"
+	if [ "$CB_PACKAGE_ALREADY_EXIST" = "true" ]; then
+		[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Package ${CB_INSTALL_PKG} already exists."
+	else
+		if [ -z "$errorCode" ] || [ "$errorCode" -eq 0 ]; then
+			#CB_TAR_PARAM="-k"
+			CB_TAR_PARAM=""
+			CB_UNZIP_PARAM="-n"
+			CB_XZ_PARAM="-k"
+			[ "$CB_INSTALL_OVERWRITE_DIST" = "true" ] && CB_UNZIP_PARAM="-o" && CB_TAR_PARAM="--overwrite" && CB_XZ_PARAM="-f"
+			[ -n "$CB_PACKAGE_DEST_VERSION_NAME" ] && mkdir -p "$CB_DEVTOOLS/$CB_PACKAGE_DEST_VERSION_NAME" >/dev/null 2>&1 && CB_UNZIP_PARAM="$CB_UNZIP_PARAM -d $CB_DEVTOOLS/$CB_PACKAGE_DEST_VERSION_NAME" && CB_TAR_PARAM="-C $CB_DEVTOOLS/$CB_PACKAGE_DEST_VERSION_NAME"
 
-		# extract
-		# custom setting script
-		[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT extract-archive-start $CB_INSTALL_PKG $CB_INSTALL_VERSION" 2>/dev/null
+			# extract
+			# custom setting script
+			[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT extract-package-start $CB_INSTALL_PKG $CB_INSTALL_VERSION" 2>/dev/null
 
-		if [ -n "$CB_PKG_FILTER" ]; then
-			if [ -n "$CB_PKG_FILTER_WILDCARD" ]; then
-				#[ "$CB_PKG_FILTER_WILDCARD" = "true" ] &&
-				[ "$CB_INSTALL_SILENT" = "false" ] && echo "$CB_LINE" >> "$CB_LOGFILE"
-				[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Extract $CB_PKG_FILTER in $CB_DEVTOOLS..." | tee -a "$CB_LOGFILE"
-				for i in $(ls -1 "$CB_DEV_REPOSITORY/$CB_PKG_FILTER" 2>/dev/null)
-				do
-					[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Extract package $i" >> "$CB_LOGFILE"
+			if [ -n "$CB_PKG_FILTER" ]; then
+				if [ -n "$CB_PKG_FILTER_WILDCARD" ]; then
+					#[ "$CB_PKG_FILTER_WILDCARD" = "true" ] &&
+					[ "$CB_INSTALL_SILENT" = "false" ] && echo "$CB_LINE" >> "$CB_LOGFILE"
+					[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Extract $CB_PKG_FILTER in $CB_DEVTOOLS..." | tee -a "$CB_LOGFILE"
+					for i in $(ls -1 "$CB_DEV_REPOSITORY/$CB_PKG_FILTER" 2>/dev/null)
+					do
+						[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Extract package $i" >> "$CB_LOGFILE"
 
-					if [ -z "${i%%*.zip}" ]; then
-					
-						if ! [ -n "$(existBinary unzip)" ]; then
-							echo "${CB_LINEHEADER}Could not find unzip, please install unzip."
-							CMD=""
+						if [ -z "${i%%*.zip}" ]; then
+						
+							if ! [ -n "$(existBinary unzip)" ]; then
+								echo "${CB_LINEHEADER}Could not find unzip, please install unzip."
+								CMD=""
+							else
+								[ -z "${i%%*.zip}" ] && CMD="unzip $CB_UNZIP_PARAM $i" && TOPDIR_CMD="unzip -Z -1 $i | head -n1 | sed 's/\/\$//g'"
+							fi
+						elif [ -z "${i%%*.exe}" ]; then
+							[ "$CB_OS" = "cygwin" ] && eval "cmd /c $(cygpath --windows $i | sed 's/\\/\\\\/g')" >> "$CB_LOGFILE"
+						elif [ -z "${i%%*.sh}" ]; then
+							eval "$i" >> "$CB_LOGFILE"
 						else
-							[ -z "${i%%*.zip}" ] && CMD="unzip $CB_UNZIP_PARAM $i" && TOPDIR_CMD="unzip -Z -1 $i | head -n1 | sed 's/\/\$//g'"
+							[ -z "${i%%*.tar}" ] && CMD="tar $CB_TAR_PARAM -xf $i 2>&1" && TOPDIR_CMD="tar -tvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
+							[ -z "${i%%*.tar.gz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i 2>&1" && TOPDIR_CMD="tar -ztvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
+							[ -z "${i%%*.tgz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i 2>&1" && TOPDIR_CMD="tar -ztvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
+							[ -z "${i%%*.xz}" ] && CMD="xz $CB_XZ_PARAM --decompress $i 2>&1" && TOPDIR_CMD="tar -Jtvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
 						fi
-					elif [ -z "${i%%*.exe}" ]; then
-						[ "$CB_OS" = "cygwin" ] && eval "cmd /c $(cygpath --windows $i | sed 's/\\/\\\\/g')" >> "$CB_LOGFILE"
-					elif [ -z "${i%%*.sh}" ]; then
-						eval "$i" >> "$CB_LOGFILE"
-					else
-						[ -z "${i%%*.tar}" ] && CMD="tar $CB_TAR_PARAM -xf $i 2>&1" && TOPDIR_CMD="tar -tvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
-						[ -z "${i%%*.tar.gz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i 2>&1" && TOPDIR_CMD="tar -ztvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
-						[ -z "${i%%*.tgz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i 2>&1" && TOPDIR_CMD="tar -ztvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
-						[ -z "${i%%*.xz}" ] && CMD="xz $CB_XZ_PARAM --decompress $i 2>&1" && TOPDIR_CMD="tar -Jtvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
-					fi
 
-					if [ -n "$CMD" ]; then
-						CB_INSTALL_ERRORFILE=$CB_LOGS/$FULLTIMESTAMP-$CB_USER-error.log
+						if [ -n "$CMD" ]; then
+							CB_INSTALL_ERRORFILE=$CB_LOGS/$FULLTIMESTAMP-$CB_USER-error.log
 
-						if [ -z "$CB_PACKAGE_DEST_VERSION_NAME" ]; then
-							topDirectory=$(eval "cd $CB_DEVTOOLS && $TOPDIR_CMD" 2>"$CB_INSTALL_ERRORFILE") && topDirectory="${topDirectory%%/*}"
-							if [ -z "$topDirectory" ]; then
+							if [ -z "$CB_PACKAGE_DEST_VERSION_NAME" ]; then
+								topDirectory=$(eval "cd $CB_DEVTOOLS && $TOPDIR_CMD" 2>"$CB_INSTALL_ERRORFILE") && topDirectory="${topDirectory%%/*}"
+								if [ -z "$topDirectory" ]; then
+									echo "${CB_LINEHEADER}Could not extract package $i:"
+									cat "$CB_INSTALL_ERRORFILE"
+								else
+									CB_PACKAGE_DIRECTORY_NAME="$topDirectory"
+								fi
+							else
+								CB_PACKAGE_DIRECTORY_NAME=$CB_PACKAGE_DEST_VERSION_NAME
+							fi
+
+							if ! eval "cd $CB_DEVTOOLS && $CMD" 2>"$CB_INSTALL_ERRORFILE" >> "$CB_LOGFILE"; then
 								echo "${CB_LINEHEADER}Could not extract package $i:"
 								cat "$CB_INSTALL_ERRORFILE"
 							else
-								CB_PACKAGE_DIRECTORY_NAME="$topDirectory"
+								[ "$CB_INSTALL_SILENT" = "false" ] && [ -d "$CB_PACKAGE_DIRECTORY_NAME" ] && echo "${CB_LINEHEADER}Directory $CB_PACKAGE_DIRECTORY_NAME will be updated."
+								
+								if [ -n "$CB_PACKAGE_PERMISSION_CMD" ]; then
+									eval "cd $CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME && $CB_PACKAGE_PERMISSION_CMD" >> "$CB_LOGFILE"
+								fi
 							fi
-						else
-							CB_PACKAGE_DIRECTORY_NAME=$CB_PACKAGE_DEST_VERSION_NAME
+							rm -f "$CB_INSTALL_ERRORFILE" >/dev/null 2>&1
 						fi
+					done
+					[ "$CB_INSTALL_SILENT" = "false" ] && echo "$CB_LINE" >> "$CB_LOGFILE"
 
-						if ! eval "cd $CB_DEVTOOLS && $CMD" 2>"$CB_INSTALL_ERRORFILE" >> "$CB_LOGFILE"; then
-							echo "${CB_LINEHEADER}Could not extract package $i:"
-							cat "$CB_INSTALL_ERRORFILE"
-						else
-							[ "$CB_INSTALL_SILENT" = "false" ] && [ -d "$CB_PACKAGE_DIRECTORY_NAME" ] && echo "${CB_LINEHEADER}Directory $CB_PACKAGE_DIRECTORY_NAME will be updated."
-							
-							if [ -n "$CB_PACKAGE_PERMISSION_CMD" ]; then
-								eval "cd $CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME && $CB_PACKAGE_PERMISSION_CMD" >> "$CB_LOGFILE"
+					CB_INSTALLED_VERSION=$CB_INSTALL_VERSION
+					[ -n "$CB_PACKAGE_VERSION" ] && CB_INSTALLED_VERSION=$CB_PACKAGE_VERSION
+					installedMajorNumber="${CB_INSTALLED_VERSION%%.*}"
+					CB_INSTALLED_PKG_PREFIX="${CB_INSTALL_PKG%%-*}"
+					# [ "$CB_INSTALLED_PKG_PREFIX" = "java" ] && CB_INSTALL_PKG=$CB_INSTALLED_PKG_PREFIX
+					# [ "$CB_INSTALL_PKG" = "java" ] && CB_INSTALL_PKG=$CB_INSTALL_PKG$installedMajorNumber
+					CB_ENTRY_FOUND=false
+					CB_UPDATED=false
+
+					if [ "$CB_PACKAGE_NO_DEFAULT" = "false" ]; then
+						CB_TOOL_VERSION_INSTALLED_TMPFILE=$(mktemp /tmp/cb-tool-version-default.XXXXXXXXX)
+						CB_TOOL_VERSION_INSTALLED_TMPFILE2=$(mktemp /tmp/cb-tool-version-default.XXXXXXXXX)
+						cat $CB_TOOL_VERSION_INSTALLED 2>/dev/null | grep -v "#" | grep "=" > $CB_TOOL_VERSION_INSTALLED_TMPFILE 2>/dev/null
+						while IFS= read -r line; do
+							key="${line%=*}" && key="$(echo $key 2>/dev/null| sed 's/ //g' 2>/dev/null)"
+							value="${line#*=}" && value="$(echo $value 2>/dev/null| sed 's/ //g' 2>/dev/null)"
+
+							if [ "$key" = "$CB_INSTALL_PKG" ]; then
+								CB_ENTRY_FOUND=true
+								if [ "$CB_SET_DEFAULT" = "true" ]; then
+									#echo "add: $key = $CB_INSTALLED_VERSION"
+									echo "$key = $CB_INSTALLED_VERSION">> $CB_TOOL_VERSION_INSTALLED_TMPFILE2
+									CB_UPDATED=true
+								fi
+							else
+								#echo "keep: $key = $value"
+								echo "$key = $value">> $CB_TOOL_VERSION_INSTALLED_TMPFILE2
 							fi
-						fi
-						rm -f "$CB_INSTALL_ERRORFILE" >/dev/null 2>&1
-					fi
-				done
-				[ "$CB_INSTALL_SILENT" = "false" ] && echo "$CB_LINE" >> "$CB_LOGFILE"
+						done <  $CB_TOOL_VERSION_INSTALLED_TMPFILE
+						rm -f $CB_TOOL_VERSION_INSTALLED_TMPFILE >/dev/null 2>&1
 
-				CB_INSTALLED_VERSION=$CB_INSTALL_VERSION
-				[ -n "$CB_PACKAGE_VERSION" ] && CB_INSTALLED_VERSION=$CB_PACKAGE_VERSION
-				installedMajorNumber="${CB_INSTALLED_VERSION%%.*}"
-				CB_INSTALLED_PKG_PREFIX="${CB_INSTALL_PKG%%-*}"
-				# [ "$CB_INSTALLED_PKG_PREFIX" = "java" ] && CB_INSTALL_PKG=$CB_INSTALLED_PKG_PREFIX
-				# [ "$CB_INSTALL_PKG" = "java" ] && CB_INSTALL_PKG=$CB_INSTALL_PKG$installedMajorNumber
-				CB_ENTRY_FOUND=false
-				CB_UPDATED=false
-
-				CB_TOOL_VERSION_INSTALLED_TMPFILE=$(mktemp /tmp/cb-tool-version-default.XXXXXXXXX)
-				CB_TOOL_VERSION_INSTALLED_TMPFILE2=$(mktemp /tmp/cb-tool-version-default.XXXXXXXXX)
-				cat $CB_TOOL_VERSION_INSTALLED 2>/dev/null | grep -v "#" | grep "=" > $CB_TOOL_VERSION_INSTALLED_TMPFILE 2>/dev/null
-				while IFS= read -r line; do
-					key="${line%=*}" && key="$(echo $key 2>/dev/null| sed 's/ //g' 2>/dev/null)"
-					value="${line#*=}" && value="$(echo $value 2>/dev/null| sed 's/ //g' 2>/dev/null)"
-
-					if [ "$key" = "$CB_INSTALL_PKG" ]; then
-						CB_ENTRY_FOUND=true
+						[ "$CB_UPDATED" = "false" ] && [ "$CB_ENTRY_FOUND" = "false" ] && CB_SET_DEFAULT=true && echo "$CB_INSTALL_PKG = $CB_INSTALLED_VERSION" >> $CB_TOOL_VERSION_INSTALLED_TMPFILE2
+						[ "$CB_INSTALL_SILENT" = "false" ] && [ "$CB_SET_DEFAULT" = "true" ] && echo "${CB_LINEHEADER}Set default for package $CB_INSTALL_PKG to version $CB_INSTALLED_VERSION"
 						if [ "$CB_SET_DEFAULT" = "true" ]; then
-							#echo "add: $key = $CB_INSTALLED_VERSION"
-							echo "$key = $CB_INSTALLED_VERSION">> $CB_TOOL_VERSION_INSTALLED_TMPFILE2
-							CB_UPDATED=true
+							mv $CB_TOOL_VERSION_INSTALLED_TMPFILE2 $CB_TOOL_VERSION_INSTALLED >/dev/null 2>&1
+							rm -f "$CB_CURRENT_PATH/$CB_INSTALL_PKG" >/dev/null 2>&1
+							if [ -d "$CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME" ]; then
+								ln -s $CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME $CB_CURRENT_PATH/$CB_INSTALL_PKG >/dev/null 2>&1
+							else
+								echo "${CB_LINEHEADER}Could not set default for $CB_INSTALL_PKG."
+							fi
 						fi
-					else
-						#echo "keep: $key = $value"
-						echo "$key = $value">> $CB_TOOL_VERSION_INSTALLED_TMPFILE2
-					fi
-				done <  $CB_TOOL_VERSION_INSTALLED_TMPFILE
-				rm -f $CB_TOOL_VERSION_INSTALLED_TMPFILE >/dev/null 2>&1
-
-				[ "$CB_UPDATED" = "false" ] && [ "$CB_ENTRY_FOUND" = "false" ] && CB_SET_DEFAULT=true && echo "$CB_INSTALL_PKG = $CB_INSTALLED_VERSION" >> $CB_TOOL_VERSION_INSTALLED_TMPFILE2
-				[ "$CB_INSTALL_SILENT" = "false" ] && [ "$CB_SET_DEFAULT" = "true" ] && echo "${CB_LINEHEADER}Set default for package $CB_INSTALL_PKG to version $CB_INSTALLED_VERSION"
-				if [ "$CB_SET_DEFAULT" = "true" ]; then
-					mv $CB_TOOL_VERSION_INSTALLED_TMPFILE2 $CB_TOOL_VERSION_INSTALLED >/dev/null 2>&1
-					rm -f "$CB_CURRENT_PATH/$CB_INSTALL_PKG" >/dev/null 2>&1
-					if [ -d "$CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME" ]; then
-						ln -s $CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME $CB_CURRENT_PATH/$CB_INSTALL_PKG >/dev/null 2>&1
-					else
-						echo "${CB_LINEHEADER}Could not set default for $CB_INSTALL_PKG."
 					fi
 				fi
+			else
+				[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}No package found $CB_PACKAGE_VERSION_NAME ($CB_PKG_FILTER)"
 			fi
-		else
-			[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}No package found $CB_PACKAGE_VERSION_NAME ($CB_PKG_FILTER)"
 		fi
 	fi
 
 	# custom setting script
-	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT extract-archive-end $CB_INSTALL_PKG $CB_INSTALL_VERSION" 2>/dev/null
+	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT extract-package-end $CB_INSTALL_PKG $CB_INSTALL_VERSION" 2>/dev/null
 
 	# custom setting script
 	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT install-end $*" 2>/dev/null

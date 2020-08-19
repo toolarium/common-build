@@ -26,10 +26,10 @@ if .%1==.new-project-start shift & goto CUSTOM_NEW_PROJECT_START
 if .%1==.new-project-end shift & goto CUSTOM_NEW_PROJECT_END
 if .%1==.install-start shift & goto CUSTOM_INSTALL_START
 if .%1==.install-end shift & goto CUSTOM_INSTALL_END
-if .%1==.install-package-start shift & goto CUSTOM_INSTALL_PACKAGE_START
-if .%1==.install-package-end shift & goto CUSTOM_INSTALL_PACKAGE_END
-if .%1==.extract-archive-start shift & goto CUSTOM_EXTRACT_ARCHIVE_START
-if .%1==.extract-archive-end shift & goto CUSTOM_EXTRACT_ARCHIVE_END
+if .%1==.download-package-start shift & goto CUSTOM_DOWNLOAD_PACKAGE_START
+if .%1==.download-package-end shift & goto CUSTOM_DOWNLOAD_PACKAGE_END
+if .%1==.extract-package-start shift & goto CUSTOM_EXTRACT_PACKAGE_START
+if .%1==.extract-package-end shift & goto CUSTOM_EXTRACT_PACKAGE_END
 if .%1==.setenv-start shift & goto CUSTOM_SETENV_START
 if .%1==.setenv-end shift & goto CUSTOM_SETENV_END
 if .%1==.error-end shift & goto CUSTOM_ERROR_END
@@ -99,30 +99,30 @@ goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:CUSTOM_INSTALL_PACKAGE_START
+:CUSTOM_DOWNLOAD_PACKAGE_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%START PACKAGE INSTALL %1 %2 %3 %4 %5 %6 %7 %8 %9
+echo %CB_LINEHEADER%START DOWNLOAD PACKAGE %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:CUSTOM_INSTALL_PACKAGE_END
+:CUSTOM_DOWNLOAD_PACKAGE_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%END PACKAGE INSTALL %1 %2 %3 %4 %5 %6 %7 %8 %9
+echo %CB_LINEHEADER%END DOWNLOAD PACKAGE %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:CUSTOM_EXTRACT_ARCHIVE_START
+:CUSTOM_EXTRACT_PACKAGE_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%START EXTRACT ARCHIVE %1 %2 %3 %4 %5 %6 %7 %8 %9
+echo %CB_LINEHEADER%START EXTRACT PACKAGE %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:CUSTOM_EXTRACT_ARCHIVE_END
+:CUSTOM_EXTRACT_PACKAGE_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%END EXTRACT ARCHIVE %1 %2 %3 %4 %5 %6 %7 %8 %9
+echo %CB_LINEHEADER%END EXTRACT PACKAGE %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 

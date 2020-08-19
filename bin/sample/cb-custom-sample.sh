@@ -85,34 +85,34 @@ customInstallEnd() {
 
 
 #########################################################################
-# customInstallPackageStart
+# customDownloadPackageStart
 #########################################################################
-customInstallPackageStart() {
-	echo "${CB_LINEHEADER}START PACKAGE INSTALL $*"
+customDownloadPackageStart() {
+	echo "${CB_LINEHEADER}START DOWNLOAD PACKAGE $*"
 }
 
 
 #########################################################################
-# customInstallPackageEnd
+# customDownloadPackageEnd
 #########################################################################
-customInstallPackageEnd() {
-	echo "${CB_LINEHEADER}END PACKAGE INSTALL $*"
+customDownloadPackageEnd() {
+	echo "${CB_LINEHEADER}END DOWNLOAD PACKAGE $*"
 }
 
 
 #########################################################################
-# customExtractArchiveStart
+# customExtractPackageStart
 #########################################################################
-customExtractArchiveStart() {
-	echo "${CB_LINEHEADER}START EXTRACT ARCHIVE $*"
+customExtractPackageStart() {
+	echo "${CB_LINEHEADER}START EXTRACT PACKAGE $*"
 }
 
 
 #########################################################################
-# customExtractArchiveEnd
+# customExtractPackageEnd
 #########################################################################
-customExtractArchiveEnd() {
-	echo "${CB_LINEHEADER}END EXTRACT ARCHIVE $*"
+customExtractPackageEnd() {
+	echo "${CB_LINEHEADER}END EXTRACT PACKAGE $*"
 }
 
 
@@ -153,10 +153,10 @@ do
 	new-project-end)		shift; customNewProjectEnd $*; return 0;;
 	install-start)			shift; customInstallStart $*; return 0;;
 	install-end)			shift; customInstallEnd $*; return 0;;
-	install-package-start)	shift; customInstallPackageStart $*; return 0;;
-	install-package-end)	shift; customInstallPackageEnd $*; return 0;;
-	extract-archive-start)	shift; customExtractArchiveStart $*; return 0;;
-	extract-archive-end)	shift; customExtractArchiveEnd $*; return 0;;	
+	download-package-start)	shift; customDownloadPackageStart $*; return 0;;
+	download-package-end)	shift; customDownloadPackageEnd $*; return 0;;
+	extract-package-start)	shift; customExtractPackageStart $*; return 0;;
+	extract-package-end )	shift; customExtractPackageEnd $*; return 0;;	
 	setenv-start)			shift; customSetEnvStart $*; return 0;;
 	setenv-end)				shift; customSetEnvEnd $*; return 0;;
 	error-end)				shift; customErrorEnd $*; return 0;;
