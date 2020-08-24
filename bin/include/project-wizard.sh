@@ -227,6 +227,7 @@ projectReplaceParameters() {
 trap 'exithandler $?; exit' 0
 trap 'errorhandler $?; exit' 1 2 3 15
 echo "$CB_LINE"
+[ -r "build.gradle" ] && echo "${CB_LINEHEADER}The current path is inside a project [$PWD], please start outside." && echo "$CB_LINE" && endWithError
 echo "${CB_LINEHEADER}Create new project, enter project basic data."
 echo "$CB_LINE"
 

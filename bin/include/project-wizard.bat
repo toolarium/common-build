@@ -9,8 +9,8 @@
 ::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-
 echo %CB_LINE%
+if exist build.gradle echo %CB_LINEHEADER%The current path is inside a project [%CD%], please start outside. & goto PROJECT_WIZARD_ERROR_END
 echo %CB_LINEHEADER%Create new project, enter project basic data.
 echo %CB_LINE%
 set BACKUP_CB_WORKING_PATH=%CB_WORKING_PATH%
