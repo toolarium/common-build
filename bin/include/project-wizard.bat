@@ -43,7 +43,7 @@ if exist %COMMON_GRADLE_BUILD_URL%\conf\product-types.properties set CB_PRODUCT_
 
 if not exist %CB_PROJECT_CONFIGFILE% (echo %CB_LINE% & echo %CB_LINEHEADER%Missing project types configuration file %CB_PROJECT_CONFIGFILE%, please install with the cb-install.bat. & echo %CB_LINE% & goto PROJECT_WIZARD_ERROR_END)
 set "CB_PROJECT_CONFIGFILE_TMPFILE=%TEMP%\cb-project-types-%RANDOM%%RANDOM%.tmp"
-if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Used project types file: %CB_PROJECT_CONFIGFILE%
+if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use project types file: %CB_PROJECT_CONFIGFILE%
 type %CB_PROJECT_CONFIGFILE% 2>nul | findstr /V "#" | findstr /C:= > %CB_PROJECT_CONFIGFILE_TMPFILE% 2>nul
 
 set "productTypeId="
@@ -59,7 +59,7 @@ set "projectDescription="
 if .%CB_PRODUCT_CONFIGFILE%==. goto END_PRODUCT_TYPES
 if not exist %CB_PRODUCT_CONFIGFILE% goto END_PRODUCT_TYPES
 set "CB_PRODUCT_CONFIGFILE_TMPFILE=%TEMP%\cb-product-types-%RANDOM%%RANDOM%.tmp"
-if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Used product types file: %CB_PRODUCT_CONFIGFILE%
+if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use product types file: %CB_PRODUCT_CONFIGFILE%
 type %CB_PRODUCT_CONFIGFILE% 2>nul | findstr /V "#" | findstr /C:= > %CB_PRODUCT_CONFIGFILE_TMPFILE% 2>nul
 
 :: choose first product which it belongs to

@@ -65,7 +65,7 @@ preapreProjectConfigurationFile() {
 preapreProductConfigurationFile() {
 	[ -z "$CB_PRODUCT_CONFIGFILE" ] && CB_PRODUCT_CONFIGFILE="$CB_SCRIPT_PATH/../conf/product-types.properties"
 	! [ -r "$CB_PRODUCT_CONFIGFILE" ] && rm "$CB_PRODUCT_CONFIGFILE_TMPFILE" >/dev/null 2>&1 && return
-	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Used product configuration file: $CB_PRODUCT_CONFIGFILE"
+	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Use product configuration file: $CB_PRODUCT_CONFIGFILE"
 	cat "$CB_PRODUCT_CONFIGFILE" 2>/dev/null | tr -d '\15\32' | grep -v "#" | grep "=" > "$1" 2>/dev/null
 }
 
