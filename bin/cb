@@ -39,6 +39,40 @@ case $CB_OS in
 	*) ;;
 esac
 CB_MACHINE="$(uname -m | tr '[:upper:]' '[:lower:]')"
+
+
+#########################################################################
+# getTimestamp
+#########################################################################
+getTimestamp() {
+	[ "$CB_OS" = "mac" ] && date '+%Y-%m-%d %H:%M:%S' || date '+%Y-%m-%d %H:%M:%S.%N' | cut -b1-23
+}
+
+[ -z "$CB_START_TIMESTAMP" ] && CB_START_TIMESTAMP=$(getTimestamp 2>/dev/null)
+export CB_START_TIMESTAMP
+
+
+#########################################################################
+# Set terminal title  
+#########################################################################
+setTitle() {
+  if [[ -z "$ORIG" ]]; then
+    ORIG=$PS1
+  fi
+  TITLE="\[\e]2;$*\a\]"
+  PS1="${ORIG}${TITLE}"
+}
+
+
+setTitle "CB | ${PWD##*/} - $(echo $CB_START_TIMESTAMP | cut -b1-11)"
+
+[ $# -gt 0 ] && [ "$1" = "--verbose" ] && shift && CB_VERBOSE="true"
+[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Started $CB_START_TIMESTAMP."
+errorCode=0
+
+OS_HOME="$HOME"
+[ "$CB_OS" = "cygwin" ] && OS_HOME=$(cygpath "$USERPROFILE" 2>/dev/null)
+export OS_HOME
 export CB_OS CB_MACHINE
 export CB_LINE CB_LINEHEADER
 
@@ -161,7 +195,7 @@ executeCustomSettings() {
 			#echo Custom settings $CB_CUSTOM_SETTING
 			CB_CUSTOM_SETTING_SCRIPT="$CB_CUSTOM_SETTING"
 			export CB_CUSTOM_SETTING_SCRIPT
-
+			
 			# custom setting script
 			eval ". $CB_CUSTOM_SETTING_SCRIPT start $*" 2>/dev/null
 		else
@@ -171,6 +205,78 @@ executeCustomSettings() {
 			echo "$CB_LINE"
 		fi
 	fi
+}
+
+
+#########################################################################
+# Execute custom configuration
+# -runCustomConfigInstallation is kind of lock
+# -CB_CUSTOM_RUNTIME_CONFIG_PATH is the variable where we can refer
+#########################################################################
+executeCustomConfig() {
+	! [ -n "$CB_CUSTOM_CONFIG" ] && return
+	[ -n "$runCustomConfigInstallation" ] && return
+	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Verify custom config [$CB_CUSTOM_CONFIG]."
+
+	DATESTAMP=$(date '+%Y%m%d')
+	CB_CONFIG_HOME="$OS_HOME/.common-build"
+	runCustomConfigInstallation=false
+	! [ -d "$CB_CONFIG_HOME" ] && mkdir "$CB_CONFIG_HOME" && runCustomConfigInstallation=true
+
+	# prepare home directory name from domain name
+	urlHost=$(echo $CB_CUSTOM_CONFIG | awk -F/ '{print $3}')
+	baseUrlHost=$(echo ${urlHost%:*})
+	urlPort=$(echo ${urlHost#*:})
+	CB_CUSTOM_CONFIG_PATH="$CB_CONFIG_HOME/conf/$baseUrlHost@$urlPort"					
+	! [ -d "$CB_CUSTOM_CONFIG_PATH" ] && mkdir -p $CB_CUSTOM_CONFIG_PATH && runCustomConfigInstallation=true
+	
+	# set the common gradle build home path to checkout to proper destination
+	COMMON_GRADLE_BUILD_HOME="$CB_CUSTOM_CONFIG_PATH"
+	# workaround for cygwin and an issue with git client in gradle --> common-gradle-build
+	[ "$CB_OS" = "cygwin" ] && COMMON_GRADLE_BUILD_HOME=$(cygpath -w "$COMMON_GRADLE_BUILD_HOME" 2>/dev/null)
+	export COMMON_GRADLE_BUILD_HOME
+	CB_CUSTOM_CONFIG_VERSION=""
+	
+	if [ -r "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp" ]; then
+		# if we have a timestamp wihtin same day then its fine
+		runCustomConfigInstallation=
+		CB_CUSTOM_CONFIG_VERSION=$(cat "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp")
+		CB_CUSTOM_CONFIG_VERSION="${CB_CUSTOM_CONFIG_VERSION% *}"
+		CB_CUSTOM_RUNTIME_CONFIG_PATH="$CB_CUSTOM_CONFIG_PATH/$CB_CUSTOM_CONFIG_VERSION" && export CB_CUSTOM_RUNTIME_CONFIG_PATH						
+		[ -x "$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.bat" ] && CB_CUSTOM_SETTING_SCRIPT="$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.bat" && export CB_CUSTOM_SETTING_SCRIPT
+		[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Use custom config version $CB_CUSTOM_CONFIG_VERSION."
+	else					
+		if ! [ -n "$(existBinary git)" ]; then
+			echo "$CB_LINE"
+			echo "${CB_LINEHEADER}Missing package git, please install it before you continue."
+			echo "$CB_LINE"
+			endWithError
+		fi
+	
+		# remove lastCheck.properties to force check by common-gradle-build
+		! [ -r "${CB_CUSTOM_CONFIG_PATH}/lastCheck.properties" ] && runCustomConfigInstallation=true
+		rm -f "${CB_CUSTOM_CONFIG_PATH}/lastCheck.properties" >/dev/null 2>&1
+
+		forceCustomConfigInstallation=""
+		[ "$runCustomConfigInstallation" = "true" ] && forceCustomConfigInstallation="--force"
+		export runCustomConfigInstallation
+		
+		if ! eval ". $CB_SCRIPT_PATH/include/init-home.sh $forceCustomConfigInstallation $CB_CUSTOM_CONFIG_PATH $CB_CUSTOM_CONFIG"; then
+			[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Could not update custom config."
+			return $?
+		else
+			[ -n "$CB_CUSTOM_CONFIG_VERSION" ] && rm -f $CB_CUSTOM_CONFIG_PATH/*.tsp > /dev/null 2>&1
+			echo "$CB_CUSTOM_CONFIG_VERSION" > "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp"
+			CB_CUSTOM_RUNTIME_CONFIG_PATH="$CB_CUSTOM_CONFIG_PATH/$CB_CUSTOM_CONFIG_VERSION" && export CB_CUSTOM_RUNTIME_CONFIG_PATH						
+			
+			[ -x "$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.sh" ] && CB_CUSTOM_SETTING_SCRIPT="$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.sh" && export CB_CUSTOM_SETTING_SCRIPT							
+			runCustomConfigInstallation=""
+			[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Custom config $CB_CUSTOM_CONFIG_VERSION updated."
+		fi
+	fi
+	
+	export CB_CUSTOM_CONFIG_VERSION
+	return 0
 }
 
 
@@ -223,6 +329,13 @@ printUsage() {
 	echo " CB_CUSTOM_SETTING    The common build is flexible. You can define a script which"
 	echo "                      that is called as a hook for all operations. You can find an"
 	echo "                      example sciipt in \$CB_HOME/bin/sample/cb-custom-sample.sh"
+	echo " CB_CUSTOM_CONFIG     For complete customizing of the common build you can create"
+	echo "                      a custom config project. This can be done by cb --new (select"	
+	echo "                      Common Config Home project). After customizing (see further "
+	echo "                      information on the web) and publishing it as a git project,"
+	echo "                      you can refer the git url to the CB_CUSTOM_CONFIG environment"
+	echo "                      variable. The VERSION file is mainly the reference for updates"
+	echo "                      of the project (as default daily check, can be configured)."
 	echo " CB_PACKAGE_URL       To support software packages outside the common build, you "
 	echo "                      can define an URL that covers a directory of zip files."
 	echo " CB_PACKAGE_USER      The user for accessing the CB_PACKAGE_URL."
@@ -249,7 +362,8 @@ printVersion() {
 #########################################################################
 projectWizard() {
 	projectStartParameter=""
-
+	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Start project wizard."
+	
 	# custom setting script
 	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT new-project-start $*" 2>/dev/null
 
@@ -404,6 +518,7 @@ commonBuildGradle() {
 	[ "$CB_OFFLINE" = "true" ] && CB_PARAMETERS="--offline $CB_PARAMETERS" && echo "${CB_LINEHEADER}Offline build."
 	[ -r "$CB_WORKING_PATH/package.json" ] && prepareCommonBuildNode
 	
+	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Execute gradle [$GRADLE_EXEC], parameters: [$CB_PARAMETERS]."	
     eval "$GRADLE_EXEC $CB_PARAMETERS"
 	errorCode=$?
 }
@@ -446,6 +561,7 @@ commonBuildMaven() {
 	fi
 
 	#[ "$CB_OFFLINE" = "true" ] && CB_PARAMETERS="--offline $CB_PARAMETERS" && echo ${CB_LINEHEADER}Offline build.
+	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Execute maven [$MAVEN_EXEC], parameters: [$CB_PARAMETERS]."	
     eval "$MAVEN_EXEC $CB_PARAMETERS"
 	errorCode=$?
 }
@@ -484,6 +600,7 @@ commonBuildAnt() {
 	fi
 
 	#[ "$CB_OFFLINE" = "true" ] && CB_PARAMETERS="--offline $CB_PARAMETERS" && echo ${CB_LINEHEADER}Offline build.
+	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Execute ant [$ANT_EXEC], parameters: [$CB_PARAMETERS]."	
 	eval "$ANT_EXEC $CB_PARAMETERS"
 	errorCode=$?
 }
@@ -531,6 +648,7 @@ commonBuildNode() {
 	prepareCommonBuildNode
 
 	#[ "$CB_OFFLINE" = "true" ] && CB_PARAMETERS="--offline $CB_PARAMETERS" && echo ${CB_LINEHEADER}Offline build.
+	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Execute node [$NODE_EXEC], parameters: [$CB_PARAMETERS]."	
 	eval "$NODE_EXEC $CB_PARAMETERS"
 	errorCode=$?
 }
@@ -565,6 +683,7 @@ commonBuild() {
 		CB_JAVA_HOME="$CB_CURRENT_PATH/java"
 	fi
 
+	#[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Verify java version [$cbJavaVersion]."
 	if [ -z "$CB_JAVA_HOME" ]; then
 		cbJavaVersionFilter="*"
 		cbInstalledJavaVersion=
@@ -638,7 +757,6 @@ commonBuild() {
 
 	# custom setting script
 	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT build-end $*" 2>/dev/null
-	exit $errorCode
 }
 
 
@@ -671,7 +789,7 @@ downloadFiles() {
 		[ -n "$CB_PACKAGE_COOKIE" ] && CB_CURL_COOKIE="-c $CB_PACKAGE_COOKIE"
 		[ -n "$CB_PACKAGE_USERAGENT" ] && CB_CURL_USERAGENT="-H User-Agent:\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.105 Safari/537.36\""
 		[ -n "$CB_PACKAGE_SILENT_LOG" ] && CB_CURL_LOG="-Ss"
-		#[ -n "$CB_VERBOSE" = "true" ] && CB_CURL_TRACE="--trace-ascii"
+		#[ "$CB_VERBOSE" = "true" ] && CB_CURL_TRACE="--trace-ascii"
 		#CB_CURL_USER_CREDENTIALS="-u <user:password>
 		[ -z "$CB_CURL_USER_CREDENTIALS" ] && CB_CURL_USER_CREDENTIALS=" "
 		#echo "$HTTP_REQUEST_CLI $CB_CURL_CONTINUE $CB_CURL_REDIRECT $CB_CURL_SECURITY_CREDENTIALS $CB_CURL_PROGRESSBAR $CB_CURL_USER_CREDENTIALS $CB_CURL_LOG -o $2 $1"
@@ -1096,11 +1214,14 @@ installCb() {
 #########################################################################
 # main
 #########################################################################
+executeCustomSettings
+if ! executeCustomConfig; then
+	endWithError
+fi
+
 CB_PARAMETERS=""
-executeCustomSettings "$CB_PARAMETERS"
 checkInternetConnection
 CB_EXECUTE_BUILD=true
-CB_VERBOSE=false
 
 while [ $# -gt 0 ]
 do
@@ -1130,6 +1251,15 @@ done
 if [ -n "$CB_EXECUTE_BUILD" ] && [ "$CB_EXECUTE_BUILD" = "true" ]; then
 	commonBuild "$CB_PARAMETERS"
 fi
+
+setTitle "$PWD"
+
+CB_END_TIMESTAMP=$(getTimestamp)
+#CB_DUATION=$(eval "expr $(echo $CB_END_TIMESTAMP | sed 's/[ |.|:|-]*//g') - $(echo $CB_START_TIMESTAMP | sed 's/[ |.|:|-]*//g')")
+#CB_DUATION=$(printf %.3f "${CB_DUATION}e-3")
+[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Ended $CB_END_TIMESTAMP."
+
+exit $errorCode
 
 
 #########################################################################

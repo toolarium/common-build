@@ -14,13 +14,19 @@ echo %CB_LINE%
 echo %CB_LINEHEADER%Create new project, enter project basic data.
 echo %CB_LINE%
 set BACKUP_CB_WORKING_PATH=%CB_WORKING_PATH%
+set CB_PROJECT_CONFIGFILE=
+set CB_PRODUCT_CONFIGFILE=
+set CB_PRODUCT_CONFIGFILE_TMPFILE=
 
-if not .%CB_CUSTOM_PROJECT_CONFIGFILE% == . set CB_PROJECT_CONFIGFILE=%CB_CUSTOM_PROJECT_CONFIGFILE% & goto VERIFY_PROJECT_CONFIGFILE_END
+if not .%CB_CUSTOM_RUNTIME_CONFIG_PATH%==. if exist %CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\project-types.properties set "CB_PROJECT_CONFIGFILE=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\project-types.properties"
+if not .%CB_CUSTOM_RUNTIME_CONFIG_PATH%==. if exist %CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\product-types.properties set "CB_PRODUCT_CONFIGFILE=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\product-types.properties"
+if not .%CB_PROJECT_CONFIGFILE%==. goto VERIFY_PROJECT_CONFIGFILE_END
 
 :: default
 set "CB_PROJECT_CONFIGFILE=%CB_SCRIPT_PATH%\..\conf\project-types.properties"
+if exist %CB_SCRIPT_PATH%\..\conf\product-types.properties set "CB_PRODUCT_CONFIGFILE=%CB_SCRIPT_PATH%\..\conf\product-types.properties"
 
-:: if we have a local common gradle build use the project types configuration file
+:: if we have a local common gradle build use the project types file
 if not .%COMMON_GRADLE_BUILD_URL% == . goto VERIFY_COMMON_GRADLE_BUILD
 dir %USERPROFILE%\.gradle\common-gradle-build >nul 2>nul
 if not %ERRORLEVEL% EQU 0 goto VERIFY_PROJECT_CONFIGFILE_END
@@ -31,15 +37,17 @@ del /f /q "%TMPFILE%" 2>nul
 set "commonGradleBuildVersion=%commonGradleBuildVersion:~2%"
 if not .%commonGradleBuildVersion% == . set "COMMON_GRADLE_BUILD_URL=%USERPROFILE%\.gradle\common-gradle-build\%commonGradleBuildVersion%\gradle"
 :VERIFY_COMMON_GRADLE_BUILD
-dir %COMMON_GRADLE_BUILD_URL%\conf\project-types.properties >nul 2>nul
-if %ERRORLEVEL% EQU 0 set CB_PROJECT_CONFIGFILE=%COMMON_GRADLE_BUILD_URL%\conf\project-types.properties
+if exist %COMMON_GRADLE_BUILD_URL%\conf\project-types.properties set CB_PROJECT_CONFIGFILE=%COMMON_GRADLE_BUILD_URL%\conf\project-types.properties
+if exist %COMMON_GRADLE_BUILD_URL%\conf\product-types.properties set CB_PRODUCT_CONFIGFILE=%COMMON_GRADLE_BUILD_URL%\conf\product-types.properties
 :VERIFY_PROJECT_CONFIGFILE_END
-if not exist %CB_PROJECT_CONFIGFILE% (echo %CB_LINE% & echo %CB_LINEHEADER%Missing project type configuration file %CB_PROJECT_CONFIGFILE%, please install with the cb-install.bat. & echo %CB_LINE% & goto PROJECT_WIZARD_ERROR_END)
-if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Used configuration file: %CB_PROJECT_CONFIGFILE%
 
+if not exist %CB_PROJECT_CONFIGFILE% (echo %CB_LINE% & echo %CB_LINEHEADER%Missing project types configuration file %CB_PROJECT_CONFIGFILE%, please install with the cb-install.bat. & echo %CB_LINE% & goto PROJECT_WIZARD_ERROR_END)
 set "CB_PROJECT_CONFIGFILE_TMPFILE=%TEMP%\cb-project-types-%RANDOM%%RANDOM%.tmp"
+if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Used project types file: %CB_PROJECT_CONFIGFILE%
 type %CB_PROJECT_CONFIGFILE% 2>nul | findstr /V "#" | findstr /C:= > %CB_PROJECT_CONFIGFILE_TMPFILE% 2>nul
 
+set "productTypeId="
+set "productName="
 set "projectTypeId="
 set "projectType="
 set "projectName="
@@ -47,7 +55,37 @@ set "projectRootPackageName="
 set "projectGroupId="
 set "projectComponentId="
 set "projectDescription="
+	
+if .%CB_PRODUCT_CONFIGFILE%==. goto END_PRODUCT_TYPES
+if not exist %CB_PRODUCT_CONFIGFILE% goto END_PRODUCT_TYPES
+set "CB_PRODUCT_CONFIGFILE_TMPFILE=%TEMP%\cb-product-types-%RANDOM%%RANDOM%.tmp"
+if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Used product types file: %CB_PRODUCT_CONFIGFILE%
+type %CB_PRODUCT_CONFIGFILE% 2>nul | findstr /V "#" | findstr /C:= > %CB_PRODUCT_CONFIGFILE_TMPFILE% 2>nul
 
+:: choose first product which it belongs to
+if not .%1==. (set "productName=%1" & shift)
+set /a "productTypeId=%productName%" 2>nul
+if not .%productTypeId% == . goto VERIFY_PRODUCT_TYPE
+echo %CB_LINEHEADER%Products:
+:PRINT_PRODUCT_TYPES
+set /a count = 0 & for /f "tokens=1,* delims==" %%i in (%CB_PRODUCT_CONFIGFILE_TMPFILE%) do (set /a count += 1 & echo    [!count!] %%i)
+set productTypeId=1
+::if %count% EQU 1 echo %CB_LINEHEADER%It belongs to [%productName%] & goto PRODUCT_SELECTED
+echo.
+set /p productTypeId=%CB_LINEHEADER%Please select to which product it belongs [1]: 
+:VERIFY_PRODUCT_TYPE
+if .%productTypeId% == . set productTypeId=1
+set /a count = 0 & for /f "tokens=1,* delims==" %%i in (%CB_PRODUCT_CONFIGFILE_TMPFILE%) do (set /a count += 1 & if [!productTypeId!] == [!count!] (set "productName=%%i" & set "productConfiguration=%%j"))
+if ".%productName%"=="." echo %CB_LINEHEADER%Invalid input %productTypeId% & echo. & goto PRINT_PRODUCT_TYPES
+:SET_PRODUCT_TYPE_PARAMETERS
+FOR /F "tokens=1,2 delims=^|" %%i in ("%productConfiguration%") do (set "productConfigItem=%%i"
+	FOR /F "tokens=1,2 delims=:" %%a in ("!productConfigItem!") do (set "key=%%a" & set "value=%%b" & set "!key!=!value!"))
+set "previousProductConfiguration=%productConfiguration%"
+set "productConfiguration=%productConfiguration:*|=%"
+if not "%previousProductConfiguration%"=="%productConfiguration%" goto SET_PRODUCT_TYPE_PARAMETERS
+:END_PRODUCT_TYPES
+
+:SET_PROJECT_TYPE
 if not .%1==. (set "projectName=%1" & shift)
 set /a "projectTypeId=%projectName%" 2>nul
 if not .%projectTypeId% == . goto VERIFY_PROJECT_TYPE
@@ -82,7 +120,9 @@ if %ERRORLEVEL% NEQ 0 goto SET_PROJECT_NAME_END
 set "projectTypeConfigurationParameter=%projectTypeConfigurationParameter:*|=%"
 if not .%1==. (set "projectName=%1" & shift)
 if not .%projectName% == . echo %CB_LINEHEADER%Project name [%projectName%] & goto SET_PROJECT_NAME_END
-set projectName=my-project
+
+if .%projectComponentId%==. set projectName=my-project
+if not .%projectComponentId%==. set projectName=%projectComponentId%-project
 set /p projectName=%CB_LINEHEADER%Please enter project name, e.g. [%projectName%]: 
 :SET_PROJECT_NAME_END
 if exist %projectName% echo %CB_LINEHEADER%Project %projectName% already exist! & set "projectName=" & goto END_PROJECT_TYPES
@@ -92,8 +132,9 @@ echo "%projectTypeConfiguration%" | findstr /C:"projectRootPackageName" >nul 2>n
 if %ERRORLEVEL% NEQ 0 goto SET_PROJECT_PACKAGENAME_END
 set "projectTypeConfigurationParameter=%projectTypeConfigurationParameter:*|=%"
 if not .%1==. (set "projectRootPackageName=%1" & shift)
-if not .%projectRootPackageName% == . echo %CB_LINEHEADER%Project package name [%projectRootPackageName%] & goto SET_PROJECT_PACKAGENAME_END
-set projectRootPackageName=my.rootpackage.name
+:: ask always
+::if not .%projectRootPackageName% == . echo %CB_LINEHEADER%Project package name [%projectRootPackageName%] & goto SET_PROJECT_PACKAGENAME_END
+if .%projectRootPackageName% == . set projectRootPackageName=my.rootpackage.name
 set /p projectRootPackageName=%CB_LINEHEADER%Please enter package name, e.g. [%projectRootPackageName%]: 
 :SET_PROJECT_PACKAGENAME_END
 

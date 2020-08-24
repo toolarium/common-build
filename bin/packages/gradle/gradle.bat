@@ -10,7 +10,7 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-if not defined CB_GRADLE_VERSION set "CB_GRADLE_VERSION=6.5.1"
+if not defined CB_GRADLE_VERSION set "CB_GRADLE_VERSION=6.6"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_GRADLE_VERSION%"
 set "CB_PACKAGE_BASE_URL=https://services.gradle.org/distributions"

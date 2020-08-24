@@ -11,6 +11,7 @@
 
 
 CB_PROJECT_CONFIGFILE_TMPFILE=$(mktemp /tmp/cb-project-types.XXXXXXXXX)
+CB_PRODUCT_CONFIGFILE_TMPFILE=$(mktemp /tmp/cb-product-types.XXXXXXXXX)
 
 
 #########################################################################
@@ -27,6 +28,7 @@ errorhandler() {
 #########################################################################
 exithandler() {
 	rm "$CB_PROJECT_CONFIGFILE_TMPFILE" >/dev/null 2>&1
+	rm "$CB_PRODUCT_CONFIGFILE_TMPFILE" >/dev/null 2>&1
 }
 
 
@@ -41,28 +43,10 @@ endWithError() {
 
 
 #########################################################################
-# Read the configuration file
+# Prepare the project configuration file
 #########################################################################
-readConfigurationFile() {
-	if [ -n "$CB_CUSTOM_PROJECT_CONFIGFILE" ]; then
-		CB_PROJECT_CONFIGFILE="$CB_CUSTOM_PROJECT_CONFIGFILE"
-	else
-		# default
-		CB_PROJECT_CONFIGFILE="$CB_SCRIPT_PATH/../conf/project-types.properties"
-
-		# if we have a local common gradle build use the project types configuration file
-		if [ -z "$COMMON_GRADLE_BUILD_URL" ]; then
-			#[ "$CB_OS" = "cygwin" ] && commonGradleBuildBasePath="$(cygpath $USERPROFILE)/.gradle/common-gradle-build" || commonGradleBuildBasePath="$HOME/.gradle/common-gradle-build"
-			
-			if [ -d "$commonGradleBuildBasePath" ]; then
-				commonGradleBuildVersion=$(find "$commonGradleBuildBasePath" -maxdepth 1 -type d -name "*\.*\.*" -prune -exec ls -d {} \; 2>/dev/null | tail -1 2>/dev/null | xargs -l basename 2>/dev/null)
-				[ -n "$commonGradleBuildVersion" ] && COMMON_GRADLE_BUILD_URL="$commonGradleBuildBasePath/$commonGradleBuildVersion/gradle"
-			fi
-		fi
-
-		[ -r "$COMMON_GRADLE_BUILD_URL/conf/project-types.properties" ] && CB_PROJECT_CONFIGFILE="$COMMON_GRADLE_BUILD_URL/conf/project-types.properties"
-	fi
-
+preapreProjectConfigurationFile() {
+	[ -z "$CB_PROJECT_CONFIGFILE" ] && CB_PROJECT_CONFIGFILE="$CB_SCRIPT_PATH/../conf/project-types.properties"
 	if ! [ -r "$CB_PROJECT_CONFIGFILE" ]; then
 		echo "$CB_LINE"
 		echo "${CB_LINEHEADER}Missing project type configuration file $CB_PROJECT_CONFIGFILE, please install with the cb-install.bat."
@@ -70,40 +54,53 @@ readConfigurationFile() {
 		endWithError
 	fi
 	
-	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Used configuration file: $CB_PROJECT_CONFIGFILE"
-	cat "$CB_PROJECT_CONFIGFILE" 2>/dev/null | tr -d '\15\32' | grep -v "#" | grep "=" > "$CB_PROJECT_CONFIGFILE_TMPFILE" 2>/dev/null
+	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Use project configuration file: $CB_PROJECT_CONFIGFILE"
+	cat "$CB_PROJECT_CONFIGFILE" 2>/dev/null | tr -d '\15\32' | grep -v "#" | grep "=" > "$1" 2>/dev/null
 }
 
 
 #########################################################################
-# Print project types
+# Prepare the product configuration file
 #########################################################################
-printProjectTypes() {
+preapreProductConfigurationFile() {
+	[ -z "$CB_PRODUCT_CONFIGFILE" ] && CB_PRODUCT_CONFIGFILE="$CB_SCRIPT_PATH/../conf/product-types.properties"
+	! [ -r "$CB_PRODUCT_CONFIGFILE" ] && rm "$CB_PRODUCT_CONFIGFILE_TMPFILE" >/dev/null 2>&1 && return
+	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Used product configuration file: $CB_PRODUCT_CONFIGFILE"
+	cat "$CB_PRODUCT_CONFIGFILE" 2>/dev/null | tr -d '\15\32' | grep -v "#" | grep "=" > "$1" 2>/dev/null
+}
+
+
+#########################################################################
+# Print types
+#########################################################################
+printTypes() {
 	typeName=
 	configValue=
 	count=1
 	while IFS= read -r line; do 
 		configValue="${line#*=}"
-		typeName="${configValue%%|*}"		
+		[ -z "$2" ] && typeName="${configValue%%|*}" || typeName=""
 		echo "   [$count] ${line%%=*}   		${typeName}"
 		count=$((count+1))
-	done < "$CB_PROJECT_CONFIGFILE_TMPFILE"
+	done < "$1"
 }
 
 
 #########################################################################
-# Get project type configuration
+# Get type configuration
 #########################################################################
-getProjectTypeConfiguration() {
+getTypeConfiguration() {
 	key=
 	configValue=
 	count=1
 	while IFS= read -r line; do
 		configValue="${line#*=}"
-		[ "$count" = "$1" ] && key="${line%=*}" && break
+		[ "$count" = "$2" ] && key="${line%=*}" && break
 		count=$((count+1))
-	done < "$CB_PROJECT_CONFIGFILE_TMPFILE"
-	echo "${configValue#*|}" | sed 's/|/\n/g' 2>/dev/null
+	done < "$1"
+	
+	[ -z "$3" ] && echo "$configValue" | xargs | sed 's/|/\n/g' 2>/dev/null
+	[ -n "$3" ] && [ "$3" = "true" ] && echo "${configValue#*|}" | sed 's/|/\n/g' 2>/dev/null
 }
 
 
@@ -116,15 +113,15 @@ hasProjectTypeConfiguration() {
 
 
 #########################################################################
-# Select the project type
+# Select the type
 #########################################################################
-searchProjectType() {
+searchType() {
 	key=
 	count=1
 	while IFS= read -r line; do
-		[ "$count" = "$1" ] && key="${line%%=*}" && break
+		[ "$count" = "$2" ] && key="${line%%=*}" && break
 		count=$((count+1))
-	done < "$CB_PROJECT_CONFIGFILE_TMPFILE"
+	done < "$1"
 	echo "$key" 2>/dev/null | sed 's/ //g' 2>/dev/null
 }
 
@@ -135,7 +132,7 @@ searchProjectType() {
 selectProjectType() {	
 	if [ "$1" -ge 0 ] 2>/dev/null; then
 		projectTypeId="$1"
-		projectType=$(searchProjectType "$1")
+		projectType=$(searchType "$CB_PROJECT_CONFIGFILE_TMPFILE" "$1")
 	fi
 		
 	if [ -z "$projectType" ]; then
@@ -145,13 +142,13 @@ selectProjectType() {
 		projectType=
 		input=
 		while [ -z "$projectType" ]; do
-			printProjectTypes
+			printTypes "$CB_PROJECT_CONFIGFILE_TMPFILE"
 			
 			echo ""
 			read -p "${CB_LINEHEADER}Please choose the project type [1]: " input
 			[ -z "$input" ] && input=1
 
-			projectType=$(searchProjectType "$input")
+			projectType=$(searchType "$CB_PROJECT_CONFIGFILE_TMPFILE" "$input")
 			projectTypeId="$input"
 			[ -z "$projectType" ] && echo "${CB_LINEHEADER}Invalid input $input" && echo ""
 		done
@@ -160,6 +157,39 @@ selectProjectType() {
 	fi
 	
 	export projectTypeId projectType
+}
+
+
+#########################################################################
+# Select the product
+#########################################################################
+selectProduct() {	
+	! [ -r "$CB_PRODUCT_CONFIGFILE_TMPFILE" ] && productName="" && return 
+	if [ "$1" -ge 0 ] 2>/dev/null; then
+		productName=$(searchType "$CB_PRODUCT_CONFIGFILE_TMPFILE" "$1")
+	fi
+		
+	if [ -z "$productName" ]; then
+		echo "${CB_LINEHEADER}Products:"
+
+		[ "$1" -ge 0 ] 2>/dev/null && echo "${CB_LINEHEADER}Invalid input $input" && echo ""
+		productType=
+		input=
+		while [ -z "$productName" ]; do
+			printTypes "$CB_PRODUCT_CONFIGFILE_TMPFILE" false
+			
+			echo ""
+			read -p "${CB_LINEHEADER}Please select to which product it belongs [1]: " input
+			[ -z "$input" ] && input=1
+
+			productName=$(searchType "$CB_PRODUCT_CONFIGFILE_TMPFILE" "$input")
+			[ -z "$productName" ] && echo "${CB_LINEHEADER}Invalid input $input" && echo ""
+		done
+	else
+		echo "${CB_LINEHEADER}Product name [$productName]"
+	fi
+	
+	export productName
 }
 
 
@@ -200,28 +230,49 @@ echo "$CB_LINE"
 echo "${CB_LINEHEADER}Create new project, enter project basic data."
 echo "$CB_LINE"
 
+[ -n "$CB_CUSTOM_RUNTIME_CONFIG_PATH" ] && [ -r "$CB_CUSTOM_RUNTIME_CONFIG_PATH/conf/project-types.properties" ] && CB_PROJECT_CONFIGFILE="$CB_CUSTOM_RUNTIME_CONFIG_PATH/conf/project-types.properties"
+[ -n "$CB_CUSTOM_RUNTIME_CONFIG_PATH" ] && [ -r "$CB_CUSTOM_RUNTIME_CONFIG_PATH/conf/product-types.properties" ] && CB_PRODUCT_CONFIGFILE="$CB_CUSTOM_RUNTIME_CONFIG_PATH/conf/product-types.properties"
+
 projectTypeId=
+productName=
 projectType=
 projectName=
+projectComponentId=
 projectRootPackageName=
 projectDescription=
 
 # read the configuration file
-readConfigurationFile
+preapreProjectConfigurationFile "$CB_PROJECT_CONFIGFILE_TMPFILE"
+preapreProductConfigurationFile "$CB_PRODUCT_CONFIGFILE_TMPFILE"
 
 # if first parameter is a number, then it's the project type
-[ -n "$1" ] && [ "$1" -ge 0 ] 2>/dev/null && projectType=$1 && shift
+[ -n "$1" ] && [ "$1" -ge 0 ] 2>/dev/null && projectName=$1 && shift
+
+# select product
+selectProduct "$productName"
+if [ -n "${productName}" ]; then
+	productTypeConfiguration=$(getTypeConfiguration "$CB_PRODUCT_CONFIGFILE_TMPFILE" "$productName")
+	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Product type configuration: $(echo $productTypeConfiguration|sed 's/\n/|/')"
+	for i in $productTypeConfiguration; do
+		export $(echo "${i%:*}")=$(echo "${i#*:}")
+	done
+fi
 
 # select project type
+[ -n "$1" ] && [ "$1" -ge 0 ] 2>/dev/null && projectType=$1 && shift
 selectProjectType "$projectType"
-projectTypeConfiguration=$(getProjectTypeConfiguration "$projectTypeId")
+projectTypeConfiguration=$(getTypeConfiguration "$CB_PROJECT_CONFIGFILE_TMPFILE" "$projectTypeId" true)
 projectTypeConfigurationParameter=$projectTypeConfiguration
+[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Project type configuration: $(echo $projectTypeConfiguration|sed 's/\n/|/')"
 
 # select project details
 if hasProjectTypeConfiguration "projectName"; then
+	projectDefaultName="project"
+	[ -n "$projectComponentId" ] && projectDefaultName="${projectComponentId}-${projectDefaultName}" || projectDefaultName="my-${projectDefaultName}"
+
 	while ! [ -n "$projectName" ]; do
-		[ -z "$1" ] && selectInput "project name" "my-project"
-		[ -n "$1" ] && selectInput "project name" "my-project" "$1" && shift
+		[ -z "$1" ] && selectInput "project name" "$projectDefaultName"
+		[ -n "$1" ] && selectInput "project name" "$projectDefaultName" "$1" && shift
 		
 		if [ -d "$inputResult" ]; then
 			echo "${CB_LINEHEADER}Project $projectName already exist!"
@@ -234,28 +285,38 @@ fi
 
 [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Selected project type [$projectType]/[$projectTypeId], configurationType: $projectTypeConfiguration, configurationParameter: $projectTypeConfigurationParameter"	
 if hasProjectTypeConfiguration "projectRootPackageName"; then
-	[ -z "$1" ] && selectInput "project package name" "my.rootpackage.name"
-	[ -n "$1" ] && selectInput "project package name" "my.rootpackage.name" "$1" && shift
+	[ -z "$projectRootPackageName" ] && projectRootPackageName="my.rootpackage.name"
+	[ -z "$1" ] && selectInput "project package name" "$projectRootPackageName"
+	[ -n "$1" ] && selectInput "project package name" "$projectRootPackageName" "$1" && shift
 	projectRootPackageName="$inputResult"
 	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 fi
 
 if hasProjectTypeConfiguration "projectGroupId"; then
-	[ -z "$1" ] && selectInput "project group id" "${projectName%%-*}"
-	[ -n "$1" ] && selectInput "project group id" "${projectName%%-*}" "$1" && shift
+	if [ -n "$projectGroupId" ]; then
+		selectInput "project group id" "${projectName%%-*}" "$projectGroupId" 	
+	else
+		[ -z "$1" ] && selectInput "project group id" "${projectName%%-*}"
+		[ -n "$1" ] && selectInput "project group id" "${projectName%%-*}" "$1" && shift
+	fi
 	projectGroupId="$inputResult"
 	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 fi
 
 if hasProjectTypeConfiguration "projectComponentId"; then
-	[ -z "$1" ] && selectInput "project component id" "${projectName%%-*}"
-	[ -n "$1" ] && selectInput "project component id" "${projectName%%-*}" "$1" && shift
+	if [ -n "$projectComponentId" ]; then
+		selectInput "project component id" "${projectName%%-*}" "$projectComponentId"
+	else
+		[ -z "$1" ] && selectInput "project component id" "${projectName%%-*}"
+		[ -n "$1" ] && selectInput "project component id" "${projectName%%-*}" "$1" && shift
+	fi
 	projectComponentId="$inputResult"
 	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 fi
 
 if hasProjectTypeConfiguration "projectDescription"; then
-	selectInput "project description" "The implementation of the $projectName." "$*"
+	[ -z "$*" ] && [ -z "$projectDescription" ] && projectDescription="The implementation of the $projectName."
+	selectInput "project description" "$projectDescription" "$*"
 	projectDescription="$inputResult"
 	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 fi

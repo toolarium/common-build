@@ -10,7 +10,7 @@
 #########################################################################
 
 
-[ -z "$CB_FLUTTER_VERSION" ] && CB_FLUTTER_VERSION=1.17.5
+[ -z "$CB_FLUTTER_VERSION" ] && CB_FLUTTER_VERSION=1.20.2
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_FLUTTER_VERSION
 CB_PACKAGE_BASE_URL=https://storage.googleapis.com/flutter_infra/releases/stable
