@@ -214,12 +214,13 @@ executeCustomSettings() {
 # -CB_CUSTOM_RUNTIME_CONFIG_PATH is the variable where we can refer
 #########################################################################
 executeCustomConfig() {
+	CB_CONFIG_HOME="$OS_HOME/.common-build"
+	[ -r "$CB_CONFIG_HOME/conf/.cb-custom-config" ] && CB_CUSTOM_CONFIG=$(cat $CB_CONFIG_HOME/conf/.cb-custom-config | tr -d '\r')
 	! [ -n "$CB_CUSTOM_CONFIG" ] && return
 	[ -n "$runCustomConfigInstallation" ] && return
 	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Verify custom config [$CB_CUSTOM_CONFIG]."
 
 	DATESTAMP=$(date '+%Y%m%d')
-	CB_CONFIG_HOME="$OS_HOME/.common-build"
 	runCustomConfigInstallation=false
 	! [ -d "$CB_CONFIG_HOME" ] && mkdir "$CB_CONFIG_HOME" && runCustomConfigInstallation=true
 
@@ -241,7 +242,7 @@ executeCustomConfig() {
 		# if we have a timestamp wihtin same day then its fine
 		runCustomConfigInstallation=
 		CB_CUSTOM_CONFIG_VERSION=$(cat "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp")
-		CB_CUSTOM_CONFIG_VERSION="${CB_CUSTOM_CONFIG_VERSION% *}"
+		CB_CUSTOM_CONFIG_VERSION=$(echo ${CB_CUSTOM_CONFIG_VERSION% *} | awk '{print $1}')
 		CB_CUSTOM_RUNTIME_CONFIG_PATH="$CB_CUSTOM_CONFIG_PATH/$CB_CUSTOM_CONFIG_VERSION" && export CB_CUSTOM_RUNTIME_CONFIG_PATH						
 		[ -x "$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.bat" ] && CB_CUSTOM_SETTING_SCRIPT="$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.bat" && export CB_CUSTOM_SETTING_SCRIPT
 		[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Use custom config version $CB_CUSTOM_CONFIG_VERSION."
@@ -336,6 +337,12 @@ printUsage() {
 	echo "                      you can refer the git url to the CB_CUSTOM_CONFIG environment"
 	echo "                      variable. The VERSION file is mainly the reference for updates"
 	echo "                      of the project (as default daily check, can be configured)."
+	echo "                      The project is checkout in .common-buik/conf/[domain-unique"
+	echo "                      -name] inside the home folder (Windows %USERPROFILE%, others"
+	echo "                      \$HOME. Alternatively, instead of the environment variable,"	 
+	echo "                      a file .common-build/conf/.cb-custom-config containing the"
+	echo "                      git url can be used."
+	echo ""
 	echo " CB_PACKAGE_URL       To support software packages outside the common build, you "
 	echo "                      can define an URL that covers a directory of zip files."
 	echo " CB_PACKAGE_USER      The user for accessing the CB_PACKAGE_URL."
@@ -353,6 +360,12 @@ printUsage() {
 printVersion() {
 	echo "$CB_LINE"
 	echo "toolarium common build $CB_VERSION"
+	echo ""
+	echo "${CB_LINEHEADER}Installed tool versions:"	
+	while IFS= read -r line; do 
+		echo "    -${line%=*}: ${line#*=}"	
+	done < $CB_TOOL_VERSION_INSTALLED
+	echo ""
 	echo "$CB_LINE"
 }
 
@@ -418,10 +431,14 @@ exploreProject()
 #########################################################################
 printPackages() {
 	readVersion
-	printVersion
-	packages=$(cd $CB_HOME/bin/packages && find . -type f -name "*.sh" | awk -F/ '{print "  "$2}')
-	echo "  cb"
-	echo "$packages"
+	echo "$CB_LINE"
+	echo "toolarium common build $CB_VERSION"
+	echo ""
+	echo "${CB_LINEHEADER}Available packages:"	
+	while IFS= read -r line; do 
+		echo "    -${line##* }"	
+	done <<<"$(cd $CB_HOME/bin/packages && find . -type f -name "*.sh" | awk -F/ '{print "  "$2}')"
+	echo ""
 	echo "$CB_LINE"
 }
 
@@ -931,8 +948,8 @@ installCb() {
 
 	machineName=$(hostname 2>/dev/null)
 	! [ -n "$machineName" ] && machineName="$HOSTNAME"
-	
-	if [ "$CB_INSTALL_SILENT" = "false" ]; then
+		
+	if [ "$CB_VERBOSE" = "true" ]; then
 		echo "$CB_LINE"
 		echo "${CB_LINEHEADER}Start common-build installation on $machineName, $USER_FRIENDLY_FULLTIMESTAMP"
 		echo "${CB_LINEHEADER}Use $CB_DEVTOOLS path as devtools folder"

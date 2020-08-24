@@ -91,6 +91,8 @@ if %ERRORLEVEL% EQU 9009 (SET "PATH=%PATH%;%SystemRoot%\System32\")
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: custom initialisation
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+set "CB_CONFIG_HOME=%USERPROFILE%\.common-build"
+if exist "%CB_CONFIG_HOME%\conf\.cb-custom-config" (set /p CB_CUSTOM_CONFIG=<"%CB_CONFIG_HOME%\conf\.cb-custom-config")
 if .%CB_CUSTOM_SETTING% == . goto CUSTOM_SETTINGS_INIT_END_CALL
 if exist %CB_CUSTOM_SETTING% goto CUSTOM_SETTINGS_INIT_CALL
 echo %CB_LINE%
@@ -192,6 +194,12 @@ echo                       information on the web) and publishing it as a git pr
 echo                       you can refer the git url to the CB_CUSTOM_CONFIG environment
 echo                       variable. The VERSION file is mainly the reference for updates
 echo                       of the project (as default daily check, can be configured).
+echo                       The project is checkout in .common-buik/conf/[domain-unique
+echo                       -name] inside the home folder (Windows %USERPROFILE%, others
+echo                       $HOME. Alternatively, instead of the environment variable, 
+echo                       a file .common-build\conf\.cb-custom-config containing the
+echo                       git url can be used."
+echo.
 echo  CB_PACKAGE_URL       To support software packages outside the common build, you 
 echo                       can define an URL that covers a directory of zip files.
 echo  CB_PACKAGE_USER      The user for accessing the CB_PACKAGE_URL.
@@ -206,6 +214,9 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %CB_LINE%
 echo toolarium common build %CB_VERSION%
+echo.
+echo %CB_LINEHEADER%Installed tool versions:
+for /f "tokens=1,* delims=^=" %%i in ('type %CB_TOOL_VERSION_INSTALLED%') do (echo     -%%i: %%j)
 echo %CB_LINE%
 goto END
 
@@ -241,9 +252,9 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %CB_LINE%
 echo toolarium common build %CB_VERSION%
-echo %CB_LINE%
-echo cb
-dir /b %CB_HOME%\bin\packages\
+echo.
+echo %CB_LINEHEADER%Available packages:
+for /f "tokens=1" %%i in ('dir /b %CB_HOME%\bin\packages\') do (echo     -%%i)
 echo %CB_LINE%
 goto END
 
@@ -332,7 +343,6 @@ if %lockDifference% LEQ 9 goto :eof
 set runCustomConfigInstallation=%TS_LOCK_TSP%
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Verify custom config [%CB_CUSTOM_CONFIG%].
 for /f "tokens=1-4 delims=. " %%a in ('date /t') do (set DATESTAMP=%%c%%b%%a)
-set "CB_CONFIG_HOME=%USERPROFILE%\.common-build"
 set force=false
 if not exist %CB_CONFIG_HOME% mkdir %CB_CONFIG_HOME% & set "force=true"
 
@@ -592,7 +602,7 @@ set "USER_FRIENDLY_FULLTIMESTAMP=%USER_FRIENDLY_DATESTAMP% %USER_FRIENDLY_TIMEST
 :: custom setting script
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-start %1 %2 %3 %4 %5 %6 %7 2>nul
 
-if [%CB_INSTALL_SILENT%] equ [false] (echo %CB_LINE%
+if [%CB_VERBOSE%] equ [true] (echo %CB_LINE%
 		echo %CB_LINEHEADER%Start common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%
 		echo %CB_LINEHEADER%Use %CB_DEVTOOLS% path as devtools folder
 		echo %CB_LINE%)
