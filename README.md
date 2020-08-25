@@ -1,5 +1,7 @@
 # common-build 
-![logo](docs/logo/common-build-icon.png) 
+[![License](https://img.shields.io/github/license/toolarium/common-build)](https://opensource.org/licenses/MIT)
+
+<img align="right" height="110" src="docs/logo/common-build-icon.png">
 
 The common-build project has the goal to simplify the development environment setup. It works for the main environment such as Linux, Windows and Mac.
 It can be used as a "transparent" wrapper of the most common build tools such as Gradle, Maven or Ant.
