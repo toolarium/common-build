@@ -25,6 +25,10 @@ mkdir "%CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\bin" 2>nul
 set CB_VISUALVM_PACKAGEVERSION=%CB_PACKAGE_VERSION:.=%
 
 set "visualvmBin=%CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\bin\visualvm.bat"
-echo @ECHO OFF>> "%visualvmBin%"
-echo ::call cb --setenv>> "%visualvmBin%" 
-echo start /b "" "%CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\visualvm_%CB_VISUALVM_PACKAGEVERSION%\bin\visualvm.exe" --jdkhome %%CB_HOME%%\current\java --console suppress>> "%visualvmBin%"
+echo @ECHO OFF> "%visualvmBin%"
+echo ::call cb --silent --setenv>> "%visualvmBin%" 
+echo start "Visual VM" /B "%CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\visualvm_%CB_VISUALVM_PACKAGEVERSION%\bin\visualvm.exe" --jdkhome %%CB_HOME%%\current\java --console suppress>> "%visualvmBin%"
+
+:: create proper shortcut
+set ICON_PATH=%CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\visualvm_%CB_VISUALVM_PACKAGEVERSION%\bin\visualvm.exe
+set "CB_POST_INSTALL_ACTION=%CB_HOME%\bin\cb-shortcut.bat --command %CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\bin\visualvm.bat --icon %ICON_PATH% %USERPROFILE%\desktop\VisualVM.lnk"

@@ -17,3 +17,4 @@ set "CB_PACKAGE_NO_DEFAULT=true"
 ::set "CB_DOCKER_DEST=%ProgramFiles%\Docker\Docker\resources\bin\docker.exe"
 
 if .%CB_INSTALL_OVERWRITE_DIST%==.false if exist "%ProgramFiles%"\Docker\Docker\resources\bin\docker.exe set "CB_PACKAGE_ALREADY_EXIST=true"
+set "CB_POST_INSTALL_ACTION=copy "c:\ProgramData\Microsoft\Windows\Start Menu\Docker Desktop.lnk" "%USERPROFILE%\desktop\" >nul 2>nul"

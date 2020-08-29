@@ -96,6 +96,11 @@ mkdir "%CB_DEVTOOLS%" 2>nul
 mkdir "%CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%" 2>nul
 mkdir "%CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\bin" 2>nul
 set "eclipseBin=%CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\bin\eclipse.bat"
-echo @ECHO OFF>> "%eclipseBin%"
-echo call cb --setenv>> "%eclipseBin%" 
-echo start /b "" "%CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\eclipse\eclipse.exe">> "%eclipseBin%"
+echo @ECHO OFF> "%eclipseBin%"
+echo :: set proper java version>> "%eclipseBin%" 
+echo call cb --silent --setenv>> "%eclipseBin%" 
+echo start "Eclipse" /B "%CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\eclipse\eclipse.exe">> "%eclipseBin%"
+
+:: create proper shortcut
+set "ICON_PATH=%CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\eclipse\eclipse.exe"
+set "CB_POST_INSTALL_ACTION=%CB_HOME%\bin\cb-shortcut.bat --command %CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\bin\eclipse.bat --icon %ICON_PATH% %USERPROFILE%\desktop\Eclipse.lnk"
