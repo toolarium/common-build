@@ -17,4 +17,4 @@ set "CB_PACKAGE_DOWNLOAD_URL=http://multicommander.com/files/updates/MultiComman
 set "CB_PACKAGE_DOWNLOAD_NAME=MultiCommander_x%CB_PROCESSOR_ARCHITECTURE_NUMBER%-%CB_PACKAGE_VERSION%.zip"
 ::set "CB_PACKAGE_VERSION_NAME=multicommander-%CB_PACKAGE_VERSION%"
 set "CB_PACKAGE_DEST_VERSION_NAME=multicommander-%CB_PACKAGE_VERSION%"
-set "CB_PACKAGE_NO_DEFAULT=true"
+::set "CB_PACKAGE_NO_DEFAULT=true"

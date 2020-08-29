@@ -75,7 +75,7 @@ goto :eof
 
 :READ_LAST_VERSION
 set "TMPFILE=%TEMP%\cb-config-home-%RANDOM%%RANDOM%.tmp"
-dir %CB_CUSTOM_CONFIG_PATH%\* /O-D/b 2>nul | findstr /v lastCheck.properties | findstr /v .tsp | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
+dir "%CB_CUSTOM_CONFIG_PATH%\*" /O-D/b 2>nul | findstr /v lastCheck.properties | findstr /v .tsp | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
 for %%R in ("%TMPFILE%") do if not %%~zR lss 1 set /p CB_CUSTOM_CONFIG_VERSION=<"%TMPFILE%" & set "customConfigVersionAvailable=true"
 set "CB_CUSTOM_CONFIG_VERSION=%CB_CUSTOM_CONFIG_VERSION:~2%"
 set "CB_CUSTOM_CONFIG_VERSION=%CB_CUSTOM_CONFIG_VERSION: =%"

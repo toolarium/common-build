@@ -105,7 +105,7 @@ goto CUSTOM_SETTINGS_INIT_END_CALL
 set "CB_CUSTOM_SETTING_SCRIPT=%CB_CUSTOM_SETTING%"
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% start %1 %2 %3 %4 %5 %6 %7 2>nul
 :CUSTOM_SETTINGS_INIT_END_CALL
-if not .%CB_CUSTOM_CONFIG%==. call :CB_CUSTOM_CONFIG_CHECK
+if not ".%CB_CUSTOM_CONFIG%"=="." call :CB_CUSTOM_CONFIG_CHECK
 if %errorCode% NEQ 0 goto END_WITH_ERROR
 
 
@@ -243,7 +243,10 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :PROJECT_EXPLORE
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-explorer %CD%
+set "multiCommander=%CB_HOME%\current\multicommander\MultiCommander.exe"
+if not defined CB_FILE_EXPLORER if exist %multiCommander% set "CB_FILE_EXPLORER=%multiCommander% /OPEN %CD%"
+if not defined CB_FILE_EXPLORER set "CB_FILE_EXPLORER=explorer %CD%"
+%CB_FILE_EXPLORER%
 goto END
 
 
@@ -329,7 +332,7 @@ goto END
 :: runCustomConfigInstallation is kind of lock
 :: CB_CUSTOM_RUNTIME_CONFIG_PATH is the variable where we can refer
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-if .%CB_CUSTOM_CONFIG%==. goto :eof
+if ".%CB_CUSTOM_CONFIG%"=="." goto :eof
 set TS_LOCK_TSP=%CB_START_TIMESTAMP:-=%
 set TS_LOCK_TSP=%TS_LOCK_TSP:.=%
 set TS_LOCK_TSP=%TS_LOCK_TSP::=%
@@ -344,42 +347,41 @@ set runCustomConfigInstallation=%TS_LOCK_TSP%
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Verify custom config [%CB_CUSTOM_CONFIG%].
 for /f "tokens=1-4 delims=. " %%a in ('date /t') do (set DATESTAMP=%%c%%b%%a)
 set force=false
-if not exist %CB_CONFIG_HOME% mkdir %CB_CONFIG_HOME% & set "force=true"
+if not exist "%CB_CONFIG_HOME%" mkdir "%CB_CONFIG_HOME%" & set "force=true"
 
 :: prepare home directory name from domain name
 for /f "tokens=1,2,3,* delims=/" %%i in ("%CB_CUSTOM_CONFIG%") do (set "urlProtocol=%%i" & set "urlHost=%%j" & set "urlPath=%%k")
 for /f "tokens=1,* delims=:" %%i in ("%urlHost%") do (set "baseUrlHost=%%i" & set "urlPort=%%j")
 ::for /f %%i in ('powershell -Command "$env:urlHost -replace ':', '@' -replace '\.', '-' -replace ' ', '_'"') do set "urlHostPathName=%%i"
 set "CB_CUSTOM_CONFIG_PATH=%CB_CONFIG_HOME%\conf\%baseUrlHost%@%urlPort%"
-if not exist %CB_CUSTOM_CONFIG_PATH% mkdir %CB_CUSTOM_CONFIG_PATH% & set "force=true"
+if not exist "%CB_CUSTOM_CONFIG_PATH%" mkdir "%CB_CUSTOM_CONFIG_PATH%" & set "force=true"
 set "urlProtocol=" & set "urlHost=" & set "urlPath=" & set "urlPort=" & set "baseUrlHost="
 
 :: set the common gradle build home path to checkout to proper destination
 set "COMMON_GRADLE_BUILD_HOME=%CB_CUSTOM_CONFIG_PATH%"
 
 :: if we have a timestamp wihtin same day then its fine
-if exist %CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp set "runCustomConfigInstallation="
-if exist %CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp set /p CB_CUSTOM_CONFIG_VERSION=<"%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp"
-if exist %CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp set "CB_CUSTOM_RUNTIME_CONFIG_PATH=%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%"
-if exist %CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat set "CB_CUSTOM_SETTING_SCRIPT=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat"
-if exist %CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use custom config version %CB_CUSTOM_CONFIG_VERSION%.
-if exist %CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp goto :eof
-
-if not exist %CB_CUSTOM_CONFIG_PATH%\lastCheck.properties set "force=true"
+if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set "runCustomConfigInstallation="
+if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set /p CB_CUSTOM_CONFIG_VERSION=<"%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp"
+if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set "CB_CUSTOM_RUNTIME_CONFIG_PATH=%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%"
+if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat" set "CB_CUSTOM_SETTING_SCRIPT=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat"
+if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use custom config version %CB_CUSTOM_CONFIG_VERSION%.
+if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" goto :eof
+if not exist "%CB_CUSTOM_CONFIG_PATH%\lastCheck.properties" set "force=true"
 
 :: remove lastCheck.properties to force check by common-gradle-build -> TODO: in case common gradle build have access to credential manager this is not anymore necessary
-::if .%force%==.true del /f /q %CB_CUSTOM_CONFIG_PATH%\lastCheck.properties >nul 2>nul
-del /f /q %CB_CUSTOM_CONFIG_PATH%\lastCheck.properties >nul 2>nul
+::if .%force%==.true del /f /q "%CB_CUSTOM_CONFIG_PATH%\lastCheck.properties" >nul 2>nul
+del /f /q "%CB_CUSTOM_CONFIG_PATH%\lastCheck.properties" >nul 2>nul
 
 set "forceCustomConfigInstallation= "
 if .%force%==.true set "forceCustomConfigInstallation=--force"
-call %CB_SCRIPT_PATH%\include\init-home.bat %forceCustomConfigInstallation% %CB_CUSTOM_CONFIG_PATH% %CB_CUSTOM_CONFIG%
+call %CB_SCRIPT_PATH%\include\init-home.bat %forceCustomConfigInstallation% "%CB_CUSTOM_CONFIG_PATH%" %CB_CUSTOM_CONFIG%
 if %ERRORLEVEL% NEQ 0 (set "errorCode=%ERRORLEVEL%" 
 	if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Could not update custom config.
 	goto :eof)
 
-if [%CB_CUSTOM_CONFIG_VERSION%] NEQ [] del /f /q %CB_CUSTOM_CONFIG_PATH%\*.tsp > nul 2>nul
-echo %CB_CUSTOM_CONFIG_VERSION%> %CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp
+if [%CB_CUSTOM_CONFIG_VERSION%] NEQ [] del /f /q "%CB_CUSTOM_CONFIG_PATH%\*.tsp" > nul 2>nul
+echo %CB_CUSTOM_CONFIG_VERSION%> "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp"
 if exist %CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat set "CB_CUSTOM_SETTING_SCRIPT=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat"
 set "CB_CUSTOM_RUNTIME_CONFIG_PATH=%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%"
 set "runCustomConfigInstallation="
@@ -845,7 +847,7 @@ if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% extract-pack
 :: custom setting script
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-end %1 %2 %3 %4 %5 %6 %7 2>nul
 
-if [%CB_INSTALL_SILENT%] equ [false] (echo %CB_LINE%)
+if [%CB_VERBOSE%] equ [true] (echo %CB_LINE%)
 goto END
 
 
