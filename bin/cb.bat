@@ -91,22 +91,25 @@ if %ERRORLEVEL% EQU 9009 (SET "PATH=%PATH%;%SystemRoot%\System32\")
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: custom initialisation
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+if not ".%CB_CUSTOM_CONFIG%"=="." goto CUSTOM_CONFIG_END
 set "CB_CONFIG_HOME=%USERPROFILE%\.common-build"
 if exist "%CB_CONFIG_HOME%\conf\.cb-custom-config" (set /p CB_CUSTOM_CONFIG=<"%CB_CONFIG_HOME%\conf\.cb-custom-config")
-if .%CB_CUSTOM_SETTING% == . goto CUSTOM_SETTINGS_INIT_END_CALL
+if ".%CB_CUSTOM_CONFIG%"=="." echo %CB_LINEHEADER%Ignore empty custom config, see %CB_CONFIG_HOME%\conf\.cb-custom-config
+if not ".%CB_CUSTOM_CONFIG%"=="." call :CB_CUSTOM_CONFIG_CHECK
+if %errorCode% NEQ 0 goto END_WITH_ERROR
+:CUSTOM_CONFIG_END
+
+if ".%CB_CUSTOM_SETTING%"=="." goto CUSTOM_SETTINGS_INIT_END_CALL
 if exist %CB_CUSTOM_SETTING% goto CUSTOM_SETTINGS_INIT_CALL
 echo %CB_LINE%
 echo %CB_LINEHEADER%Could not find custom script, see %%CB_CUSTOM_SETTING%%: 
 echo %CB_CUSTOM_SETTING%
 echo %CB_LINE%
 goto CUSTOM_SETTINGS_INIT_END_CALL
-
 :CUSTOM_SETTINGS_INIT_CALL
 set "CB_CUSTOM_SETTING_SCRIPT=%CB_CUSTOM_SETTING%"
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% start %1 %2 %3 %4 %5 %6 %7 2>nul
 :CUSTOM_SETTINGS_INIT_END_CALL
-if not ".%CB_CUSTOM_CONFIG%"=="." call :CB_CUSTOM_CONFIG_CHECK
-if %errorCode% NEQ 0 goto END_WITH_ERROR
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -352,6 +355,8 @@ if not exist "%CB_CONFIG_HOME%" mkdir "%CB_CONFIG_HOME%" & set "force=true"
 :: prepare home directory name from domain name
 for /f "tokens=1,2,3,* delims=/" %%i in ("%CB_CUSTOM_CONFIG%") do (set "urlProtocol=%%i" & set "urlHost=%%j" & set "urlPath=%%k")
 for /f "tokens=1,* delims=:" %%i in ("%urlHost%") do (set "baseUrlHost=%%i" & set "urlPort=%%j")
+if .%urlPort%==. if .%urlProtocol%==.https set "urlPort=443"
+if .%urlPort%==. if .%urlProtocol%==.http set "urlPort=80"
 ::for /f %%i in ('powershell -Command "$env:urlHost -replace ':', '@' -replace '\.', '-' -replace ' ', '_'"') do set "urlHostPathName=%%i"
 set "CB_CUSTOM_CONFIG_PATH=%CB_CONFIG_HOME%\conf\%baseUrlHost%@%urlPort%"
 if not exist "%CB_CUSTOM_CONFIG_PATH%" mkdir "%CB_CUSTOM_CONFIG_PATH%" & set "force=true"
@@ -364,10 +369,20 @@ set "COMMON_GRADLE_BUILD_HOME=%CB_CUSTOM_CONFIG_PATH%"
 if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set "runCustomConfigInstallation="
 if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set /p CB_CUSTOM_CONFIG_VERSION=<"%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp"
 if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set "CB_CUSTOM_RUNTIME_CONFIG_PATH=%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%"
-if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat" set "CB_CUSTOM_SETTING_SCRIPT=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat"
+if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat" set "CB_CUSTOM_SETTING=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat"
 if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use custom config version %CB_CUSTOM_CONFIG_VERSION%.
-if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" goto :eof
-if not exist "%CB_CUSTOM_CONFIG_PATH%\lastCheck.properties" set "force=true"
+
+set "lastCheckPropertiesFile=%CB_CUSTOM_CONFIG_PATH%\lastCheck.properties"
+for /f "tokens=2 delims==" %%i in ('type "%lastCheckPropertiesFile%"^|findstr /C:lastCheck') do ( set "lastCheckTimestamp=%%i" )
+set lastCheckTimestamp=%lastCheckTimestamp:~0,10%
+set lastCheckTimestamp=%lastCheckTimestamp:-=%
+if [%TS_LOCK_TSP%] equ [%lastCheckTimestamp%]
+
+if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Timestamp %CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp do not exist.
+if [%TS_LOCK_TSP%] neq [%lastCheckTimestamp%] if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Common gradle timestamp is differently [%TS_LOCK_TSP%] [%lastCheckTimestamp%]
+if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if [%TS_LOCK_TSP%] equ [%lastCheckTimestamp%] goto :eof
+
+if not exist "%lastCheckPropertiesFile%" set "force=true"
 
 :: remove lastCheck.properties to force check by common-gradle-build -> TODO: in case common gradle build have access to credential manager this is not anymore necessary
 ::if .%force%==.true del /f /q "%CB_CUSTOM_CONFIG_PATH%\lastCheck.properties" >nul 2>nul
@@ -382,7 +397,7 @@ if %ERRORLEVEL% NEQ 0 (set "errorCode=%ERRORLEVEL%"
 
 if [%CB_CUSTOM_CONFIG_VERSION%] NEQ [] del /f /q "%CB_CUSTOM_CONFIG_PATH%\*.tsp" > nul 2>nul
 echo %CB_CUSTOM_CONFIG_VERSION%> "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp"
-if exist %CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat set "CB_CUSTOM_SETTING_SCRIPT=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat"
+if exist %CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat set "CB_CUSTOM_SETTING=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat"
 set "CB_CUSTOM_RUNTIME_CONFIG_PATH=%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%"
 set "runCustomConfigInstallation="
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use custom config version %CB_CUSTOM_CONFIG_VERSION%.
@@ -708,10 +723,6 @@ if [%CB_INSTALL_SILENT%] equ [false] (if .%CB_INSTALL_VERSION% == . echo %CB_LIN
 	if not .%CB_INSTALL_VERSION% == . echo %CB_LINEHEADER%Install cb version %CB_INSTALL_VERSION%...)
 if [%CB_INSTALL_OVERWRITE_DIST%] equ [true] (call %CB_SCRIPT_PATH%cb-install --force --silent %CB_INSTALL_VERSION%)
 if [%CB_INSTALL_OVERWRITE_DIST%] equ [false] (call %CB_SCRIPT_PATH%cb-install --silent %CB_INSTALL_VERSION%)
-if exist %CB_BIN%\cb-copysymlink.bat if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Copy symbolic link...
-if exist %CB_BIN%\cb-copysymlink.bat call %CB_BIN%\cb-copysymlink.bat --silent %CB_HOME_PREVIOUS%\current %CB_HOME%\current
-if exist %CB_HOME_PREVIOUS%\conf\tool-version-installed.properties if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Copy tool-version-installed.properties...
-if exist %CB_HOME_PREVIOUS%\conf\tool-version-installed.properties copy %CB_HOME_PREVIOUS%\conf\tool-version-installed.properties %CB_TOOL_VERSION_INSTALLED% >nul 2>nul
 
 :: custom setting script
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% download-package-end %CB_INSTALL_PKG% %CB_INSTALL_VERSION% %CB_INSTALL_VERSION_PARAM% 2>nul
@@ -905,7 +916,7 @@ if not .%CB_HOME_PREVIOUS% == .%CB_HOME% endlocal & (
   set "CB_INSTALL_SILENT=%CB_INSTALL_SILENT%"
   set "CB_HOME=%CB_HOME%"
   set "PATH=%PATH%"
-  if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Updated CB_HOME and PATH & echo %CB_LINE%
+  if [%CB_VERBOSE%] equ [true] echo %CB_LINEHEADER%Updated CB_HOME and PATH & echo %CB_LINE%
 )
 
 set CB_LINEHEADER=
