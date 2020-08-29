@@ -700,7 +700,6 @@ if not .%CB_PACKAGE_DOWNLOAD_NAME%==. set "CB_PKG_FILTER=%CB_PACKAGE_DOWNLOAD_NA
 :: custom setting script
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% download-package-end %CB_INSTALL_PKG% %CB_INSTALL_VERSION% 2>nul
 echo %CB_LINE%>> "%CB_LOGFILE%"
-
 goto CHECK_EXTRACT_ARCHIVES 
 
 
@@ -711,6 +710,8 @@ if [%CB_INSTALL_OVERWRITE_DIST%] equ [true] (call %CB_SCRIPT_PATH%cb-install --f
 if [%CB_INSTALL_OVERWRITE_DIST%] equ [false] (call %CB_SCRIPT_PATH%cb-install --silent %CB_INSTALL_VERSION%)
 if exist %CB_BIN%\cb-copysymlink.bat if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Copy symbolic link...
 if exist %CB_BIN%\cb-copysymlink.bat call %CB_BIN%\cb-copysymlink.bat --silent %CB_HOME_PREVIOUS%\current %CB_HOME%\current
+if exist %CB_HOME_PREVIOUS%\conf\tool-version-installed.properties if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Copy tool-version-installed.properties...
+if exist %CB_HOME_PREVIOUS%\conf\tool-version-installed.properties copy %CB_HOME_PREVIOUS%\conf\tool-version-installed.properties %CB_TOOL_VERSION_INSTALLED% >nul 2>nul
 
 :: custom setting script
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% download-package-end %CB_INSTALL_PKG% %CB_INSTALL_VERSION% %CB_INSTALL_VERSION_PARAM% 2>nul

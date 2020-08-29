@@ -29,7 +29,7 @@ set "CB_USER_DRIVE=%CD:~0,2%"
 set "CB_SCRIPT_PATH=%~dp0"
 set "CB_SCRIPT_DRIVE=%~d0"
 set CB_FORCE_INSALL=false
-set "CB_INSTALLER_VERSION=0.8.0"
+set "CB_INSTALLER_VERSION=0.8.1"
 set "CB_RELEASE_URL=https://api.github.com/repos/toolarium/common-build/releases"
 
 title %PN%
@@ -145,41 +145,40 @@ if /I [%CB_DEVTOOLS_DRIVE%] NEQ [%CB_USER_DRIVE%] (%CB_USER_DRIVE%)
 del /f /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\.gitattributes 2>nul
 del /f /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\.gitignore 2>nul
 del /f /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\README.md 2>nul
+call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree --silent "%CB_DEVTOOLS%\%CB_VERSION_NAME%\.github" 2>nul
+call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree --silent "%CB_DEVTOOLS%\%CB_VERSION_NAME%\docs" 2>nul
 call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree --silent "%CB_DEVTOOLS%\%CB_VERSION_NAME%\testdata" 2>nul
-
-:: keep backward compatibility
-if not exist %CB_DEVTOOLS%\%CB_VERSION_NAME%\src goto EXTRACT_CB_END
-mkdir %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin
-copy %CB_DEVTOOLS%\%CB_VERSION_NAME%\src\main\cli\*.bat %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin >nul 2>nul
-call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree --silent "%CB_DEVTOOLS%\%CB_VERSION_NAME%\src"
+call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree --silent "%CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\testing" 2>nul
 :EXTRACT_CB_END
 
 :: read previous version
-set CB_PREVIOUS_VERSION_NAME=
-set previousversion=
-set "TMPFILE=%TEMP%\toolarium-common-version%RANDOM%%RANDOM%.txt"
-call cb --version > "%TMPFILE%" 2>nul
-for %%R in ("%TMPFILE%") do if %%~zR lss 1 del /f /q "%TMPFILE%" 2>nul & goto SET_COMMON_BUILD_IN_PATH_END
-( set /p "ignoreline=" & set "previousversion=" & set /p "previousversion=" ) < "%TMPFILE%"
-del /f /q "%TMPFILE%" 2>nul
-set CB_PREVIOUS_VERSION_NAME=%previousversion%
-:: split by space
-for /f "tokens=4" %%A in ("%CB_PREVIOUS_VERSION_NAME%") do (set CB_PREVIOUS_VERSION_NAME=toolarium-common-build-%%A)
-for /f "tokens=3" %%A in ("%CB_PREVIOUS_VERSION_NAME%") do (set CB_PREVIOUS_VERSION_NAME=toolarium-common-build-%%A)
-:SET_COMMON_BUILD_IN_PATH_END
-
+set "CB_HOME_PREVIOUS="
+set "CB_PREVIOUS_VERSION_NAME="
+if not defined CB_HOME goto READ_PREVIOUS_VERSION_END
+if not exist %CB_HOME% goto READ_PREVIOUS_VERSION_END
+where cb >nul 2>nul
+if %ERRORLEVEL% NEQ 0 goto READ_PREVIOUS_VERSION_END
+set "CB_HOME_PREVIOUS=%CB_HOME%"
+for /f "tokens=4" %%i in ('cb --version 2^>nul^|findstr /C:toolarium 2^>nul') do ( set "CB_PREVIOUS_VERSION_NAME=%%i" )
+if .%CB_PREVIOUS_VERSION_NAME%==. goto READ_PREVIOUS_VERSION_END
+if not .%CB_PREVIOUS_VERSION_NAME%==. if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Found previous version %CB_PREVIOUS_VERSION_NAME%: %CB_HOME_PREVIOUS%
 if [%CB_HOME%] equ [%CB_DEVTOOLS%\%CB_VERSION_NAME%] goto SET_CBHOME_END
+
+:READ_PREVIOUS_VERSION_END
 if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Set CB_HOME to %CB_DEVTOOLS%\%CB_VERSION_NAME%
 set "CB_HOME=%CB_DEVTOOLS%\%CB_VERSION_NAME%"
 setx CB_HOME "%CB_DEVTOOLS%\%CB_VERSION_NAME%" >nul 2>nul
+
+:: take over symbol link and config
+if not defined CB_HOME_PREVIOUS goto SET_CBHOME_END
+if exist %CB_HOME%\bin\cb-copysymlink.bat if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Copy symbolic link...
+if exist %CB_HOME%\bin\cb-copysymlink.bat call %CB_HOME%\bin\cb-copysymlink.bat --silent %CB_HOME_PREVIOUS%\current %CB_HOME%\current
+if exist %CB_HOME_PREVIOUS%\conf\tool-version-installed.properties if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Copy tool-version-installed.properties...
+if exist %CB_HOME_PREVIOUS%\conf\tool-version-installed.properties copy %CB_HOME_PREVIOUS%\conf\tool-version-installed.properties %CB_HOME%\conf\tool-version-installed.properties >nul 2>nul
 :SET_CBHOME_END
 
 :: upate path
-if [%CB_PREVIOUS_VERSION_NAME%] neq [%CB_VERSION_NAME%] goto CB_SET_PATH
-if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Found previous version %CB_PREVIOUS_VERSION_NAME% in PATH
-goto SET_PATH_END
-
-:CB_SET_PATH
+if [%CB_PREVIOUS_VERSION_NAME%] equ [%CB_VERSION_NAME%] goto SET_PATH_END
 :: read user path and cleanup
 set USER_PATH=
 if exist %CB_HOME%\bin\cb-cleanpath.bat call %CB_HOME%\bin\cb-cleanpath.bat --user toolarium 2>nul
