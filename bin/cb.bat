@@ -68,24 +68,42 @@ set CB_SET_DEFAULT=false
 set "CB_CURRENT_PATH=%CB_HOME%\current" 
 if not exist %CB_CURRENT_PATH% (mkdir %CB_CURRENT_PATH% >nul 2>nul)
 
+:: be sure findstr works
+findstr 2>nul
+if %ERRORLEVEL% EQU 9009 (SET "PATH=%PATH%;%SystemRoot%\System32\")
+
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: read version
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 if not exist %CB_SCRIPT_PATH%\..\VERSION set "CB_VERSION=n/a" & goto READ_VERSION_END
-( set "major.number=" & set /p "major.number="
-  set "minor.number=" & set /p "minor.number="
-  set "revision.number=" & set /p "revision.number="
-  set "qualifier=" & set /p "qualifier=" ) < %CB_SCRIPT_PATH%\..\VERSION
-set CB_VERSION=%major.number:~22%.%minor.number:~22%.%revision.number:~22%
+for /f "tokens=2 delims==" %%i in ('type %CB_SCRIPT_PATH%\..\VERSION^|findstr /C:major.number') do ( set "major.number=%%i"  )
+for /f "tokens=2 delims==" %%i in ('type %CB_SCRIPT_PATH%\..\VERSION^|findstr /C:minor.number') do ( set "minor.number=%%i"  )
+for /f "tokens=2 delims==" %%i in ('type %CB_SCRIPT_PATH%\..\VERSION^|findstr /C:revision.number') do ( set "revision.number=%%i"  )
+for /f "tokens=2 delims==" %%i in ('type %CB_SCRIPT_PATH%\..\VERSION^|findstr /C:qualifier') do ( set "qualifier=%%i"  )
+set CB_VERSION=%major.number: =%.%minor.number: =%.%revision.number: =%
 set major.number= & set minor.number= & set revision.number= & set qualifier=
-::if [%qualifier%] equ [] set CB_VERSION=%CB_VERSION%-%qualifier:~22%
-::powershell -Command "$n=(Get-Content VERSION | ConvertFrom-String -Delimiter '=' -PropertyNames k,v); $r=-join($($n[0].v),'.',$($n[1].v),'.',$($n[2].v)); if([string]::IsNullOrEmpty($($n[3].v).Trim())){$r}else{$r=-join($($r),'-',$($n[3].v).Trim());$r}"
 :READ_VERSION_END
 
-:: be sure findstr works
-findstr 2>nul
-if %ERRORLEVEL% EQU 9009 (SET "PATH=%PATH%;%SystemRoot%\System32\")
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: check connection
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+set "CB_OFFLINE="
+ping 8.8.8.8 -n 1 -w 1000 >nul 2>nul
+if errorlevel 1 set "CB_OFFLINE=true"
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: parameters without hooks
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+if .%1==.-h goto HELP
+if .%1==.--help goto HELP
+if .%1==.-v goto VERSION
+if .%1==.--version goto VERSION
+if .%1==.-exp shift & goto PROJECT_EXPLORE
+if .%1==.--explore shift & goto PROJECT_EXPLORE
+if .%1==.--packages shift & goto PACKAGES
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -110,14 +128,6 @@ goto CUSTOM_SETTINGS_INIT_END_CALL
 set "CB_CUSTOM_SETTING_SCRIPT=%CB_CUSTOM_SETTING%"
 if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% start %1 %2 %3 %4 %5 %6 %7 2>nul
 :CUSTOM_SETTINGS_INIT_END_CALL
-
-
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: check connection
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-set "CB_OFFLINE="
-ping 8.8.8.8 -n 1 -w 1000 >nul 2>nul
-if errorlevel 1 set "CB_OFFLINE=true"
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
