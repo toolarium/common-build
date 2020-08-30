@@ -73,30 +73,16 @@ findstr 2>nul
 if %ERRORLEVEL% EQU 9009 (SET "PATH=%PATH%;%SystemRoot%\System32\")
 
 
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: read version
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-if not exist %CB_SCRIPT_PATH%\..\VERSION set "CB_VERSION=n/a" & goto READ_VERSION_END
-for /f "tokens=2 delims==" %%i in ('type %CB_SCRIPT_PATH%\..\VERSION^|findstr /C:major.number') do ( set "major.number=%%i"  )
-for /f "tokens=2 delims==" %%i in ('type %CB_SCRIPT_PATH%\..\VERSION^|findstr /C:minor.number') do ( set "minor.number=%%i"  )
-for /f "tokens=2 delims==" %%i in ('type %CB_SCRIPT_PATH%\..\VERSION^|findstr /C:revision.number') do ( set "revision.number=%%i"  )
-for /f "tokens=2 delims==" %%i in ('type %CB_SCRIPT_PATH%\..\VERSION^|findstr /C:qualifier') do ( set "qualifier=%%i"  )
-set CB_VERSION=%major.number: =%.%minor.number: =%.%revision.number: =%
-set major.number= & set minor.number= & set revision.number= & set qualifier=
-:READ_VERSION_END
+call %CB_SCRIPT_PATH%include\read-version %CB_SCRIPT_PATH%\..\VERSION
+set CB_VERSION=%version.number%
 
-
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: check connection
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 set "CB_OFFLINE="
 ping 8.8.8.8 -n 1 -w 1000 >nul 2>nul
 if errorlevel 1 set "CB_OFFLINE=true"
 
-
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: parameters without hooks
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 if .%1==.-h goto HELP
 if .%1==.--help goto HELP
 if .%1==.-v goto VERSION
@@ -109,9 +95,9 @@ if .%1==.--packages shift & goto PACKAGES
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: custom initialisation
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-if not ".%CB_CUSTOM_CONFIG%"=="." goto CUSTOM_CONFIG_END
+if defined CB_CUSTOM_CONFIG if not ".%CB_CUSTOM_CONFIG%"=="." goto CUSTOM_CONFIG_END
 set "CB_CONFIG_HOME=%USERPROFILE%\.common-build"
-if exist "%CB_CONFIG_HOME%\conf\.cb-custom-config" (set /p CB_CUSTOM_CONFIG=<"%CB_CONFIG_HOME%\conf\.cb-custom-config")
+if exist "%CB_CONFIG_HOME%\conf\.cb-custom-config" set /p CB_CUSTOM_CONFIG=<"%CB_CONFIG_HOME%\conf\.cb-custom-config"
 if ".%CB_CUSTOM_CONFIG%"=="." echo %CB_LINEHEADER%Ignore empty custom config, see %CB_CONFIG_HOME%\conf\.cb-custom-config
 if not ".%CB_CUSTOM_CONFIG%"=="." call :CB_CUSTOM_CONFIG_CHECK
 if %errorCode% NEQ 0 goto END_WITH_ERROR
@@ -126,7 +112,7 @@ echo %CB_LINE%
 goto CUSTOM_SETTINGS_INIT_END_CALL
 :CUSTOM_SETTINGS_INIT_CALL
 set "CB_CUSTOM_SETTING_SCRIPT=%CB_CUSTOM_SETTING%"
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% start %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" start %1 %2 %3 %4 %5 %6 %7 2>nul
 :CUSTOM_SETTINGS_INIT_END_CALL
 
 
@@ -246,10 +232,10 @@ GOTO CHECK_PARAMETER_WIZARD
 
 :START_WIZARD
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Start project wizard.
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% new-project-start %CB_WIZARD_PARAMETERS% 2>nul
-call %CB_SCRIPT_PATH%\include\project-wizard.bat %CB_WIZARD_PARAMETERS%
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" new-project-start %CB_WIZARD_PARAMETERS% 2>nul
+call %CB_SCRIPT_PATH%include\project-wizard.bat %CB_WIZARD_PARAMETERS%
 if not %ERRORLEVEL% equ 0 goto END_WITH_ERROR
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% new-project-end %CB_WIZARD_PARAMETERS% 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" new-project-end %CB_WIZARD_PARAMETERS% 2>nul
 goto END
 
 
@@ -270,7 +256,7 @@ echo %CB_LINE%
 echo toolarium common build %CB_VERSION%
 echo.
 echo %CB_LINEHEADER%Available packages:
-for /f "tokens=1" %%i in ('dir /b %CB_HOME%\bin\packages\') do (echo     -%%i)
+for /f "tokens=1" %%i in ('dir /b %CB_SCRIPT_PATH%packages\') do (echo     -%%i)
 echo %CB_LINE%
 goto END
 
@@ -286,7 +272,7 @@ endlocal & (
 )
 
 if .%1 == .--silent shift & set CB_INSTALL_SILENT=true
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% setenv-start %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" setenv-start %1 %2 %3 %4 %5 %6 %7 2>nul
 
 :SET_GIT
 if not exist %CB_CURRENT_PATH%\git goto :SET_ENV_NODE
@@ -331,7 +317,7 @@ echo %PATH% | findstr /C:"%JAVA_HOME%\bin" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 set "PATH=%JAVA_HOME%\bin;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add java to path (%JAVA_HOME%\bin)
 
 :SET_ENV_END
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% setenv-end %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" setenv-end %1 %2 %3 %4 %5 %6 %7 2>nul
 
 set CB_LINEHEADER=
 set CB_CURRENT_PATH=
@@ -342,23 +328,10 @@ goto END
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CB_CUSTOM_CONFIG_CHECK
-:: runCustomConfigInstallation is kind of lock
 :: CB_CUSTOM_RUNTIME_CONFIG_PATH is the variable where we can refer
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 if ".%CB_CUSTOM_CONFIG%"=="." goto :eof
-set TS_LOCK_TSP=%CB_START_TIMESTAMP:-=%
-set TS_LOCK_TSP=%TS_LOCK_TSP:.=%
-set TS_LOCK_TSP=%TS_LOCK_TSP::=%
-set TS_LOCK_TSP=%TS_LOCK_TSP: =%
-set "TS_LOCK_TSP=1%TS_LOCK_TSP:~6,6%"
-set lockDifference=10
-if defined runCustomConfigInstallation set /a "lockDifference=%TS_LOCK_TSP%-%runCustomConfigInstallation%"
-::echo %lockDifference% %TS_LOCK_TSP% %runCustomConfigInstallation%
-if %lockDifference% LEQ 9 goto :eof
-:: if lock is older than 1 hour we ignore it!
-set runCustomConfigInstallation=%TS_LOCK_TSP%
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Verify custom config [%CB_CUSTOM_CONFIG%].
-for /f "tokens=1-4 delims=. " %%a in ('date /t') do (set DATESTAMP=%%c%%b%%a)
 set force=false
 if not exist "%CB_CONFIG_HOME%" mkdir "%CB_CONFIG_HOME%" & set "force=true"
 
@@ -367,49 +340,48 @@ for /f "tokens=1,2,3,* delims=/" %%i in ("%CB_CUSTOM_CONFIG%") do (set "urlProto
 for /f "tokens=1,* delims=:" %%i in ("%urlHost%") do (set "baseUrlHost=%%i" & set "urlPort=%%j")
 if .%urlPort%==. if .%urlProtocol%==.https set "urlPort=443"
 if .%urlPort%==. if .%urlProtocol%==.http set "urlPort=80"
-::for /f %%i in ('powershell -Command "$env:urlHost -replace ':', '@' -replace '\.', '-' -replace ' ', '_'"') do set "urlHostPathName=%%i"
 set "CB_CUSTOM_CONFIG_PATH=%CB_CONFIG_HOME%\conf\%baseUrlHost%@%urlPort%"
 if not exist "%CB_CUSTOM_CONFIG_PATH%" mkdir "%CB_CUSTOM_CONFIG_PATH%" & set "force=true"
 set "urlProtocol=" & set "urlHost=" & set "urlPath=" & set "urlPort=" & set "baseUrlHost="
 
 :: set the common gradle build home path to checkout to proper destination
 set "COMMON_GRADLE_BUILD_HOME=%CB_CUSTOM_CONFIG_PATH%"
+set "CB_CUSTOM_CONFIG_VERSION="
 
 :: if we have a timestamp wihtin same day then its fine
-if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set "runCustomConfigInstallation="
+call :GET_TIMESTAMP LAST_CHECK_TSP "yyyy-MM-ddTHH\\:mm\\:ss.fff+0000"
+call :GET_TIMESTAMP DATESTAMP "yyyyMMdd"
+set DATESTAMP=%DATESTAMP: =%
 if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set /p CB_CUSTOM_CONFIG_VERSION=<"%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp"
+if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set CB_CUSTOM_CONFIG_VERSION=%CB_CUSTOM_CONFIG_VERSION: =%
 if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set "CB_CUSTOM_RUNTIME_CONFIG_PATH=%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%"
 if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat" set "CB_CUSTOM_SETTING=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat"
 if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use custom config version %CB_CUSTOM_CONFIG_VERSION%.
-
-set "lastCheckPropertiesFile=%CB_CUSTOM_CONFIG_PATH%\lastCheck.properties"
-for /f "tokens=2 delims==" %%i in ('type "%lastCheckPropertiesFile%"^|findstr /C:lastCheck') do ( set "lastCheckTimestamp=%%i" )
-set lastCheckTimestamp=%lastCheckTimestamp:~0,10%
-set lastCheckTimestamp=%lastCheckTimestamp:-=%
-if [%TS_LOCK_TSP%] equ [%lastCheckTimestamp%]
-
 if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Timestamp %CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp do not exist.
-if [%TS_LOCK_TSP%] neq [%lastCheckTimestamp%] if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Common gradle timestamp is differently [%TS_LOCK_TSP%] [%lastCheckTimestamp%]
-if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if [%TS_LOCK_TSP%] equ [%lastCheckTimestamp%] goto :eof
 
-if not exist "%lastCheckPropertiesFile%" set "force=true"
+:: simulate lasCheck.properties
+set "lastCheckPropertiesFile=%CB_CUSTOM_CONFIG_PATH%\lastCheck.properties"
+::if exist %lastCheckPropertiesFile% for /f "tokens=2 delims==" %%i in ('type "%lastCheckPropertiesFile%"^|findstr /C:lastCheck') do ( set "lastCheckTimestamp=%%i" )
+::if exist %lastCheckPropertiesFile% set lastCheckTimestamp=%lastCheckTimestamp:~0,10%
+::if exist %lastCheckPropertiesFile% set lastCheckTimestamp=%lastCheckTimestamp:-=%
+::if [%TS_LOCK_TSP%] neq [%lastCheckTimestamp%] if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Common gradle timestamp is differently [%TS_LOCK_TSP%] [%lastCheckTimestamp%]
+if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if not .%CB_CUSTOM_CONFIG_VERSION%==. echo lastCheck=%LAST_CHECK_TSP%>"%lastCheckPropertiesFile%" & echo version=%CB_CUSTOM_CONFIG_VERSION%>>"%lastCheckPropertiesFile%"
+if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" goto :eof
 
-:: remove lastCheck.properties to force check by common-gradle-build -> TODO: in case common gradle build have access to credential manager this is not anymore necessary
-::if .%force%==.true del /f /q "%CB_CUSTOM_CONFIG_PATH%\lastCheck.properties" >nul 2>nul
-del /f /q "%CB_CUSTOM_CONFIG_PATH%\lastCheck.properties" >nul 2>nul
-
-set "forceCustomConfigInstallation= "
-if .%force%==.true set "forceCustomConfigInstallation=--force"
-call %CB_SCRIPT_PATH%\include\init-home.bat %forceCustomConfigInstallation% "%CB_CUSTOM_CONFIG_PATH%" %CB_CUSTOM_CONFIG%
+call %CB_SCRIPT_PATH%include\update-cb-custom-home.bat "%CB_CUSTOM_CONFIG_PATH%" %CB_CUSTOM_CONFIG%
 if %ERRORLEVEL% NEQ 0 (set "errorCode=%ERRORLEVEL%" 
-	if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Could not update custom config.
+	if .%CB_VERBOSE%==.true echo %CB_LINEHEADER%Could not update custom config.
+	goto :eof)
+if ".%CB_CUSTOM_CONFIG_VERSION%"=="." (set "errorCode=1" 
+	if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Could not get custom config version.
 	goto :eof)
 
-if [%CB_CUSTOM_CONFIG_VERSION%] NEQ [] del /f /q "%CB_CUSTOM_CONFIG_PATH%\*.tsp" > nul 2>nul
+del /f /q "%CB_CUSTOM_CONFIG_PATH%\*.tsp" >nul 2>nul
 echo %CB_CUSTOM_CONFIG_VERSION%> "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp"
-if exist %CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat set "CB_CUSTOM_SETTING=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat"
+echo lastCheck=%LAST_CHECK_TSP%>"%lastCheckPropertiesFile%" 
+echo version=%CB_CUSTOM_CONFIG_VERSION%>>"%lastCheckPropertiesFile%"
 set "CB_CUSTOM_RUNTIME_CONFIG_PATH=%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%"
-set "runCustomConfigInstallation="
+if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat" set "CB_CUSTOM_SETTING=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat"
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use custom config version %CB_CUSTOM_CONFIG_VERSION%.
 goto :eof
 
@@ -478,7 +450,7 @@ WHERE %JAVAC_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find java version in path. & goto END_WITH_ERROR
 
 :: decide which build tool to use
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-start %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" build-start %1 %2 %3 %4 %5 %6 %7 2>nul
 if exist build.gradle goto COMMON_BUILD_GRADLE
 if exist pom.xml goto COMMON_BUILD_MAVEN
 if exist build.xml goto COMMON_BUILD_ANT
@@ -523,7 +495,7 @@ if exist package.json call :PREPARE_COMMON_BUILD_NODE
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Execute gradle [%GRADLE_EXEC%], parameters: [%CB_PARAMETERS%].
 cmd /C call %GRADLE_EXEC% %CB_PARAMETERS%
 if %ERRORLEVEL% NEQ 0 goto END_WITH_ERROR
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END
 
 :: maven
@@ -555,7 +527,7 @@ if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find maven version in path. 
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Execute maven [%MAVEN_EXEC%], parameters: [%CB_PARAMETERS%].
 cmd /C call %MAVEN_EXEC% %CB_PARAMETERS%
 if %ERRORLEVEL% NEQ 0 goto END_WITH_ERROR
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END
 
 :: ant
@@ -585,7 +557,7 @@ if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find ant version in path. & 
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Execute ant [%ANT_EXEC%], parameters: [%CB_PARAMETERS%].
 cmd /C call %ANT_EXEC% %CB_PARAMETERS%
 if %ERRORLEVEL% NEQ 0 goto END_WITH_ERROR
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END
 
 :: node
@@ -609,7 +581,7 @@ call :PREPARE_COMMON_BUILD_NODE
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Execute node [%NODE_EXEC%], parameters: [%CB_PARAMETERS%].
 cmd /C call %NODE_EXEC% %CB_PARAMETERS%
 if %ERRORLEVEL% NEQ 0 goto END_WITH_ERROR
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% build-end %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" build-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto END
 
 
@@ -627,7 +599,7 @@ set "USER_FRIENDLY_TIMESTAMP=%HH%:%Min%:%Sec%"
 set "USER_FRIENDLY_FULLTIMESTAMP=%USER_FRIENDLY_DATESTAMP% %USER_FRIENDLY_TIMESTAMP%"
 
 :: custom setting script
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-start %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" install-start %1 %2 %3 %4 %5 %6 %7 2>nul
 
 if [%CB_VERBOSE%] equ [true] (echo %CB_LINE%
 		echo %CB_LINEHEADER%Start common-build installation on %COMPUTERNAME%, %USER_FRIENDLY_FULLTIMESTAMP%
@@ -684,7 +656,7 @@ if .%1 == .-d shift & set CB_SET_DEFAULT=true
 set CB_INSTALL_VERSION_PARAM=%2
 if .%1 == .--default shift & set CB_SET_DEFAULT=true
 if .%1 == .-d shift & set CB_SET_DEFAULT=true
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% download-package-start %CB_INSTALL_PKG% %CB_INSTALL_VERSION% %CB_INSTALL_VERSION_PARAM% 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" download-package-start %CB_INSTALL_PKG% %CB_INSTALL_VERSION% %CB_INSTALL_VERSION_PARAM% 2>nul
 
 if .%CB_INSTALL_PKG%==.cb goto INSTALL_CB_PACKAGE
 if .%CB_INSTALL_PKG%==.pkg goto INSTALL_PACKAGES
@@ -718,12 +690,12 @@ for /f "tokens=1,2* delims== " %%i in (%CB_TOOL_VERSION_DEFAULT_TMPFILE%) do (if
 if exist %CB_TOOL_VERSION_DEFAULT_TMPFILE% del /f /q "%CB_TOOL_VERSION_DEFAULT_TMPFILE%" >nul 2>nul
 :TOOL_VERSION_DEFAULT_END
 
-call %CB_SCRIPT_PATH%\include\download.bat %CB_INSTALL_PKG% %CB_INSTALL_VERSION% %CB_INSTALL_VERSION_PARAM%
+call %CB_SCRIPT_PATH%include\download.bat %CB_INSTALL_PKG% %CB_INSTALL_VERSION% %CB_INSTALL_VERSION_PARAM%
 if %ERRORLEVEL% NEQ 0 goto INSTALL_CB_END
 if not .%CB_PACKAGE_DOWNLOAD_NAME%==. set "CB_PKG_FILTER=%CB_PACKAGE_DOWNLOAD_NAME%" 
 
 :: custom setting script
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% download-package-end %CB_INSTALL_PKG% %CB_INSTALL_VERSION% 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" download-package-end %CB_INSTALL_PKG% %CB_INSTALL_VERSION% 2>nul
 echo %CB_LINE%>> "%CB_LOGFILE%"
 goto CHECK_EXTRACT_ARCHIVES 
 
@@ -735,7 +707,7 @@ if [%CB_INSTALL_OVERWRITE_DIST%] equ [true] (call %CB_SCRIPT_PATH%cb-install --f
 if [%CB_INSTALL_OVERWRITE_DIST%] equ [false] (call %CB_SCRIPT_PATH%cb-install --silent %CB_INSTALL_VERSION%)
 
 :: custom setting script
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% download-package-end %CB_INSTALL_PKG% %CB_INSTALL_VERSION% %CB_INSTALL_VERSION_PARAM% 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" download-package-end %CB_INSTALL_PKG% %CB_INSTALL_VERSION% %CB_INSTALL_VERSION_PARAM% 2>nul
 echo %CB_LINE%>> "%CB_LOGFILE%"
 goto INSTALL_CB_END
 
@@ -768,14 +740,14 @@ goto INSTALL_CB_END
 
 :INSTALL_PACKAGES_END
 :: custom setting script
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% download-package-end %CB_INSTALL_PKG% %CB_INSTALL_VERSION% 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" download-package-end %CB_INSTALL_PKG% %CB_INSTALL_VERSION% 2>nul
 echo %CB_LINE%>> "%CB_LOGFILE%"
 
 
 :: extract
 :CHECK_EXTRACT_ARCHIVES
 :: custom setting script
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% extract-package-start %CB_INSTALL_PKG% %CB_INSTALL_VERSION% 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" extract-package-start %CB_INSTALL_PKG% %CB_INSTALL_VERSION% 2>nul
 if .%CB_PACKAGE_ALREADY_EXIST%==.true (if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Package %CB_INSTALL_PKG% already exists.
 	goto EXTRACT_ARCHIVES_END)
 
@@ -868,12 +840,12 @@ cmd /c %CB_POST_INSTALL_ACTION%
 
 :EXTRACT_ARCHIVES_POSTACTION_END
 :: custom setting script
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% extract-package-end %CB_INSTALL_PKG% %CB_INSTALL_VERSION% %2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" extract-package-end %CB_INSTALL_PKG% %CB_INSTALL_VERSION% %2>nul
 
 
 :INSTALL_CB_END
 :: custom setting script
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% install-end %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" install-end %1 %2 %3 %4 %5 %6 %7 2>nul
 
 if [%CB_VERBOSE%] equ [true] (echo %CB_LINE%)
 goto END
@@ -892,10 +864,9 @@ goto :eof
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :GET_TIMESTAMP
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-set "CB_TIMESTAMP_FILE=%TEMP%\cb-timestamp-%RANDOM%%RANDOM%.log"
-call powershell get-date -format "{yyyy-MM-dd HH:mm:ss.fff}" > "%CB_TIMESTAMP_FILE%"
-set /p %1=<"%CB_TIMESTAMP_FILE%"
-if exist %CB_TIMESTAMP_FILE% del /f /q "%CB_TIMESTAMP_FILE%"
+set "timestampFormat=yyyy-MM-dd HH:mm:ss.fff"
+if not .%2==. set "timestampFormat=%2"
+for /f "tokens=1-2" %%a in ('powershell get-date -format "{%timestampFormat%}"') do ( set "%1=%%a %%b" )
 goto :eof
 
 
@@ -909,7 +880,7 @@ goto :eof
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :END_WITH_ERROR
-if exist %CB_CUSTOM_SETTING_SCRIPT% call %CB_CUSTOM_SETTING_SCRIPT% error-end %1 %2 %3 %4 %5 %6 %7 2>nul
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" error-end %1 %2 %3 %4 %5 %6 %7 2>nul
 exit /b 1
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 

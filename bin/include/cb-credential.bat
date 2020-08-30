@@ -17,6 +17,7 @@ setlocal EnableDelayedExpansion
 set PN=%~nx0
 set "PRINT_CREDENTIAL=false"
 set "RAW_CREDENTIAL=false"
+set "VERIFY_ONLY="
 if not defined GIT_CLIENT set "GIT_CLIENT=%CB_HOME%\current\git\bin\git"
 %GIT_CLIENT% --version >nul 2>nul
 if %ERRORLEVEL% NEQ 0 set "GIT_CLIENT=git"
@@ -30,6 +31,7 @@ if .%1==.-h goto HELP
 if .%1==.--help goto HELP
 if .%1==.--raw shift & set "RAW_CREDENTIAL=true"
 if .%1==.--print shift & set "PRINT_CREDENTIAL=true"
+if .%1==.--verifyOnly shift & set "VERIFY_ONLY=true"
 if not .%1==. set "CB_PARAMETERS=%~1"
 shift
 goto CHECK_PARAMETER
@@ -51,6 +53,7 @@ echo                       with parameter raw or the BASIC_AUTHENTICATION string
 echo                       In case of not print parameter the environment
 echo                       variable will be set GIT_USERNAME, GIT_PASSWORD or
 echo                       BASIC_AUTHENTICATION
+echo  --verifyOnly         Verifies only the credentials.
 goto END
 
 
@@ -69,7 +72,12 @@ set "tempFile=%TEMP%\cb-%RANDOM%%RANDOM%.dat"
 set "credentialFile=%TEMP%\cb-%RANDOM%%RANDOM%.dat"
 echo protocol=%urlProtocol%>"%tempFile%"
 echo host=%urlHost%>>"%tempFile%"
-type %tempFile% | %GIT_CLIENT% credential-manager get > "%credentialFile%"
+
+if defined VERIFY_ONLY type %tempFile% | %GIT_CLIENT% credential-manager get > nul 2>nul
+if defined VERIFY_ONLY if %ERRORLEVEL% neq 0 goto END_WITH_ERROR
+if defined VERIFY_ONLY goto END
+
+if not defined VERIFY_ONLY type %tempFile% | %GIT_CLIENT% credential-manager get > "%credentialFile%"
 del %tempFile%
 
 set "cbUsername=" & set "cbPassword="
@@ -84,10 +92,10 @@ if .%RAW_CREDENTIAL% == .false (powershell -Command "[Convert]::ToBase64String([
 	set /p BASIC_AUTHENTICATION=<"%credentialFile%")
 
 endlocal & (
-	if .%RAW_CREDENTIAL% == .true if .%PRINT_CREDENTIAL% == .true echo GIT_USERNAME=%cbUsername% & echo GIT_PASSWORD=%cbPassword% & goto END
-	if .%RAW_CREDENTIAL% == .true if .%PRINT_CREDENTIAL% == .false set "GIT_USERNAME=%cbUsername%" & set "GIT_PASSWORD=%cbPassword%" & goto END
-	if .%PRINT_CREDENTIAL% == .true echo %BASIC_AUTHENTICATION% & goto END
-	if .%PRINT_CREDENTIAL% == .false set "BASIC_AUTHENTICATION=%BASIC_AUTHENTICATION%"
+	if not defined VERIFY_ONLY if .%RAW_CREDENTIAL% == .true if .%PRINT_CREDENTIAL% == .true echo GIT_USERNAME=%cbUsername% & echo GIT_PASSWORD=%cbPassword% & goto END
+	if not defined VERIFY_ONLY if .%RAW_CREDENTIAL% == .true if .%PRINT_CREDENTIAL% == .false set "GIT_USERNAME=%cbUsername%" & set "GIT_PASSWORD=%cbPassword%" & goto END
+	if not defined VERIFY_ONLY if .%PRINT_CREDENTIAL% == .true echo %BASIC_AUTHENTICATION% & goto END
+	if not defined VERIFY_ONLY if .%PRINT_CREDENTIAL% == .false set "BASIC_AUTHENTICATION=%BASIC_AUTHENTICATION%"
 	goto END
 )
 

@@ -53,6 +53,7 @@ printUsage() {
 	echo "                      In case of not print parameter the environment"
 	echo "                      variable will be set GIT_USERNAME, GIT_PASSWORD or"
 	echo "                      BASIC_AUTHENTICATION"
+	echo " --verifyOnly         Verifies only the credentials."
 	echo ""
 }
 
@@ -63,6 +64,21 @@ printUsage() {
 trap 'exithandler $?; exit' 0
 trap 'errorhandler $?; exit' 1 2 3 15
 
+CB_OS="$(uname | tr '[:upper:]' '[:lower:]')"
+CB_OS=$(echo "$CB_OS" | awk '{print substr($0, 0, 7)}')
+case $CB_OS in
+	'linux') CB_OS="linux";;
+	'freebsd') CB_OS="freebsd";;
+	'windows') CB_OS="windows";;
+	'mac') CB_OS="mac";;
+	'darwin') CB_OS="mac";;
+	'sunos') CB_OS="solaris";;
+	'cygwin') CB_OS="cygwin";;
+	'cygwin_') CB_OS="cygwin";;
+	'aix') CB_OS="aix";;
+	*) ;;
+esac
+
 GIT_USERNAME=
 GIT_PASSWORD=
 BASIC_AUTHENTICATION=
@@ -72,11 +88,12 @@ RAW_CREDENTIAL=false
 while [ $# -gt 0 ]
 do
     case "$1" in
-		-h)			readVersion; printUsage; exit 0;;
-		--help)		readVersion; printUsage; exit 0;;
-		--raw) 		RAW_CREDENTIAL=true;;
-		--print)	PRINT_CREDENTIAL="true";;
-		*)			CB_PARAMETERS="$CB_PARAMETERS $1";;
+		-h)				readVersion; printUsage; exit 0;;
+		--help)			readVersion; printUsage; exit 0;;
+		--raw) 			RAW_CREDENTIAL=true;;
+		--print)		PRINT_CREDENTIAL="true";;
+		--verifyOnly) 	VERIFY_ONLY="true";;
+		*)				CB_PARAMETERS="$CB_PARAMETERS $1";;
     esac
     shift
 done
@@ -103,24 +120,35 @@ urlHost=$(echo $CB_PARAMETERS | awk -F/ '{print $3}')
 ! [ -n "$urlProtocol" ] && echo ".: ERROR: No protocol found." && endWithError
 ! [ -n "$urlHost" ] && echo ".: ERROR: No host found." && endWithError
 
-credentials=$(printf "protocol=$urlProtocol\nhost=$urlHost\n" | git credential-manager get)
-GIT_USERNAME=$(echo "$credentials" | grep username= | sed 's/.*=//g')
-GIT_PASSWORD=$(echo "$credentials" | grep password=  | sed 's/.*=//g')
-
-if [ "$RAW_CREDENTIAL" = "false" ]; then
-	BASIC_AUTHENTICATION=$(echo "${GIT_USERNAME}:${GIT_PASSWORD}" | base64)
-	
-	if [ "$PRINT_CREDENTIAL" = "true" ]; then
-		echo "$BASIC_AUTHENTICATION" 
+if [ "$VERIFY_ONLY" = "true" ]; then
+	if [ "$CB_OS" = "cygwin" ]; then
+		printf "protocol=$urlProtocol\nhost=$urlHost\n" | git credential-manager get >/dev/null 2>&1
+		[ $? -eq 0 ] && exit 0	
 	else
-		export BASIC_AUTHENTICATION
+		git ls-remote "$CB_PARAMETERS" >/dev/null 2>&1
+		[ $? -eq 0 ] && exit 0
 	fi
+	exit 1
 else
-	if [ "$PRINT_CREDENTIAL" = "true" ]; then
-		echo "GIT_USERNAME=$GIT_USERNAME"
-		echo "GIT_PASSWORD=$GIT_PASSWORD"
+	credentials=$(printf "protocol=$urlProtocol\nhost=$urlHost\n" | git credential-manager get)
+	GIT_USERNAME=$(echo "$credentials" | grep username= | sed 's/.*=//g')
+	GIT_PASSWORD=$(echo "$credentials" | grep password=  | sed 's/.*=//g')
+
+	if [ "$RAW_CREDENTIAL" = "false" ]; then
+		BASIC_AUTHENTICATION=$(echo "${GIT_USERNAME}:${GIT_PASSWORD}" | base64)
+		
+		if [ "$PRINT_CREDENTIAL" = "true" ]; then
+			echo "$BASIC_AUTHENTICATION" 
+		else
+			export BASIC_AUTHENTICATION
+		fi
 	else
-		export GIT_USERNAME GIT_PASSWORD			
+		if [ "$PRINT_CREDENTIAL" = "true" ]; then
+			echo "GIT_USERNAME=$GIT_USERNAME"
+			echo "GIT_PASSWORD=$GIT_PASSWORD"
+		else
+			export GIT_USERNAME GIT_PASSWORD			
+		fi
 	fi
 fi
 
