@@ -48,7 +48,8 @@ if .%CB_VERBOSE%==.true echo %CB_LINEHEADER%Valid access to [%commonGradleBuildH
 
 :: create temp path
 set "UPDATE_CB_CUSTOM_PATH=%CB_CUSTOM_CONFIG_PATH%\unknown"
-call %CB_HOME%\bin\cb-deltree "%UPDATE_CB_CUSTOM_PATH%" --silent >nul 2>nul
+mkdir "%UPDATE_CB_CUSTOM_PATH%" >nul 2>nul
+call %CB_HOME%\bin\cb-deltree --silent "%UPDATE_CB_CUSTOM_PATH%" >nul 2>nul
 mkdir "%UPDATE_CB_CUSTOM_PATH%" >nul 2>nul
 
 if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Check and update custom config from repository [%commonGradleBuildHomeGitUrl%].

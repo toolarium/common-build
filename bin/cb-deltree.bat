@@ -13,6 +13,7 @@
 setlocal EnableDelayedExpansion
 set "CB_SILENT=false"
 if ".%1" ==".--silent" set "CB_SILENT=true" & shift
+if not exist "%1" goto END
 
 set "TMPFILE=%TEMP%\cb-deltree-%RANDOM%%RANDOM%.tmp"
 dir /B /s "%1" > "%TMPFILE%" 2>nul
