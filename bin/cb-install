@@ -425,6 +425,7 @@ if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/.gitattributes" >/dev/null 2>&1
 	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/.gitignore" >/dev/null 2>&1
 	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/README.md" >/dev/null 2>&1
+	rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME/.git" >/dev/null 2>&1
 	rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME/.github" >/dev/null 2>&1
 	rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME/docs" >/dev/null 2>&1
 	rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME/testdata" >/dev/null 2>&1
