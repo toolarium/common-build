@@ -662,6 +662,8 @@ if .%CB_INSTALL_PKG%==.pkg goto INSTALL_PACKAGES
 if not .%CB_INSTALL_VERSION%==. goto TOOL_VERSION_DEFAULT_END
 
 :TOOL_VERSION_DEFAULT_START
+if not ".%CB_CUSTOM_RUNTIME_CONFIG_PATH%"=="." if exist %CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\tool-version-default.properties set "CB_TOOL_VERSION_DEFAULT=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\tool-version-default.properties"
+if not ".%CB_CUSTOM_RUNTIME_CONFIG_PATH%"=="." if exist %CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\tool-version-default.properties goto READ_TOOL_VERSION_DEFAULT
 if .%CB_OFFLINE% == .true goto READ_TOOL_VERSION_DEFAULT
 :: read ones a day the newest tool version
 for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value') do set "dt=%%a"
@@ -684,6 +686,7 @@ goto TOOL_VERSION_DEFAULT_START
 dir %CB_TOOL_VERSION_DEFAULT% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 goto TOOL_VERSION_DEFAULT_END
 set "CB_TOOL_VERSION_DEFAULT_TMPFILE=%TEMP%\cb-tool-version-default-%RANDOM%%RANDOM%.tmp"
+if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use [%CB_TOOL_VERSION_DEFAULT%].
 type %CB_TOOL_VERSION_DEFAULT% 2>nul | findstr /C:= > %CB_TOOL_VERSION_DEFAULT_TMPFILE% 2>nul
 for /f "tokens=1,2* delims== " %%i in (%CB_TOOL_VERSION_DEFAULT_TMPFILE%) do (if .%%i == .%CB_INSTALL_PKG% set "CB_INSTALL_VERSION=%%j" & set "CB_INSTALL_VERSION_PARAM=%%k")
 if exist %CB_TOOL_VERSION_DEFAULT_TMPFILE% del /f /q "%CB_TOOL_VERSION_DEFAULT_TMPFILE%" >nul 2>nul

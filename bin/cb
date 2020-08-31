@@ -1037,7 +1037,10 @@ installCb() {
 			echo "$CB_LINE" >> "$CB_LOGFILE"
 		fi
 	else
-		if [ "$CB_OFFLINE" = "false" ]; then
+
+		if [ -n "$CB_CUSTOM_RUNTIME_CONFIG_PATH" ] && [ -r "$CB_CUSTOM_RUNTIME_CONFIG_PATH/conf/tool-version-default.properties" ]; then
+			CB_TOOL_VERSION_DEFAULT="$CB_CUSTOM_RUNTIME_CONFIG_PATH/conf/tool-version-default.properties"
+		elif [ "$CB_OFFLINE" = "false" ]; then
 			# read ones a day the newest tool version
 			DATETIMESTAMP=$(date '+%Y%m%d')
 			lastCheck="" && CB_TOOL_VERSION_DEFAULT_CHECK="${CB_TOOL_VERSION_DEFAULT}.lastCheck"
@@ -1056,6 +1059,7 @@ installCb() {
 		fi
 
 		if [ -z "$CB_INSTALL_VERSION" ] && [ -r "$CB_TOOL_VERSION_DEFAULT" ]; then
+			[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Use [%CB_TOOL_VERSION_DEFAULT%]."
 			CB_TOOL_VERSION_DEFAULT_TMPFILE=$(mktemp /tmp/cb-tool-version-default.XXXXXXXXX)
 			cat $CB_TOOL_VERSION_DEFAULT 2>/dev/null | grep -v "#" | grep "=" > $CB_TOOL_VERSION_DEFAULT_TMPFILE 2>/dev/null
 			while IFS= read -r line; do
