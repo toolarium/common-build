@@ -18,4 +18,4 @@ set "CB_PACKAGE_DOWNLOAD_NAME=MultiCommander_x%CB_PROCESSOR_ARCHITECTURE_NUMBER%
 ::set "CB_PACKAGE_VERSION_NAME=multicommander-%CB_PACKAGE_VERSION%"
 set "CB_PACKAGE_DEST_VERSION_NAME=multicommander-%CB_PACKAGE_VERSION%"
 ::set "CB_PACKAGE_NO_DEFAULT=true"
-set "CB_POST_INSTALL_ACTION=%CB_HOME%\bin\cb-shortcut.bat --command %CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\MultiCommander.exe --icon %CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\MultiCommander.exe %USERPROFILE%\desktop\MultiCommander.lnk"
+set "CB_POST_INSTALL_ACTION=%CB_HOME%\bin\cb-shortcut.bat --command %CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\MultiCommander.exe --icon %CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\MultiCommander.exe "%USERPROFILE%\desktop\MultiCommander.lnk""

@@ -32,4 +32,4 @@ echo call "%CB_DEVTOOLS%\%CB_PACKAGE_VERSION_NAME%\bin\jmeter.bat">> "%jmeterBin
 
 :: create proper shortcut
 set "ICON_PATH=%CB_BIN%\packages\jmeter\jmeter.ico"
-set "CB_POST_INSTALL_ACTION=%CB_HOME%\bin\cb-shortcut.bat --command %CB_DEVTOOLS%\%CB_PACKAGE_VERSION_NAME%\bin\jmeterCB.bat --icon %ICON_PATH% %USERPROFILE%\desktop\JMeter.lnk"
+set "CB_POST_INSTALL_ACTION=%CB_HOME%\bin\cb-shortcut.bat --command %CB_DEVTOOLS%\%CB_PACKAGE_VERSION_NAME%\bin\jmeterCB.bat --icon %ICON_PATH% "%USERPROFILE%\desktop\JMeter.lnk""

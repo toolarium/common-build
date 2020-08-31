@@ -47,7 +47,7 @@ goto CHECK_PARAMETER
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 set "ARGUMENTS=/c %APPLICATION%"
 set "APPLICATION=cmd" 
-if .%SHORTCUT%==. for %%A in ("%COMMAND%") do (set SHORTCUT=%%~nA.lnk)
+if ".%SHORTCUT%"=="." for %%A in ("%COMMAND%") do (set "SHORTCUT=%%~nA.lnk")
 ::    echo full path: %%~fA
 ::    echo drive: %%~dA
 ::    echo path: %%~pA
@@ -91,22 +91,22 @@ goto :eof
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :PREPARE_SHORTCUT
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-if .%COMMAND%==. if .%SHORTCUT%==. echo .: ERROR: to less information & goto HELP
+if ".%COMMAND%"=="." if ".%SHORTCUT%"=="." echo .: ERROR: to less information & goto HELP
 
 :: in case we have no command then we use th shortcut as command
-if .%COMMAND%==. if not .%SHORTCUT%==. set "COMMAND=%SHORTCUT%" & set SHORTCUT=
+if ".%COMMAND%"=="." if not ".%SHORTCUT%"=="." set "COMMAND=%SHORTCUT%" & set SHORTCUT=
 
 :: split into APPLICATION and ARGUMENTS
-if .%ARGUMENTS%==. for /f "tokens=1* delims= " %%i in ("%COMMAND%") do (set "APPLICATION=%%i" & set "ARGUMENTS=%%j")
-if .%ARGUMENTS%==. set "APPLICATION=%COMMAND%"
+if ".%ARGUMENTS%"=="." for /f "tokens=1* delims= " %%i in ("%COMMAND%") do (set "APPLICATION=%%i" & set "ARGUMENTS=%%j")
+if ".%ARGUMENTS%"=="." set "APPLICATION=%COMMAND%"
 
 :: batch is differently
-if /i [%COMMAND:~-4%]==[.bat] call :PREPARE_BATCH
+if /i ["%COMMAND:~-4%"]==[".bat"] call :PREPARE_BATCH
 
 :PREPARE_SHORTCUT_END
 :: be sure we have shortcut and icon location
-if .%SHORTCUT%==. set "SHORTCUT=%APPLICATION:~-4%.lnk"
-if .%ICON_LOCATION%==. set "ICON_LOCATION=%APPLICATION%
+if ".%SHORTCUT%"=="." set "SHORTCUT=%APPLICATION:~-4%.lnk"
+if ".%ICON_LOCATION%"=="." set "ICON_LOCATION=%APPLICATION%
 
 if .%VERBOSE%==.true (echo .: Create shortcut:
 	echo      -SHORTCUT      [%SHORTCUT%]

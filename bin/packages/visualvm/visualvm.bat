@@ -31,4 +31,4 @@ echo start "Visual VM" /B "%CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\visualvm
 
 :: create proper shortcut
 set ICON_PATH=%CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\visualvm_%CB_VISUALVM_PACKAGEVERSION%\bin\visualvm.exe
-set "CB_POST_INSTALL_ACTION=%CB_HOME%\bin\cb-shortcut.bat --command %CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\bin\visualvm.bat --icon %ICON_PATH% %USERPROFILE%\desktop\VisualVM.lnk"
+set "CB_POST_INSTALL_ACTION=%CB_HOME%\bin\cb-shortcut.bat --command %CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\bin\visualvm.bat --icon %ICON_PATH% "%USERPROFILE%\desktop\VisualVM.lnk""

@@ -11,14 +11,14 @@
 
 
 setlocal EnableDelayedExpansion
-set "LOCKFILE=%CB_CUSTOM_CONFIG_PATH%\.lock"
 if not defined CB_LINEHEADER set "CB_LINEHEADER=.: "
 if not defined CB_VERBOSE set CB_VERBOSE=true
 if not defined CB_INSTALL_SILENT set CB_INSTALL_SILENT=false
 if .%1==. echo %CB_LINEHEADER%ERROR: No path defined where to init or update. & goto END_WITH_ERROR
 if .%2==. echo %CB_LINEHEADER%ERROR: No url defined to init or update. & goto END_WITH_ERROR
-set "CB_CUSTOM_CONFIG_PATH=%1"
+set "CB_CUSTOM_CONFIG_PATH=%~1"
 set "commonGradleBuildHomeGitUrl=%2"
+set "LOCKFILE=%CB_CUSTOM_CONFIG_PATH%\.lock"
 
 if .%CB_VERBOSE%==.true echo %CB_LINEHEADER%Check [%commonGradleBuildHomeGitUrl%] for updates.
 call %CB_HOME%\bin\include\lock-unlock "%LOCKFILE%" 60 
@@ -49,12 +49,15 @@ if .%CB_VERBOSE%==.true echo %CB_LINEHEADER%Valid access to [%commonGradleBuildH
 :: create temp path
 set "UPDATE_CB_CUSTOM_PATH=%CB_CUSTOM_CONFIG_PATH%\unknown"
 mkdir "%UPDATE_CB_CUSTOM_PATH%" >nul 2>nul
-call %CB_HOME%\bin\cb-deltree --silent "%UPDATE_CB_CUSTOM_PATH%" >nul 2>nul
+
+call %CB_HOME%\bin\cb-deltree --silent "%UPDATE_CB_CUSTOM_PATH%" 
 mkdir "%UPDATE_CB_CUSTOM_PATH%" >nul 2>nul
 
 if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Check and update custom config from repository [%commonGradleBuildHomeGitUrl%].
+::%GIT_CLIENT% clone -q %commonGradleBuildHomeGitUrl% "%UPDATE_CB_CUSTOM_PATH%"
 %GIT_CLIENT% clone -q %commonGradleBuildHomeGitUrl% "%UPDATE_CB_CUSTOM_PATH%"
 if %ERRORLEVEL% EQU 0 set "commonGradleBuildHomeUpdated=true" 
+
 if .%commonGradleBuildHomeUpdated%==.false call %CB_HOME%\bin\cb-deltree --silent "%UPDATE_CB_CUSTOM_PATH%"
 if .%commonGradleBuildHomeUpdated%==.false goto UPDATE_ERROR
 
@@ -64,9 +67,9 @@ set "CB_CUSTOM_CONFIG_VERSION=%version.number%"
 
 ::if defined qualifier 
 set major.number= & set minor.number= & set revision.number= & set qualifier= & set version.number=
-if exist %CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION% call %CB_HOME%\bin\cb-deltree --silent "%UPDATE_CB_CUSTOM_PATH%"
-if exist %CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION% if .%CB_VERBOSE%==.true echo %CB_LINEHEADER%Newest version %CB_CUSTOM_CONFIG_VERSION% is already available.
-if exist %CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION% goto END
+if exist "%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%" call %CB_HOME%\bin\cb-deltree --silent "%UPDATE_CB_CUSTOM_PATH%"
+if exist "%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%" if .%CB_VERBOSE%==.true echo %CB_LINEHEADER%Newest version %CB_CUSTOM_CONFIG_VERSION% is already available.
+if exist "%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%" goto END
 
 :: use newer version
 call %CB_HOME%\bin\cb-deltree --silent "%UPDATE_CB_CUSTOM_PATH%\gradle\wrapper"

@@ -103,4 +103,4 @@ echo start "Eclipse" /B "%CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\eclipse\ec
 
 :: create proper shortcut
 set "ICON_PATH=%CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\eclipse\eclipse.exe"
-set "CB_POST_INSTALL_ACTION=%CB_HOME%\bin\cb-shortcut.bat --command %CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\bin\eclipse.bat --icon %ICON_PATH% %USERPROFILE%\desktop\Eclipse.lnk"
+set "CB_POST_INSTALL_ACTION=%CB_HOME%\bin\cb-shortcut.bat --command %CB_DEVTOOLS%\%CB_PACKAGE_DEST_VERSION_NAME%\bin\eclipse.bat --icon %ICON_PATH% "%USERPROFILE%\desktop\Eclipse.lnk""

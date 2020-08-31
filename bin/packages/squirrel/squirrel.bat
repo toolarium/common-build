@@ -29,4 +29,4 @@ echo start "SQuirreL SQL Client" /B "javaw" -Dsun.awt.nopixfmt=true -Dsun.java2d
 
 :: create proper shortcut
 set "ICON_PATH=%CB_DEVTOOLS%\%CB_PACKAGE_VERSION_NAME%\icons\acorn.ico"
-set "CB_POST_INSTALL_ACTION=%CB_HOME%\bin\cb-shortcut.bat --command %CB_DEVTOOLS%\%CB_PACKAGE_VERSION_NAME%\squirrel.bat --icon %ICON_PATH% %USERPROFILE%\desktop\SQuirreL.lnk"
+set "CB_POST_INSTALL_ACTION=%CB_HOME%\bin\cb-shortcut.bat --command %CB_DEVTOOLS%\%CB_PACKAGE_VERSION_NAME%\squirrel.bat --icon %ICON_PATH% "%USERPROFILE%\desktop\SQuirreL.lnk""
