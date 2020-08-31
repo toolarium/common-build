@@ -172,17 +172,9 @@ CB_CURRENT_PATH=$CB_HOME/current
 # read the common build version number
 #########################################################################
 readVersion() {
-	if [ -r "$CB_SCRIPT_PATH/../VERSION" ]; then
-		majorNumber=$(cat "$CB_SCRIPT_PATH/../VERSION" | tr -d '\r' | grep major.number | awk '{print $3}')
-		minorNumber=$(cat "$CB_SCRIPT_PATH/../VERSION" | tr -d '\r' | grep minor.number | awk '{print $3}')
-		revisionNumber=$(cat "$CB_SCRIPT_PATH/../VERSION" | tr -d '\r' | grep revision.number | awk '{print $3}')
-		qualifier=$(cat "$CB_SCRIPT_PATH/../VERSION" | tr -d '\r' | grep qualifier | awk '{print $3}')
-
-		CB_VERSION=$majorNumber.$minorNumber.$revisionNumber
-		[ -n "$qualifier" ] && CB_VERSION=$CB_VERSION-$qualifier
-
-        export CB_VERSION
-	fi
+	eval ". $CB_SCRIPT_PATH/include/read-version.sh $CB_SCRIPT_PATH/../VERSION false"
+	CB_VERSION="$versionNumber"
+	export CB_VERSION
 }
 
 
@@ -362,9 +354,11 @@ printVersion() {
 	echo "toolarium common build $CB_VERSION"
 	echo ""
 	echo "${CB_LINEHEADER}Installed tool versions:"	
-	while IFS= read -r line; do 
-		echo "    -${line%=*}: ${line#*=}"	
-	done < $CB_TOOL_VERSION_INSTALLED
+	if [ -r "$CB_TOOL_VERSION_INSTALLED" ]; then
+		while IFS= read -r line; do 
+			echo "    -${line%=*}: ${line#*=}"	
+		done < $CB_TOOL_VERSION_INSTALLED
+	fi
 	echo ""
 	echo "$CB_LINE"
 }
@@ -430,7 +424,6 @@ exploreProject()
 # printPackages
 #########################################################################
 printPackages() {
-	readVersion
 	echo "$CB_LINE"
 	echo "toolarium common build $CB_VERSION"
 	echo ""
@@ -1081,11 +1074,6 @@ installCb() {
 
 			[ "$CB_INSTALL_OVERWRITE_DIST" = "true" ] && eval "${CB_SCRIPT_PATH}/cb-install --force --silent $CB_INSTALL_VERSION"
 			[ "$CB_INSTALL_OVERWRITE_DIST" = "false" ] && eval "${CB_SCRIPT_PATH}/cb-install --silent $CB_INSTALL_VERSION"
-
-			if [ -d "$CB_HOME_PREVIOUS/current" ]; then
-				[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Copy symbolic link..."
-				( cd $CB_HOME_PREVIOUS/current ; tar cf - . ) | ( cd $CB_HOME/current ; tar xf - )
-			fi
 		else
 			downloadPackage "$CB_INSTALL_PKG" "$CB_INSTALL_VERSION" "$CB_INSTALL_VERSION_PARAM"
 			[ -n "$CB_PACKAGE_DOWNLOAD_NAME" ] && CB_PKG_FILTER=$CB_PACKAGE_DOWNLOAD_NAME
@@ -1224,13 +1212,23 @@ installCb() {
 	# custom setting script
 	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT install-end $*" 2>/dev/null
 
-	[ "$CB_INSTALL_SILENT" = "false" ] && echo "$CB_LINE"
+	[ "$CB_VERBOSE" = "true" ] && echo "$CB_LINE"
 }
 
 
 #########################################################################
 # main
 #########################################################################
+if [ $# -gt 0 ]; then
+	[ "$1" = "-h" ] && readVersion && printUsage && exit 0
+	[ "$1" = "--help" ] && readVersion && printUsage && exit 0
+	[ "$1" = "-v" ] && readVersion && printVersion && exit 0
+	[ "$1" = "--version" ] && readVersion && printVersion && exit 0
+	[ "$1" = "-exp" ] && shift && exploreProject $1 && exit 0
+	[ "$1" = "--explore" ] && shift && exploreProject $1 && exit 0
+	[ "$1" = "--packages" ] && shift && readVersion && printPackages $1 && exit 0
+fi
+
 executeCustomSettings
 if ! executeCustomConfig; then
 	endWithError
