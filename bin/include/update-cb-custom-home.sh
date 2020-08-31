@@ -94,11 +94,13 @@ commonGradleBuildHomeUpdated=false
 
 # create temp path
 UPDATE_CB_CUSTOM_PATH="$CB_CUSTOM_CONFIG_PATH/unknown"
+mkdir -p "$CB_CUSTOM_CONFIG_PATH" >/dev/null 2>&1
 rm -rf "$UPDATE_CB_CUSTOM_PATH" >/dev/null 2>&1
-mkdir -p "$UPDATE_CB_CUSTOM_PATH" >/dev/null 2>&1
 
 [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Check and update custom config from repository [$commonGradleBuildHomeGitUrl]."
-if git clone -q "$commonGradleBuildHomeGitUrl" "$UPDATE_CB_CUSTOM_PATH"; then
+GIT_CB_CUSTOM_PATH=$UPDATE_CB_CUSTOM_PATH
+[ "$CB_OS" = "cygwin" ] && GIT_CB_CUSTOM_PATH=$(cygpath.exe -w $GIT_CB_CUSTOM_PATH)
+if git clone -q "$commonGradleBuildHomeGitUrl" "$GIT_CB_CUSTOM_PATH"; then
 	commonGradleBuildHomeUpdated=true
 else
 	updateError

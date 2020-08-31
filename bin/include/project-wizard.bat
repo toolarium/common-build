@@ -18,30 +18,28 @@ set CB_PROJECT_CONFIGFILE=
 set CB_PRODUCT_CONFIGFILE=
 set CB_PRODUCT_CONFIGFILE_TMPFILE=
 
-if not .%CB_CUSTOM_RUNTIME_CONFIG_PATH%==. if exist %CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\project-types.properties set "CB_PROJECT_CONFIGFILE=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\project-types.properties"
-if not .%CB_CUSTOM_RUNTIME_CONFIG_PATH%==. if exist %CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\product-types.properties set "CB_PRODUCT_CONFIGFILE=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\product-types.properties"
-if not .%CB_PROJECT_CONFIGFILE%==. goto VERIFY_PROJECT_CONFIGFILE_END
+if not ".%CB_CUSTOM_RUNTIME_CONFIG_PATH%"=="." if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\project-types.properties" set "CB_PROJECT_CONFIGFILE=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\project-types.properties"
+if not ".%CB_CUSTOM_RUNTIME_CONFIG_PATH%"=="." if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\product-types.properties" set "CB_PRODUCT_CONFIGFILE=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\product-types.properties"
 
 :: default
-set "CB_PROJECT_CONFIGFILE=%CB_SCRIPT_PATH%\..\conf\project-types.properties"
-if exist %CB_SCRIPT_PATH%\..\conf\product-types.properties set "CB_PRODUCT_CONFIGFILE=%CB_SCRIPT_PATH%\..\conf\product-types.properties"
+if ".%CB_PROJECT_CONFIGFILE%"=="." set "CB_PROJECT_CONFIGFILE=%CB_SCRIPT_PATH%\..\conf\project-types.properties"
+if ".%CB_PRODUCT_CONFIGFILE%"=="." if exist %CB_SCRIPT_PATH%\..\conf\product-types.properties set "CB_PRODUCT_CONFIGFILE=%CB_SCRIPT_PATH%\..\conf\product-types.properties"
 
 :: if we have a local common gradle build use the project types file
-if not .%COMMON_GRADLE_BUILD_URL% == . goto VERIFY_COMMON_GRADLE_BUILD
-dir %USERPROFILE%\.gradle\common-gradle-build >nul 2>nul
+if not .%CB_CUSTOM_RUNTIME_CONFIG_PATH%==. goto VERIFY_PROJECT_CONFIGFILE_END
+dir "%USERPROFILE%\.gradle\common-gradle-build" >nul 2>nul
 if not %ERRORLEVEL% EQU 0 goto VERIFY_PROJECT_CONFIGFILE_END
 set "TMPFILE=%TEMP%\cb-new-project-%RANDOM%%RANDOM%.tmp"
-dir /o-D/b %USERPROFILE%\.gradle\common-gradle-build\???.???.??? | findstr /C:^. 2>nul | findstr/n ^^ | findstr 1:> "%TMPFILE%"
+dir /o-D/b "%USERPROFILE%\.gradle\common-gradle-build\???.???.???" | findstr /C:^. 2>nul | findstr/n ^^ | findstr 1:> "%TMPFILE%"
 for %%R in ("%TMPFILE%") do if not %%~zR lss 1 set /pcommonGradleBuildVersion=<"%TMPFILE%"
 del /f /q "%TMPFILE%" 2>nul
 set "commonGradleBuildVersion=%commonGradleBuildVersion:~2%"
-if not .%commonGradleBuildVersion% == . set "COMMON_GRADLE_BUILD_URL=%USERPROFILE%\.gradle\common-gradle-build\%commonGradleBuildVersion%\gradle"
-:VERIFY_COMMON_GRADLE_BUILD
-if exist %COMMON_GRADLE_BUILD_URL%\conf\project-types.properties set CB_PROJECT_CONFIGFILE=%COMMON_GRADLE_BUILD_URL%\conf\project-types.properties
-if exist %COMMON_GRADLE_BUILD_URL%\conf\product-types.properties set CB_PRODUCT_CONFIGFILE=%COMMON_GRADLE_BUILD_URL%\conf\product-types.properties
-:VERIFY_PROJECT_CONFIGFILE_END
+if not .%commonGradleBuildVersion%==. set "LOCAL_CB_CUSTOM_RUNTIME_CONFIG_PATH=%USERPROFILE%\.gradle\common-gradle-build\%commonGradleBuildVersion%\gradle"
+if not ".%LOCAL_CB_CUSTOM_RUNTIME_CONFIG_PATH%"=="." if exist "%LOCAL_CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\project-types.properties" set "CB_PROJECT_CONFIGFILE=%LOCAL_CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\project-types.properties"
+if not ".%LOCAL_CB_CUSTOM_RUNTIME_CONFIG_PATH%"=="." if exist "%LOCAL_CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\product-types.properties" set "CB_PRODUCT_CONFIGFILE=%LOCAL_CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\product-types.properties"
 
-if not exist %CB_PROJECT_CONFIGFILE% (echo %CB_LINE% & echo %CB_LINEHEADER%Missing project types configuration file %CB_PROJECT_CONFIGFILE%, please install with the cb-install.bat. & echo %CB_LINE% & goto PROJECT_WIZARD_ERROR_END)
+:VERIFY_PROJECT_CONFIGFILE_END
+if not exist "%CB_PROJECT_CONFIGFILE%" (echo %CB_LINE% & echo %CB_LINEHEADER%Missing project types configuration file %CB_PROJECT_CONFIGFILE%, please install with the cb-install.bat. & echo %CB_LINE% & goto PROJECT_WIZARD_ERROR_END)
 set "CB_PROJECT_CONFIGFILE_TMPFILE=%TEMP%\cb-project-types-%RANDOM%%RANDOM%.tmp"
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use project types file: %CB_PROJECT_CONFIGFILE%
 type %CB_PROJECT_CONFIGFILE% 2>nul | findstr /V "#" | findstr /C:= > %CB_PROJECT_CONFIGFILE_TMPFILE% 2>nul

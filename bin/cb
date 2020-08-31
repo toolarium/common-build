@@ -66,8 +66,10 @@ setTitle() {
 
 setTitle "CB | ${PWD##*/} - $(echo $CB_START_TIMESTAMP | cut -b1-11)"
 
+CB_VERBOSE=false
 [ $# -gt 0 ] && [ "$1" = "--verbose" ] && shift && CB_VERBOSE="true"
 [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Started $CB_START_TIMESTAMP."
+export CB_VERBOSE
 errorCode=0
 
 OS_HOME="$HOME"
@@ -202,43 +204,43 @@ executeCustomSettings() {
 
 #########################################################################
 # Execute custom configuration
-# -runCustomConfigInstallation is kind of lock
 # -CB_CUSTOM_RUNTIME_CONFIG_PATH is the variable where we can refer
 #########################################################################
 executeCustomConfig() {
 	CB_CONFIG_HOME="$OS_HOME/.common-build"
 	[ -r "$CB_CONFIG_HOME/conf/.cb-custom-config" ] && CB_CUSTOM_CONFIG=$(cat $CB_CONFIG_HOME/conf/.cb-custom-config | tr -d '\r')
-	! [ -n "$CB_CUSTOM_CONFIG" ] && return
-	[ -n "$runCustomConfigInstallation" ] && return
+	[ -z "$CB_CUSTOM_CONFIG" ] && return
+	! [ -n "$CB_CUSTOM_CONFIG" ] && echo "${CB_LINEHEADER}Ignore empty custom config, see $CB_CONFIG_HOME/conf/.cb-custom-config" && return
 	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Verify custom config [$CB_CUSTOM_CONFIG]."
-
-	DATESTAMP=$(date '+%Y%m%d')
-	runCustomConfigInstallation=false
-	! [ -d "$CB_CONFIG_HOME" ] && mkdir "$CB_CONFIG_HOME" && runCustomConfigInstallation=true
+	! [ -d "$CB_CONFIG_HOME" ] && mkdir "$CB_CONFIG_HOME"
 
 	# prepare home directory name from domain name
 	urlHost=$(echo $CB_CUSTOM_CONFIG | awk -F/ '{print $3}')
 	baseUrlHost=$(echo ${urlHost%:*})
 	urlPort=$(echo ${urlHost#*:})
-	CB_CUSTOM_CONFIG_PATH="$CB_CONFIG_HOME/conf/$baseUrlHost@$urlPort"					
-	! [ -d "$CB_CUSTOM_CONFIG_PATH" ] && mkdir -p $CB_CUSTOM_CONFIG_PATH && runCustomConfigInstallation=true
+	[ -z "$urlPort" ] && [ "$urlProtocol" = "https" ] && urlPort=443
+	[ -z "$urlPort" ] && [ "$urlProtocol" = "http" ] && urlPort=80
 	
+	CB_CUSTOM_CONFIG_PATH="$CB_CONFIG_HOME/conf/$baseUrlHost@$urlPort"					
+	! [ -d "$CB_CUSTOM_CONFIG_PATH" ] && mkdir -p $CB_CUSTOM_CONFIG_PATH
+		
 	# set the common gradle build home path to checkout to proper destination
 	COMMON_GRADLE_BUILD_HOME="$CB_CUSTOM_CONFIG_PATH"
 	# workaround for cygwin and an issue with git client in gradle --> common-gradle-build
 	[ "$CB_OS" = "cygwin" ] && COMMON_GRADLE_BUILD_HOME=$(cygpath -w "$COMMON_GRADLE_BUILD_HOME" 2>/dev/null)
 	export COMMON_GRADLE_BUILD_HOME
 	CB_CUSTOM_CONFIG_VERSION=""
+		
+	# if we have a timestamp wihtin same day then its fine
+	LAST_CHECK_TSP=$(date '+%Y-%m-%dT%H\:%M\:%S.000+0000')
+	DATESTAMP=$(date '+%Y%m%d')
 	
 	if [ -r "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp" ]; then
 		# if we have a timestamp wihtin same day then its fine
-		runCustomConfigInstallation=
 		CB_CUSTOM_CONFIG_VERSION=$(cat "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp")
 		CB_CUSTOM_CONFIG_VERSION=$(echo ${CB_CUSTOM_CONFIG_VERSION% *} | awk '{print $1}')
-		CB_CUSTOM_RUNTIME_CONFIG_PATH="$CB_CUSTOM_CONFIG_PATH/$CB_CUSTOM_CONFIG_VERSION" && export CB_CUSTOM_RUNTIME_CONFIG_PATH						
-		[ -x "$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.bat" ] && CB_CUSTOM_SETTING_SCRIPT="$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.bat" && export CB_CUSTOM_SETTING_SCRIPT
-		[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Use custom config version $CB_CUSTOM_CONFIG_VERSION."
 	else					
+		[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Timestamp $CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp do not exist."
 		if ! [ -n "$(existBinary git)" ]; then
 			echo "$CB_LINE"
 			echo "${CB_LINEHEADER}Missing package git, please install it before you continue."
@@ -246,28 +248,31 @@ executeCustomConfig() {
 			endWithError
 		fi
 	
-		# remove lastCheck.properties to force check by common-gradle-build
-		! [ -r "${CB_CUSTOM_CONFIG_PATH}/lastCheck.properties" ] && runCustomConfigInstallation=true
-		rm -f "${CB_CUSTOM_CONFIG_PATH}/lastCheck.properties" >/dev/null 2>&1
-
-		forceCustomConfigInstallation=""
-		[ "$runCustomConfigInstallation" = "true" ] && forceCustomConfigInstallation="--force"
-		export runCustomConfigInstallation
-		
-		if ! eval ". $CB_SCRIPT_PATH/include/init-home.sh $forceCustomConfigInstallation $CB_CUSTOM_CONFIG_PATH $CB_CUSTOM_CONFIG"; then
-			[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Could not update custom config."
+		if ! eval ". $CB_SCRIPT_PATH/include/update-cb-custom-home.sh $CB_CUSTOM_CONFIG_PATH $CB_CUSTOM_CONFIG"; then
+			[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Could not update custom config [$?]."
 			return $?
-		else
-			[ -n "$CB_CUSTOM_CONFIG_VERSION" ] && rm -f $CB_CUSTOM_CONFIG_PATH/*.tsp > /dev/null 2>&1
-			echo "$CB_CUSTOM_CONFIG_VERSION" > "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp"
-			CB_CUSTOM_RUNTIME_CONFIG_PATH="$CB_CUSTOM_CONFIG_PATH/$CB_CUSTOM_CONFIG_VERSION" && export CB_CUSTOM_RUNTIME_CONFIG_PATH						
-			
-			[ -x "$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.sh" ] && CB_CUSTOM_SETTING_SCRIPT="$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.sh" && export CB_CUSTOM_SETTING_SCRIPT							
-			runCustomConfigInstallation=""
-			[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Custom config $CB_CUSTOM_CONFIG_VERSION updated."
 		fi
+		
+		if ! [ -n "$CB_CUSTOM_CONFIG_VERSION" ]; then
+			errorCode=1
+			[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Could not get custom config version."
+			return 1
+		fi
+		
+		[ -n "$CB_CUSTOM_CONFIG_VERSION" ] && rm -f $CB_CUSTOM_CONFIG_PATH/*.tsp > /dev/null 2>&1
+		echo "$CB_CUSTOM_CONFIG_VERSION" > "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp"
 	fi
 	
+	# simulate lasCheck.properties
+	lastCheckPropertiesFile="$CB_CUSTOM_CONFIG_PATH/lastCheck.properties"
+	#[ -r "$lastCheckPropertiesFile" ] && lastCheckTimestamp=$(cat $lastCheckPropertiesFile | grep lastCheck | awk -F= '{print $2}' | awk -FT '{print $1}' |  sed 's/\-//g')
+	#[ "$lastCheckTimestamp" = "$DATESTAMP" ] && [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Common gradle timestamp is differently [$DATESTAMP] [$lastCheckTimestamp]."
+	[ -n "$CB_CUSTOM_CONFIG_VERSION" ] && [ -r "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp" ] && echo "lastCheck=$LAST_CHECK_TSP">"$lastCheckPropertiesFile" && echo "version=$CB_CUSTOM_CONFIG_VERSION">>"$lastCheckPropertiesFile"
+
+	CB_CUSTOM_RUNTIME_CONFIG_PATH="$CB_CUSTOM_CONFIG_PATH/$CB_CUSTOM_CONFIG_VERSION" && export CB_CUSTOM_RUNTIME_CONFIG_PATH
+	[ -x "$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.sh" ] && CB_CUSTOM_SETTING="$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.sh" && export CB_CUSTOM_SETTING
+	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Use custom config version $CB_CUSTOM_CONFIG_VERSION."
+
 	export CB_CUSTOM_CONFIG_VERSION
 	return 0
 }
@@ -1229,10 +1234,10 @@ if [ $# -gt 0 ]; then
 	[ "$1" = "--packages" ] && shift && readVersion && printPackages $1 && exit 0
 fi
 
-executeCustomSettings
 if ! executeCustomConfig; then
 	endWithError
 fi
+executeCustomSettings
 
 CB_PARAMETERS=""
 checkInternetConnection
