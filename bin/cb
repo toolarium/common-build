@@ -968,6 +968,8 @@ installCb() {
 	! [ -d "$CB_BIN" ] && mkdir -p "$CB_BIN" 2>/dev/null
 	! [ -d "$CB_LOGS" ] && mkdir -p "$CB_LOGS" 2>/dev/null
 	! [ -d "$CB_DEV_REPOSITORY" ] && mkdir -p "$CB_DEV_REPOSITORY" 2>/dev/null
+	[ -n "$(existBinary dpkg)" ] && [ dpkg -S /bin/ls >/dev/null 2>&1 ] && OS_PACKAGE="deb"
+	[ -n "$(existBinary rpm)" ] && [ rpm -q -f /bin/ls >/dev/null 2>&1 ] && OS_PACKAGE="rpm"
 
 	echo "$CB_LINE" >> "$CB_LOGFILE"
 	echo "Started common-build installation on $machineName, $USER_FRIENDLY_FULLTIMESTAMP" >> "$CB_LOGFILE"

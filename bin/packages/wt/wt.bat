@@ -36,6 +36,6 @@ goto CB_WT_END
 :CB_WT_INSTALL_FAILED
 :CB_WT_END
 :: see https://docs.microsoft.com/en-us/windows/terminal/ 
-set "CB_POST_INSTALL_ACTION=%CB_HOME%\bin\cb-shortcut.bat --command %USERPROFILE%\AppData\Local\Microsoft\WindowsApps\wt.exe --icon %CB_BIN%\packages\wt\wt.ico %USERPROFILE%\desktop\wt.lnk"
+set "CB_POST_INSTALL_ACTION=%CB_HOME%\bin\cb-shortcut.bat --command %USERPROFILE%\AppData\Local\Microsoft\WindowsApps\wt.exe --icon %CB_BIN%\packages\wt\wt.ico "%USERPROFILE%\desktop\wt.lnk""
 
 

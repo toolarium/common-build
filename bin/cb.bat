@@ -662,8 +662,8 @@ if .%CB_INSTALL_PKG%==.pkg goto INSTALL_PACKAGES
 if not .%CB_INSTALL_VERSION%==. goto TOOL_VERSION_DEFAULT_END
 
 :TOOL_VERSION_DEFAULT_START
-if not ".%CB_CUSTOM_RUNTIME_CONFIG_PATH%"=="." if exist %CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\tool-version-default.properties set "CB_TOOL_VERSION_DEFAULT=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\tool-version-default.properties"
-if not ".%CB_CUSTOM_RUNTIME_CONFIG_PATH%"=="." if exist %CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\tool-version-default.properties goto READ_TOOL_VERSION_DEFAULT
+if not ".%CB_CUSTOM_RUNTIME_CONFIG_PATH%"=="." if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\tool-version-default.properties" set "CB_TOOL_VERSION_DEFAULT=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\tool-version-default.properties"
+if not ".%CB_CUSTOM_RUNTIME_CONFIG_PATH%"=="." if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\tool-version-default.properties" goto READ_TOOL_VERSION_DEFAULT
 if .%CB_OFFLINE% == .true goto READ_TOOL_VERSION_DEFAULT
 :: read ones a day the newest tool version
 for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value') do set "dt=%%a"
