@@ -13,7 +13,7 @@ echo %CB_LINE%
 if exist build.gradle echo %CB_LINEHEADER%The current path is inside a project [%CD%], please start outside. & goto PROJECT_WIZARD_ERROR_END
 echo %CB_LINEHEADER%Create new project, enter project basic data.
 echo %CB_LINE%
-set BACKUP_CB_WORKING_PATH=%CB_WORKING_PATH%
+set "BACKUP_CB_WORKING_PATH=%CB_WORKING_PATH%"
 set CB_PROJECT_CONFIGFILE=
 set CB_PRODUCT_CONFIGFILE=
 set CB_PRODUCT_CONFIGFILE_TMPFILE=
@@ -208,10 +208,10 @@ powershell -Command "$call=($ENV:projectTypeConfigurationParameter -split '\|' -
 call :PROJECT_REPLACE_PARAMETERS init %INITACTION_CMD_TMP%
 set "projectTypeConfigurationParameter=%projectTypeConfigurationParameter:*|=%"
 echo %CB_LINEHEADER%Initialization...
-cmd /C call %INITACTION_CMD_TMP%
-if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not execute init action: & type %INITACTION_CMD_TMP% & goto PROJECT_WIZARD_ERROR_END
+cmd /C call "%INITACTION_CMD_TMP%"
+if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not execute init action[%INITACTION_CMD_TMP%]: & type "%INITACTION_CMD_TMP%" & goto PROJECT_WIZARD_ERROR_END
 :INIT_ACTION_END
-del /f /q %INITACTION_CMD_TMP% 2>nul
+del /f /q "%INITACTION_CMD_TMP%" 2>nul
 
 :: main action
 echo %CB_LINE%
@@ -224,9 +224,9 @@ powershell -Command "$call=($ENV:projectTypeConfigurationParameter -split '\|' -
 ::powershell -Command "$ENV:projectTypeConfigurationParameter -split '\|' -split '=' | select-object -skip 1 -first 1 | Out-File -append -encoding ASCII $Env:MAINACTION_CMD_TMP"
 call :PROJECT_REPLACE_PARAMETERS main %MAINACTION_CMD_TMP%
 set "projectTypeConfigurationParameter=%projectTypeConfigurationParameter:*|=%"
-cmd /C call %MAINACTION_CMD_TMP%
-if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not execute main action: & type %MAINACTION_CMD_TMP% & goto PROJECT_WIZARD_ERROR_END
-del /f /q %MAINACTION_CMD_TMP% 2>nul
+cmd /C call "%MAINACTION_CMD_TMP%"
+if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not execute main action [%MAINACTION_CMD_TMP%]: & type "%MAINACTION_CMD_TMP%" & goto PROJECT_WIZARD_ERROR_END
+del /f /q "%MAINACTION_CMD_TMP%" 2>nul
 goto MAIN_ACTION_END
 
 :DEFAULT_MAIN_ACTION
@@ -251,34 +251,34 @@ powershell -Command "$call=($ENV:projectTypeConfigurationParameter -split '\|' -
 ::powershell -Command "$ENV:projectTypeConfigurationParameter -split '\|' -split '=' | select-object -skip 1 -first 1 | Out-File -append -encoding ASCII $Env:POSTACTION_CMD_TMP"
 call :PROJECT_REPLACE_PARAMETERS post %POSTACTION_CMD_TMP%
 echo %CB_LINEHEADER%Finishing...
-if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Execute post action: %POSTACTION_CMD_TMP% & type %POSTACTION_CMD_TMP%
-CMD /C call %POSTACTION_CMD_TMP%
-if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not execute post action: & type %POSTACTION_CMD_TMP% & goto PROJECT_WIZARD_ERROR_END
+if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Execute post action: %POSTACTION_CMD_TMP% & type "%POSTACTION_CMD_TMP%"
+CMD /C call "%POSTACTION_CMD_TMP%"
+if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not execute post action [%POSTACTION_CMD_TMP%]: & type %POSTACTION_CMD_TMP% & goto PROJECT_WIZARD_ERROR_END
 del /f /q "%POSTACTION_CMD_TMP%" 2>nul
 :PREAPRE_POST_ACTION_END
 
 :PROJECT_WIZARD_END
 del %CB_PROJECT_CONFIGFILE_TMPFILE% 2>nul
-cd %BACKUP_CB_WORKING_PATH% >nul 2>nul
+cd "%BACKUP_CB_WORKING_PATH%" >nul 2>nul
 echo %CB_LINE%
 exit /b 0
 
 :PROJECT_WIZARD_ERROR_END
-del /f /q %CB_PROJECT_CONFIGFILE_TMPFILE% 2>nul
-del /f /q %INITACTION_CMD_TMP% 2>nul
-del /f /q %MAINACTION_CMD_TMP% 2>nul
-del /f /q %POSTACTION_CMD_TMP% 2>nul
-cd %BACKUP_CB_WORKING_PATH% >nul 2>nul
+del /f /q "%CB_PROJECT_CONFIGFILE_TMPFILE%" 2>nul
+del /f /q "%INITACTION_CMD_TMP%" 2>nul
+del /f /q "%MAINACTION_CMD_TMP%" 2>nul
+del /f /q "%POSTACTION_CMD_TMP%" 2>nul
+cd "%BACKUP_CB_WORKING_PATH%" >nul 2>nul
 echo %CB_LINE%
 exit /b 1
 
 :PROJECT_REPLACE_PARAMETERS
 set "PROJECT_WIZARD_TEMP_FILENAME=%2"
-powershell -Command "(Get-Content $Env:PROJECT_WIZARD_TEMP_FILENAME) -replace '@@projectType@@', "$Env:projectType" | Out-File -encoding ASCII $Env:PROJECT_WIZARD_TEMP_FILENAME"
-powershell -Command "(Get-Content $Env:PROJECT_WIZARD_TEMP_FILENAME) -replace '@@projectName@@', "$Env:projectName" | Out-File -encoding ASCII $Env:PROJECT_WIZARD_TEMP_FILENAME"
-powershell -Command "(Get-Content $Env:PROJECT_WIZARD_TEMP_FILENAME) -replace '@@projectRootPackageName@@', "$Env:projectRootPackageName" | Out-File -encoding ASCII $Env:PROJECT_WIZARD_TEMP_FILENAME"
-powershell -Command "(Get-Content $Env:PROJECT_WIZARD_TEMP_FILENAME) -replace '@@projectGroupId@@', "$Env:projectGroupId" | Out-File -encoding ASCII $Env:PROJECT_WIZARD_TEMP_FILENAME"
-powershell -Command "(Get-Content $Env:PROJECT_WIZARD_TEMP_FILENAME) -replace '@@projectComponentId@@', "$Env:projectComponentId" | Out-File -encoding ASCII $Env:PROJECT_WIZARD_TEMP_FILENAME"
-powershell -Command "(Get-Content $Env:PROJECT_WIZARD_TEMP_FILENAME) -replace '@@projectDescription@@', "$Env:projectDescription" | Out-File -encoding ASCII $Env:PROJECT_WIZARD_TEMP_FILENAME"
-if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Prepared %1 action %PROJECT_WIZARD_TEMP_FILENAME%: & type %PROJECT_WIZARD_TEMP_FILENAME%
+powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectType@@', "$Env:projectType" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
+powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectName@@', "$Env:projectName" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
+powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectRootPackageName@@', "$Env:projectRootPackageName" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
+powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectGroupId@@', "$Env:projectGroupId" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
+powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectComponentId@@', "$Env:projectComponentId" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
+powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectDescription@@', "$Env:projectDescription" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
+if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Prepared %1 action %PROJECT_WIZARD_TEMP_FILENAME%: & type "%PROJECT_WIZARD_TEMP_FILENAME%"
 goto :eof
