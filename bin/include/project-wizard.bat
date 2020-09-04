@@ -93,7 +93,8 @@ echo %CB_LINEHEADER%Project type:
 set /a count = 0 & for /f "tokens=1,* delims== " %%i in (%CB_PROJECT_CONFIGFILE_TMPFILE%) do (
 	set /a count += 1 
 	for /f "tokens=1,* delims=|" %%a in ("%%j") do set projectTypeName=%%a
-	echo    [!count!] %%i    	!projectTypeName!)
+::	echo    [!count!] %%i    	!projectTypeName!)
+	echo    [!count!] !projectTypeName!)
 set projectTypeId=1
 echo.
 set /p projectTypeId=%CB_LINEHEADER%Please choose the project type [1]: 

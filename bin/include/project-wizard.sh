@@ -80,7 +80,8 @@ printTypes() {
 	while IFS= read -r line; do 
 		configValue="${line#*=}"
 		[ -z "$2" ] && typeName="${configValue%%|*}" || typeName=""
-		echo "   [$count] ${line%%=*}   		${typeName}"
+		#echo "   [$count] ${line%%=*}   		${typeName}"
+		echo "   [$count] ${typeName}"
 		count=$((count+1))
 	done < "$1"
 }
