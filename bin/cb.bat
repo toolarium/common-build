@@ -376,6 +376,7 @@ if ".%CB_CUSTOM_CONFIG_VERSION%"=="." (set "errorCode=1"
 	goto :eof)
 
 del /f /q "%CB_CUSTOM_CONFIG_PATH%\*.tsp" >nul 2>nul
+set CB_CUSTOM_CONFIG_VERSION=%CB_CUSTOM_CONFIG_VERSION: =%
 echo %CB_CUSTOM_CONFIG_VERSION%> "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp"
 echo lastCheck=%LAST_CHECK_TSP%>"%lastCheckPropertiesFile%" 
 echo version=%CB_CUSTOM_CONFIG_VERSION%>>"%lastCheckPropertiesFile%"

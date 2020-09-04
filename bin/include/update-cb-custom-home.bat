@@ -64,6 +64,7 @@ if .%commonGradleBuildHomeUpdated%==.false goto UPDATE_ERROR
 :: read version
 call %CB_HOME%\bin\include\read-version "%UPDATE_CB_CUSTOM_PATH%\VERSION" false
 set "CB_CUSTOM_CONFIG_VERSION=%version.number%"
+set "CB_CUSTOM_CONFIG_VERSION=%CB_CUSTOM_CONFIG_VERSION: =%"
 
 ::if defined qualifier 
 set major.number= & set minor.number= & set revision.number= & set qualifier= & set version.number=
