@@ -211,7 +211,7 @@ echo %CB_LINEHEADER%Initialization...
 cmd /C call "%INITACTION_CMD_TMP%"
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not execute init action[%INITACTION_CMD_TMP%]: & type "%INITACTION_CMD_TMP%" & goto PROJECT_WIZARD_ERROR_END
 :INIT_ACTION_END
-del /f /q "%INITACTION_CMD_TMP%" 2>nul
+if not ".%INITACTION_CMD_TMP%"=="." if exist "%INITACTION_CMD_TMP%" del /f /q "%INITACTION_CMD_TMP%" 2>nul
 
 :: main action
 echo %CB_LINE%
@@ -226,7 +226,7 @@ call :PROJECT_REPLACE_PARAMETERS main %MAINACTION_CMD_TMP%
 set "projectTypeConfigurationParameter=%projectTypeConfigurationParameter:*|=%"
 cmd /C call "%MAINACTION_CMD_TMP%"
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not execute main action [%MAINACTION_CMD_TMP%]: & type "%MAINACTION_CMD_TMP%" & goto PROJECT_WIZARD_ERROR_END
-del /f /q "%MAINACTION_CMD_TMP%" 2>nul
+if not ".%MAINACTION_CMD_TMP%"=="." if exist "%MAINACTION_CMD_TMP%" del /f /q "%MAINACTION_CMD_TMP%" 2>nul
 goto MAIN_ACTION_END
 
 :DEFAULT_MAIN_ACTION
@@ -254,20 +254,20 @@ echo %CB_LINEHEADER%Finishing...
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Execute post action: %POSTACTION_CMD_TMP% & type "%POSTACTION_CMD_TMP%"
 CMD /C call "%POSTACTION_CMD_TMP%"
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not execute post action [%POSTACTION_CMD_TMP%]: & type %POSTACTION_CMD_TMP% & goto PROJECT_WIZARD_ERROR_END
-del /f /q "%POSTACTION_CMD_TMP%" 2>nul
+if not ".%POSTACTION_CMD_TMP%"=="." if exist "%POSTACTION_CMD_TMP%" del /f /q "%POSTACTION_CMD_TMP%" 2>nul
 :PREAPRE_POST_ACTION_END
 
 :PROJECT_WIZARD_END
-del %CB_PROJECT_CONFIGFILE_TMPFILE% 2>nul
+del "%CB_PROJECT_CONFIGFILE_TMPFILE%" 2>nul
 cd "%BACKUP_CB_WORKING_PATH%" >nul 2>nul
 echo %CB_LINE%
 exit /b 0
 
 :PROJECT_WIZARD_ERROR_END
-del /f /q "%CB_PROJECT_CONFIGFILE_TMPFILE%" 2>nul
-del /f /q "%INITACTION_CMD_TMP%" 2>nul
-del /f /q "%MAINACTION_CMD_TMP%" 2>nul
-del /f /q "%POSTACTION_CMD_TMP%" 2>nul
+if not ".%CB_PROJECT_CONFIGFILE_TMPFILE%"=="." if exist "%CB_PROJECT_CONFIGFILE_TMPFILE%" del /f /q "%CB_PROJECT_CONFIGFILE_TMPFILE%" 2>nul
+if not ".%INITACTION_CMD_TMP%"=="." if exist "%INITACTION_CMD_TMP%" del /f /q "%INITACTION_CMD_TMP%" 2>nul
+if not ".%MAINACTION_CMD_TMP%"=="." if exist "%MAINACTION_CMD_TMP%" del /f /q "%MAINACTION_CMD_TMP%" 2>nul
+if not ".%POSTACTION_CMD_TMP%"=="." if exist "%POSTACTION_CMD_TMP%" del /f /q "%POSTACTION_CMD_TMP%" 2>nul
 cd "%BACKUP_CB_WORKING_PATH%" >nul 2>nul
 echo %CB_LINE%
 exit /b 1
