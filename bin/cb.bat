@@ -383,6 +383,7 @@ echo version=%CB_CUSTOM_CONFIG_VERSION%>>"%lastCheckPropertiesFile%"
 set "CB_CUSTOM_RUNTIME_CONFIG_PATH=%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%"
 if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat" set "CB_CUSTOM_SETTING=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat"
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use custom config version %CB_CUSTOM_CONFIG_VERSION%.
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" custom-config-update-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto :eof
 
 

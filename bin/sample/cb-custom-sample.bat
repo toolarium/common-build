@@ -32,6 +32,7 @@ if .%1==.extract-package-start shift & goto CUSTOM_EXTRACT_PACKAGE_START
 if .%1==.extract-package-end shift & goto CUSTOM_EXTRACT_PACKAGE_END
 if .%1==.setenv-start shift & goto CUSTOM_SETENV_START
 if .%1==.setenv-end shift & goto CUSTOM_SETENV_END
+if .%1==.custom-config-update-end shift & goto CUSTOM_CONFIG_UPDATE_END
 if .%1==.error-end shift & goto CUSTOM_ERROR_END
 echo %CB_LINEHEADER%Unknown parameter: %1
 exit /b 1
@@ -137,6 +138,13 @@ goto CUSTOM_END
 :CUSTOM_SETENV_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %CB_LINEHEADER%END SETENV %1 %2 %3 %4 %5 %6 %7 %8 %9
+goto CUSTOM_END
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:CUSTOM_CONFIG_UPDATE_END
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo %CB_LINEHEADER%CUSTOM CONFIG UPDATE [%CB_CUSTOM_CONFIG_VERSION%]
 goto CUSTOM_END
 
 

@@ -274,6 +274,7 @@ executeCustomConfig() {
 	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Use custom config version $CB_CUSTOM_CONFIG_VERSION."
 
 	export CB_CUSTOM_CONFIG_VERSION
+	eval ". $CB_CUSTOM_SETTING_SCRIPT custom-config-update-end $*" 2>/dev/null
 	return 0
 }
 

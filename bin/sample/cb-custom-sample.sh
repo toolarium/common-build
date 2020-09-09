@@ -133,6 +133,14 @@ customSetEnvEnd() {
 
 
 #########################################################################
+# customConfigUpdateEnd
+#########################################################################
+customConfigUpdateEnd() {
+	echo "${CB_LINEHEADER}CUSTOM CONFIG UPDATE [$CB_CUSTOM_CONFIG_VERSION]"
+}
+
+
+#########################################################################
 # customErrorEnd
 #########################################################################
 customErrorEnd() {
@@ -146,21 +154,22 @@ customErrorEnd() {
 while [ $# -gt 0 ]
 do
     case "$1" in
-	start)					shift; customStart $*; return 0;;
-	build-start)			shift; customBuildStart $*; return 0;;
-	build-end)				shift; customBuildEnd $*; return 0;;
-	new-project-start)		shift; customNewProjectStart $*; return 0;;
-	new-project-end)		shift; customNewProjectEnd $*; return 0;;
-	install-start)			shift; customInstallStart $*; return 0;;
-	install-end)			shift; customInstallEnd $*; return 0;;
-	download-package-start)	shift; customDownloadPackageStart $*; return 0;;
-	download-package-end)	shift; customDownloadPackageEnd $*; return 0;;
-	extract-package-start)	shift; customExtractPackageStart $*; return 0;;
-	extract-package-end )	shift; customExtractPackageEnd $*; return 0;;	
-	setenv-start)			shift; customSetEnvStart $*; return 0;;
-	setenv-end)				shift; customSetEnvEnd $*; return 0;;
-	error-end)				shift; customErrorEnd $*; return 0;;
-	*)						echo "${CB_LINEHEADER}Unknown parameter: $1"; return 1;;
+	start)						shift; customStart $*; return 0;;
+	build-start)				shift; customBuildStart $*; return 0;;
+	build-end)					shift; customBuildEnd $*; return 0;;
+	new-project-start)			shift; customNewProjectStart $*; return 0;;
+	new-project-end)			shift; customNewProjectEnd $*; return 0;;
+	install-start)				shift; customInstallStart $*; return 0;;
+	install-end)				shift; customInstallEnd $*; return 0;;
+	download-package-start)		shift; customDownloadPackageStart $*; return 0;;
+	download-package-end)		shift; customDownloadPackageEnd $*; return 0;;
+	extract-package-start)		shift; customExtractPackageStart $*; return 0;;
+	extract-package-end )		shift; customExtractPackageEnd $*; return 0;;	
+	setenv-start)				shift; customSetEnvStart $*; return 0;;
+	setenv-end)					shift; customSetEnvEnd $*; return 0;;
+	custom-config-update-end)	shift; customConfigUpdateEnd $*; return 0;;
+	error-end)					shift; customErrorEnd $*; return 0;;
+	*)							echo "${CB_LINEHEADER}Unknown parameter: $1"; return 1;;
     esac
     shift
 done
