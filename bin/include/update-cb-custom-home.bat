@@ -50,7 +50,7 @@ if .%CB_VERBOSE%==.true echo %CB_LINEHEADER%Valid access to [%commonGradleBuildH
 set "UPDATE_CB_CUSTOM_PATH=%CB_CUSTOM_CONFIG_PATH%\unknown"
 mkdir "%UPDATE_CB_CUSTOM_PATH%" >nul 2>nul
 
-call %CB_HOME%\bin\cb-deltree --silent "%UPDATE_CB_CUSTOM_PATH%" 
+call %CB_HOME%\bin\cb-deltree "%UPDATE_CB_CUSTOM_PATH%" 
 mkdir "%UPDATE_CB_CUSTOM_PATH%" >nul 2>nul
 
 if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Check and update custom config from repository [%commonGradleBuildHomeGitUrl%].
@@ -58,7 +58,7 @@ if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Check and update custom
 %GIT_CLIENT% clone -q %commonGradleBuildHomeGitUrl% "%UPDATE_CB_CUSTOM_PATH%"
 if %ERRORLEVEL% EQU 0 set "commonGradleBuildHomeUpdated=true" 
 
-if .%commonGradleBuildHomeUpdated%==.false call %CB_HOME%\bin\cb-deltree --silent "%UPDATE_CB_CUSTOM_PATH%"
+if .%commonGradleBuildHomeUpdated%==.false call %CB_HOME%\bin\cb-deltree "%UPDATE_CB_CUSTOM_PATH%"
 if .%commonGradleBuildHomeUpdated%==.false goto UPDATE_ERROR
 
 :: read version
@@ -68,12 +68,12 @@ set "CB_CUSTOM_CONFIG_VERSION=%CB_CUSTOM_CONFIG_VERSION: =%"
 
 ::if defined qualifier 
 set major.number= & set minor.number= & set revision.number= & set qualifier= & set version.number=
-if exist "%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%" call %CB_HOME%\bin\cb-deltree --silent "%UPDATE_CB_CUSTOM_PATH%"
+if exist "%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%" call %CB_HOME%\bin\cb-deltree "%UPDATE_CB_CUSTOM_PATH%"
 if exist "%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%" if .%CB_VERBOSE%==.true echo %CB_LINEHEADER%Newest version %CB_CUSTOM_CONFIG_VERSION% is already available.
 if exist "%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%" goto END
 
 :: use newer version
-call %CB_HOME%\bin\cb-deltree --silent "%UPDATE_CB_CUSTOM_PATH%\gradle\wrapper"
+call %CB_HOME%\bin\cb-deltree "%UPDATE_CB_CUSTOM_PATH%\gradle\wrapper"
 if not defined CB_CUSTOM_CONFIG_IGNORE_FILES set "CB_CUSTOM_CONFIG_IGNORE_FILES=gradlew gradlew.bat .editorconfig .gitattributes .gitignore build.gradle gradle.properties settings.gradle README.md"
 for %%i in (%CB_CUSTOM_CONFIG_IGNORE_FILES%) do ( del /f /q %UPDATE_CB_CUSTOM_PATH%\%%i >nul 2>nul )
 move "%UPDATE_CB_CUSTOM_PATH%" "%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%" >nul 2>nul

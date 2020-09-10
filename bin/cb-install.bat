@@ -145,11 +145,11 @@ if /I [%CB_DEVTOOLS_DRIVE%] NEQ [%CB_USER_DRIVE%] (%CB_USER_DRIVE%)
 del /f /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\.gitattributes 2>nul
 del /f /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\.gitignore 2>nul
 del /f /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\README.md 2>nul
-call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree --silent "%CB_DEVTOOLS%\%CB_VERSION_NAME%\.git" 2>nul
-call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree --silent "%CB_DEVTOOLS%\%CB_VERSION_NAME%\.github" 2>nul
-call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree --silent "%CB_DEVTOOLS%\%CB_VERSION_NAME%\docs" 2>nul
-call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree --silent "%CB_DEVTOOLS%\%CB_VERSION_NAME%\testdata" 2>nul
-call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree --silent "%CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\testing" 2>nul
+call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree "%CB_DEVTOOLS%\%CB_VERSION_NAME%\.git" 2>nul
+call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree "%CB_DEVTOOLS%\%CB_VERSION_NAME%\.github" 2>nul
+call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree "%CB_DEVTOOLS%\%CB_VERSION_NAME%\docs" 2>nul
+call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree "%CB_DEVTOOLS%\%CB_VERSION_NAME%\testdata" 2>nul
+call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree "%CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\testing" 2>nul
 :EXTRACT_CB_END
 
 :: read previous version
