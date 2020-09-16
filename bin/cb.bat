@@ -445,7 +445,7 @@ if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%CB_JAVA_HOME entry could not be found:
 echo %PATH% | findstr /C:"%CB_JAVA_HOME_RUNTIME%\bin" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 set "PATH=%CB_JAVA_HOME_RUNTIME%\bin;%PATH%"
 :: & echo %CB_LINEHEADER%Set %CB_JAVA_HOME_RUNTIME% to path.
-if not .%JAVA_HOME% == .%CB_JAVA_HOME_RUNTIME% set "JAVA_HOME=%CB_JAVA_HOME_RUNTIME%"
+if not ."%JAVA_HOME%" == .%CB_JAVA_HOME_RUNTIME% set "JAVA_HOME=%CB_JAVA_HOME_RUNTIME%"
 :: & echo %CB_LINEHEADER%Set JAVA_HOME to %JAVA_HOME%.
 WHERE %JAVAC_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find java version in path. & goto END_WITH_ERROR
