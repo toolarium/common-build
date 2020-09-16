@@ -168,7 +168,7 @@ echo  --offline            Set the offline mode; it will be detect automatically
 echo  --install [pkg]      Install the a software package. Optionally you can set the
 echo                       version number (does not work for every package); otherwise
 echo                       the default version number is used (from the configuration
-echo                       file  tool-version-default.properties)
+echo                       file tool-version-default.properties)
 echo                       Additionally a parameter -d or --default marks this version 
 echo                       as default.
 echo  --packages           Shows the supported packages.
@@ -351,7 +351,12 @@ set "CB_CUSTOM_CONFIG_VERSION="
 call :GET_TIMESTAMP LAST_CHECK_TSP "yyyy-MM-ddTHH\\:mm\\:ss.fff+0000"
 call :GET_TIMESTAMP DATESTAMP "yyyyMMdd"
 set DATESTAMP=%DATESTAMP: =%
+if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%CB_OFFLINE%==.true dir %CB_CUSTOM_CONFIG_PATH%\*.tsp /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%CB_CUSTOM_CONFIG_PATH%\offline"
+if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%CB_OFFLINE%==.true set /pLAST_DATESTAMP_NAME=<"%CB_CUSTOM_CONFIG_PATH%\offline" 
+if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%CB_OFFLINE%==.true set "LAST_DATESTAMP_NAME=%LAST_DATESTAMP_NAME:~2%"
+if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%CB_OFFLINE%==.true move "%CB_CUSTOM_CONFIG_PATH%\%LAST_DATESTAMP_NAME%" "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" >nul 2>nul
 if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set /p CB_CUSTOM_CONFIG_VERSION=<"%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp"
+if exist "%CB_CUSTOM_CONFIG_PATH%\offline" del "%CB_CUSTOM_CONFIG_PATH%\offline" & echo %CB_LINEHEADER%Offline, keep current version [%CB_CUSTOM_CONFIG_VERSION%].
 if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set CB_CUSTOM_CONFIG_VERSION=%CB_CUSTOM_CONFIG_VERSION: =%
 if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set "CB_CUSTOM_RUNTIME_CONFIG_PATH=%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%"
 if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat" set "CB_CUSTOM_SETTING=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat"

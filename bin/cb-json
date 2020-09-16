@@ -103,7 +103,7 @@ printUsage() {
 	echo " -h, --help           Show this help message."
 	echo " --format             Format a json output."
 	echo " --value              In case the last element is only a key / value, you will receive the value."
-	echo " --parse [name]       Parse a json output by the given name. The name could "
+	echo " --name [name]        Parse a json output by the given name. The name could "
 	echo "                      contain multiple objects, e.g my.json.separation"
 	echo ""
 }
