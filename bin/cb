@@ -203,6 +203,33 @@ executeCustomSettings() {
 
 
 #########################################################################
+# checkConnection
+#########################################################################
+checkConnection() {
+	[ -z "$CB_ONLINE_TIMEOUT" ] && CB_ONLINE_TIMEOUT="2"
+	if timeout $CB_ONLINE_TIMEOUT "bash" -c "</dev/tcp/$1/$2" >/dev/null 2>&1; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+
+#########################################################################
+# checkInternetConnection
+#########################################################################
+checkInternetConnection() {
+	[ -z "$CB_ONLINE_ADDRESS" ] && CB_ONLINE_ADDRESS="8.8.8.8"
+	[ -z "$CB_ONLINE_ADDRESS_PORT" ] && CB_ONLINE_ADDRESS_PORT="53"
+	if checkConnection "$CB_ONLINE_ADDRESS" "$CB_ONLINE_ADDRESS_PORT"; then
+		CB_OFFLINE=false
+	else
+		CB_OFFLINE=true
+	fi
+}
+
+
+#########################################################################
 # Execute custom configuration
 # -CB_CUSTOM_RUNTIME_CONFIG_PATH is the variable where we can refer
 #########################################################################
@@ -218,10 +245,17 @@ executeCustomConfig() {
 	urlHost=$(echo $CB_CUSTOM_CONFIG | awk -F/ '{print $3}')
 	baseUrlHost=$(echo ${urlHost%:*})
 	urlPort=$(echo ${urlHost#*:})
+	
+	UPDATE_OFFLINE="$CB_OFFLINE"
+	if ! checkConnection "$baseUrlHost" "$urlPort"; then
+		echo "${CB_LINEHEADER}Can not reach host [${urlHost}] for custom config update [$CB_CUSTOM_CONFIG]!"
+		UPDATE_OFFLINE="true"
+	fi
+
 	[ -z "$urlPort" ] && [ "$urlProtocol" = "https" ] && urlPort=443
 	[ -z "$urlPort" ] && [ "$urlProtocol" = "http" ] && urlPort=80
 	
-	CB_CUSTOM_CONFIG_PATH="$CB_CONFIG_HOME/conf/$baseUrlHost@$urlPort"					
+	CB_CUSTOM_CONFIG_PATH="$CB_CONFIG_HOME/conf/$baseUrlHost@$urlPort"
 	! [ -d "$CB_CUSTOM_CONFIG_PATH" ] && mkdir -p $CB_CUSTOM_CONFIG_PATH
 		
 	# set the common gradle build home path to checkout to proper destination
@@ -245,10 +279,17 @@ executeCustomConfig() {
 			echo "$CB_LINE"
 			echo "${CB_LINEHEADER}Missing package git, please install it before you continue."
 			echo "$CB_LINE"
-			endWithError
+			return 1
 		fi
 	
-		if ! eval ". $CB_SCRIPT_PATH/include/update-cb-custom-home.sh $CB_CUSTOM_CONFIG_PATH $CB_CUSTOM_CONFIG"; then
+		if [ "$UPDATE_OFFLINE" = "true" ]; then
+			LAST_DATESTAMP_NAME=$(find "$CB_CUSTOM_CONFIG_PATH" -maxdepth 1 -type f -name "*.tsp" 2>/dev/null | tail -1 2>/dev/null | xargs -l basename 2>/dev/null)
+			mv "$CB_CUSTOM_CONFIG_PATH/$LAST_DATESTAMP_NAME" "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp" >nul 2>nul
+			! [ -r "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp" ] && echo "${CB_LINEHEADER}Could not find custom config, please repeat as soon as you are online!" && return 1
+			CB_CUSTOM_CONFIG_VERSION=$(cat "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp")
+			CB_CUSTOM_CONFIG_VERSION=$(echo ${CB_CUSTOM_CONFIG_VERSION% *} | awk '{print $1}')
+			echo "${CB_LINEHEADER}Offline, keep current version [$CB_CUSTOM_CONFIG_VERSION]".
+		elif ! eval ". $CB_SCRIPT_PATH/include/update-cb-custom-home.sh $CB_CUSTOM_CONFIG_PATH $CB_CUSTOM_CONFIG"; then
 			[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Could not update custom config [$?]."
 			return $?
 		fi
@@ -259,7 +300,7 @@ executeCustomConfig() {
 			return 1
 		fi
 		
-		[ -n "$CB_CUSTOM_CONFIG_VERSION" ] && rm -f $CB_CUSTOM_CONFIG_PATH/*.tsp > /dev/null 2>&1
+		[ -n "$CB_CUSTOM_CONFIG_VERSION" ] && rm -f "$CB_CUSTOM_CONFIG_PATH/*.tsp" > /dev/null 2>&1
 		echo "$CB_CUSTOM_CONFIG_VERSION" > "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp"
 	fi
 	
@@ -276,17 +317,6 @@ executeCustomConfig() {
 	export CB_CUSTOM_CONFIG_VERSION
 	eval ". $CB_CUSTOM_SETTING_SCRIPT custom-config-update-end $*" 2>/dev/null
 	return 0
-}
-
-
-#########################################################################
-# checkInternetConnection
-#########################################################################
-checkInternetConnection() {
-	[ -z "$CB_ONLINE_ADDRESS" ] && CB_ONLINE_ADDRESS="8.8.8.8"
-	[ -z "$CB_ONLINE_ADDRESS_PORT" ] && CB_ONLINE_ADDRESS_PORT="53"
-	[ -z "$CB_ONLINE_TIMEOUT" ] && CB_ONLINE_TIMEOUT="2"
-	timeout "$CB_ONLINE_TIMEOUT bash" -c "</dev/tcp/$CB_ONLINE_ADDRESS/$CB_ONLINE_ADDRESS_PORT" >/dev/null 2>&1 && CB_OFFLINE=true || CB_OFFLINE=false
 }
 
 
@@ -1241,13 +1271,13 @@ if [ $# -gt 0 ]; then
 	[ "$1" = "--packages" ] && shift && readVersion && printPackages $1 && exit 0
 fi
 
+checkInternetConnection
 if ! executeCustomConfig; then
 	endWithError
 fi
 executeCustomSettings
 
 CB_PARAMETERS=""
-checkInternetConnection
 CB_EXECUTE_BUILD=true
 
 while [ $# -gt 0 ]

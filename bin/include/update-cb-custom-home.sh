@@ -29,8 +29,7 @@ updateError() {
 		'aix') CB_OS="aix";;
 		*) ;;
 	esac
-	
-	
+		
 	errorMsg="Could not get repository from $commonGradleBuildHomeGitUrl"
 	[ "$credentialCheck" = "true" ] && errorMsg="$errorMsg, unknown reason (valid credentials)."
 	[ "$credentialCheck" = "false" ] && errorMsg="$errorMsg because of invalid crednetials."
@@ -82,7 +81,7 @@ fi
 # verfiy url
 credentialCheck=false
 [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Verify git repository [$commonGradleBuildHomeGitUrl]."
-if ! eval "$CB_HOME/bin/include/cb-credential.sh --verifyOnly \"$commonGradleBuildHomeGitUrl\""; then
+if ! eval "$CB_HOME/bin/include/cb-credential.sh \"$commonGradleBuildHomeGitUrl\""; then
 	updateError
 	eval $CB_HOME/bin/include/lock-unlock.sh --unlock "$LOCKFILE"
 	exit 1
