@@ -356,6 +356,10 @@ if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%CB_OFFLINE%==.true s
 if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%CB_OFFLINE%==.true set "LAST_DATESTAMP_NAME=%LAST_DATESTAMP_NAME:~2%"
 if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%CB_OFFLINE%==.true move "%CB_CUSTOM_CONFIG_PATH%\%LAST_DATESTAMP_NAME%" "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" >nul 2>nul
 if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set /p CB_CUSTOM_CONFIG_VERSION=<"%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp"
+if exist "%CB_CUSTOM_CONFIG_PATH%\offline" if ".%CB_CUSTOM_CONFIG_VERSION%" == "." (del "%CB_CUSTOM_CONFIG_PATH%\offline" 
+	set "errorCode=1" 
+	echo %CB_LINEHEADER%Could not find nor update custom config, please repeat as soon as you are online!.
+	goto :eof)
 if exist "%CB_CUSTOM_CONFIG_PATH%\offline" del "%CB_CUSTOM_CONFIG_PATH%\offline" & echo %CB_LINEHEADER%Offline, keep current version [%CB_CUSTOM_CONFIG_VERSION%].
 if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set CB_CUSTOM_CONFIG_VERSION=%CB_CUSTOM_CONFIG_VERSION: =%
 if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set "CB_CUSTOM_RUNTIME_CONFIG_PATH=%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%"
