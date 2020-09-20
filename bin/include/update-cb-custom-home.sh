@@ -82,7 +82,7 @@ fi
 # verfiy url
 credentialCheck=false
 [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Verify git repository [$commonGradleBuildHomeGitUrl]."
-if ! eval "$CB_HOME/bin/include/cb-credential.sh --verifyOnly \"$commonGradleBuildHomeGitUrl\" >/dev/null 2>&1"; then
+if ! eval "$CB_HOME/bin/include/cb-credential.sh --verifyOnly \"$commonGradleBuildHomeGitUrl\""; then
 	updateError
 	eval $CB_HOME/bin/include/lock-unlock.sh --unlock "$LOCKFILE"
 	exit 1

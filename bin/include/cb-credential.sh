@@ -8,32 +8,62 @@
 # MIT License: https://mit-license.org
 #
 #########################################################################
-
-
-#########################################################################
-# error handler
-#########################################################################
-errorhandler() {
-    [ -n "$DEBUG" ] && echo "${CB_LINEHEADER}ERROR on line #$LINENO, last command: $BASH_COMMAND"
-    exithandler
-}
-
-
-#########################################################################
-# exit handler
-#########################################################################
-exithandler() {
-	rm "$CB_PROJECT_CONFIGFILE_TMPFILE" >/dev/null 2>&1
-}
+PRINT_CREDENTIAL=false
+RAW_CREDENTIAL=false
 
 
 #########################################################################
 # End with error
 #########################################################################
 endWithError() {
-	# custom setting script
-	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT error-end $*" 2>/dev/null
 	exit 1
+}
+
+
+#########################################################################
+# Print credentials
+#########################################################################
+printCredentials() {
+	if [ "$RAW_CREDENTIAL" = "false" ]; then
+		echo "$GIT_USERNAME:$GIT_PASSWORD" | base64
+	else
+		echo "GIT_USERNAME=$GIT_USERNAME" 
+		echo "GIT_PASSWORD=$GIT_PASSWORD"
+	fi
+}
+
+
+#########################################################################
+# Read git credentials
+#########################################################################
+readGitCredentials() {
+	GIT_USERNAME=""
+	GIT_PASSWORD=""
+
+	requestString="\nprotocol=$1\nhost=$2\n"
+	[ -n "$3" ] && requestString="${requestString}port=$3\n"
+	gitCredentials=$(echo -e "$requestString" | $GIT_CLIENT credential-store get 2>/dev/null)
+	[ -z "$gitCredentials" ] && return 1	
+	GIT_USERNAME=$(echo "$gitCredentials" | grep username | cut -d'=' -f2-)
+	GIT_PASSWORD=$(echo "$gitCredentials" | grep password | cut -d'=' -f2-)
+}
+
+
+#########################################################################
+# Parse git credentials
+#########################################################################
+parseGitCredentials() {
+	GIT_USERNAME=""
+	GIT_PASSWORD=""
+	
+	! [ -r "$GIT_CREDENTIALS_FILE" ] && return 1
+	fullHost="$2"
+	[ -n "$3" ] && fullHost="${fullHost}%3a$3"
+	gitCredentials=$(cat "$GIT_CREDENTIALS_FILE" | grep "$1://" | grep "\@$fullHost")
+	[ -z "$gitCredentials" ] && return 1	
+	extractedCrednetials=$(echo "$gitCredentials" | cut -d"/" -f2- | cut -d"/" -f2- | sed "s/$fullHost.*//")
+	GIT_USERNAME=$(echo "${extractedCrednetials%%:*}")
+	GIT_PASSWORD=$(echo "${extractedCrednetials#*:}")
 }
 
 
@@ -61,9 +91,6 @@ printUsage() {
 #########################################################################
 # main
 #########################################################################
-trap 'exithandler $?; exit' 0
-trap 'errorhandler $?; exit' 1 2 3 15
-
 CB_OS="$(uname | tr '[:upper:]' '[:lower:]')"
 CB_OS=$(echo "$CB_OS" | awk '{print substr($0, 0, 7)}')
 case $CB_OS in
@@ -82,8 +109,6 @@ esac
 GIT_USERNAME=
 GIT_PASSWORD=
 BASIC_AUTHENTICATION=
-PRINT_CREDENTIAL=false
-RAW_CREDENTIAL=false
 
 while [ $# -gt 0 ]
 do
@@ -113,44 +138,81 @@ if ! eval $GIT_CLIENT --version >/dev/null 2>&1; then
 	endWithError
 fi
 
+CB_PARAMETERS=$(echo $CB_PARAMETERS | sed 's/ //g')
 ! [ -n "$CB_PARAMETERS" ] && echo "" && echo ".: ERROR: No url found. Please provide external git url." && echo "" && endWithError
-urlProtocol=$(echo $CB_PARAMETERS | awk -F/ '{print $1}')
-urlProtocol="${urlProtocol%*:}"
-urlHost=$(echo $CB_PARAMETERS | awk -F/ '{print $3}')
+urlProtocol=$(echo $CB_PARAMETERS | awk -F/ '{print $1}') && urlProtocol="${urlProtocol%*:}"
 ! [ -n "$urlProtocol" ] && echo ".: ERROR: No protocol found." && endWithError
+urlHost=$(echo $CB_PARAMETERS | awk -F/ '{print $3}')
+urlPort=$(echo $urlHost | cut -d":" -f2-)
+[ "$urlPort" = "$urlHost" ] && urlPort="" || urlHost=$(echo $urlHost | cut -d":" -f1)
 ! [ -n "$urlHost" ] && echo ".: ERROR: No host found." && endWithError
 
-if [ "$VERIFY_ONLY" = "true" ]; then
-	if [ "$CB_OS" = "cygwin" ]; then
-		printf "protocol=$urlProtocol\nhost=$urlHost\n" | git credential-manager get >/dev/null 2>&1
-		[ $? -eq 0 ] && exit 0	
-	else
-		git ls-remote "$CB_PARAMETERS" >/dev/null 2>&1
-		[ $? -eq 0 ] && exit 0
-	fi
-	exit 1
-else
-	credentials=$(printf "protocol=$urlProtocol\nhost=$urlHost\n" | git credential-manager get)
-	GIT_USERNAME=$(echo "$credentials" | grep username= | sed 's/.*=//g')
-	GIT_PASSWORD=$(echo "$credentials" | grep password=  | sed 's/.*=//g')
+initStoreFile=false
+defaultLocation=false
+credentialHelper=$($GIT_CLIENT config --global credential.helper | awk '{print $2}')
+[ -z "$credentialHelper" ] && initStoreFile=true
+[ "store" = "$credentialHelper" ] && initStoreFile=true && GIT_CREDENTIALS_FILE=$(echo $credentialHelper | awk '{print $3}')
 
-	if [ "$RAW_CREDENTIAL" = "false" ]; then
-		BASIC_AUTHENTICATION=$(echo "${GIT_USERNAME}:${GIT_PASSWORD}" | base64)
-		
-		if [ "$PRINT_CREDENTIAL" = "true" ]; then
-			echo "$BASIC_AUTHENTICATION" 
+if [ "$initStoreFile" = "true" ]; then
+	[ -z "$GIT_CREDENTIALS_FILE" ] && GIT_CREDENTIALS_FILE="$HOME/.git-credentials" && defaultLocation=true
+	! [ -r "$GIT_CREDENTIALS_FILE" ] && touch "$GIT_CREDENTIALS_FILE" >/dev/null 2>&1 && chmod 600 "$GIT_CREDENTIALS_FILE" >/dev/null 2>&1
+	! [ -r "$GIT_CREDENTIALS_FILE" ] && echo ".: ERROR: Could not initialize $GIT_CREDENTIALS_FILE" && echo "" && endWithError
+	if [ -z "$($GIT_CLIENT config credential.helper)" ]; then
+		[ "$VERIFY_ONLY" = "true" ] && echo ".: Set git credential store"	
+		if [ "$defaultLocation" = "true" ]; then
+			eval "$GIT_CLIENT config credential.helper store"
 		else
-			export BASIC_AUTHENTICATION
+			eval "$GIT_CLIENT config credential.helper 'store --file $GIT_CREDENTIALS_FILE'"
 		fi
+	fi
+	
+	parseGitCredentials "$urlProtocol" "$urlHost" "$urlPort"
+else
+	readGitCredentials "$urlProtocol" "$urlHost" "$urlPort"
+fi
+
+errorCode=0
+if [ -n "$GIT_USERNAME" ]; then
+	$GIT_CLIENT ls-remote "$CB_PARAMETERS" >/dev/null 2>&1	
+	errorCode=$?	
+	[ "$VERIFY_ONLY" = "true" ] && exit $errorCode
+	if [ $errorCode -eq 0 ]; then
+		[ "$PRINT_CREDENTIAL" = "true" ] && printCredentials
+		exit 0
+	fi
+else
+	[ "$VERIFY_ONLY" = "true" ] && exit 1
+fi
+
+if [ "$initStoreFile" = "true" ]; then
+	echo ".: Please enter credentials to access [$CB_PARAMETERS]. It will be stored in [$GIT_CREDENTIALS_FILE]."
+	read -p ".: Username: " GIT_USERNAME
+	read -s -p ".: Passord: " GIT_PASSWORD
+	echo ""
+	requestString="$requestString\nusernam=$GIT_USERNAME\npassword=$GIT_PASSWORD\n"
+	
+	if [ -z "$urlPort" ]; then
+		fileContent=$(cat "$GIT_CREDENTIALS_FILE" | grep -v "@$urlHost" | grep -v "")
+		[ -n "$fileContent" ] && echo "$fileContent" > "$GIT_CREDENTIALS_FILE" || echo -n "" > "$GIT_CREDENTIALS_FILE"
+		echo "$urlProtocol://$GIT_USERNAME:$GIT_PASSWORD@$urlHost" >> "$GIT_CREDENTIALS_FILE"
 	else
-		if [ "$PRINT_CREDENTIAL" = "true" ]; then
-			echo "GIT_USERNAME=$GIT_USERNAME"
-			echo "GIT_PASSWORD=$GIT_PASSWORD"
-		else
-			export GIT_USERNAME GIT_PASSWORD			
-		fi
+		fileContent=$(cat "$GIT_CREDENTIALS_FILE" | grep -v "@${urlHost}%3a$urlPort" | grep -v "")
+		[ -n "$fileContent" ] && echo "$fileContent" > "$GIT_CREDENTIALS_FILE" || echo -n "" > "$GIT_CREDENTIALS_FILE"
+		echo "$urlProtocol://$GIT_USERNAME:$GIT_PASSWORD@${urlHost}%3a$urlPort" >> "$GIT_CREDENTIALS_FILE"
 	fi
 fi
+
+# try again
+$GIT_CLIENT ls-remote "$CB_PARAMETERS" >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+	[ "$PRINT_CREDENTIAL" = "true" ] && printCredentials
+	exit 0
+fi
+
+echo "" 
+echo ".: ERROR: Could not access [$CB_PARAMETERS] with given credentials ($GIT_USERNAME)!" 
+echo "" 
+endWithError
 
 
 #########################################################################
