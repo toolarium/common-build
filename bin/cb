@@ -243,19 +243,20 @@ executeCustomConfig() {
 
 	# prepare home directory name from domain name
 	urlHost=$(echo $CB_CUSTOM_CONFIG | awk -F/ '{print $3}')
-	baseUrlHost=$(echo ${urlHost%:*})
-	urlPort=$(echo ${urlHost#*:})
+	urlPort=$(echo $urlHost | cut -d":" -f2-)
+	[ "$urlPort" = "$urlHost" ] && urlPort="" || urlHost=$(echo $urlHost | cut -d":" -f1)
+	urlProtocol=$(echo $CB_CUSTOM_CONFIG | awk -F/ '{print $1}') && urlProtocol="${urlProtocol%*:}"
+	[ -z "$urlPort" ] && [ "$urlProtocol" = "https" ] && urlPort=443
+	[ -z "$urlPort" ] && [ "$urlProtocol" = "http" ] && urlPort=80
 	
-	UPDATE_OFFLINE="$CB_OFFLINE"
-	if ! checkConnection "$baseUrlHost" "$urlPort"; then
+	if checkConnection "$urlHost" "$urlPort"; then
+		:
+	else
 		echo "${CB_LINEHEADER}Can not reach host [${urlHost}] for custom config update [$CB_CUSTOM_CONFIG]!"
 		UPDATE_OFFLINE="true"
 	fi
 
-	[ -z "$urlPort" ] && [ "$urlProtocol" = "https" ] && urlPort=443
-	[ -z "$urlPort" ] && [ "$urlProtocol" = "http" ] && urlPort=80
-	
-	CB_CUSTOM_CONFIG_PATH="$CB_CONFIG_HOME/conf/$baseUrlHost@$urlPort"
+	CB_CUSTOM_CONFIG_PATH="$CB_CONFIG_HOME/conf/$urlHost@$urlPort"
 	! [ -d "$CB_CUSTOM_CONFIG_PATH" ] && mkdir -p $CB_CUSTOM_CONFIG_PATH
 		
 	# set the common gradle build home path to checkout to proper destination
@@ -289,7 +290,7 @@ executeCustomConfig() {
 			CB_CUSTOM_CONFIG_VERSION=$(cat "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp")
 			CB_CUSTOM_CONFIG_VERSION=$(echo ${CB_CUSTOM_CONFIG_VERSION% *} | awk '{print $1}')
 			echo "${CB_LINEHEADER}Offline, keep current version [$CB_CUSTOM_CONFIG_VERSION]".
-		elif ! eval ". $CB_SCRIPT_PATH/include/update-cb-custom-home.sh $CB_CUSTOM_CONFIG_PATH $CB_CUSTOM_CONFIG"; then
+		elif ! eval ". \"$CB_SCRIPT_PATH/include/update-cb-custom-home.sh\" $CB_CUSTOM_CONFIG_PATH $CB_CUSTOM_CONFIG"; then
 			[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Could not update custom config [$?]."
 			return $?
 		fi

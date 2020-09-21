@@ -63,7 +63,7 @@ LOCKFILE="$CB_CUSTOM_CONFIG_PATH/.lock"
 
 [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Check [${commonGradleBuildHomeGitUrl}] for updates."
 
-if ! eval $CB_HOME/bin/include/lock-unlock.sh "$LOCKFILE" 60; then
+if ! eval "$CB_HOME/bin/include/lock-unlock.sh" "$LOCKFILE" 60; then
 	exit 1
 fi
 setLockFile=true
@@ -72,7 +72,7 @@ if ! eval "git --version > /dev/null 2>&1"; then
 	echo "$CB_LINE"
 	echo "${CB_LINEHEADER}Missing package git, please install it before you continue."
 	echo "$CB_LINE"
-	eval $CB_HOME/bin/include/lock-unlock.sh --unlock "$LOCKFILE"
+	eval "$CB_HOME/bin/include/lock-unlock.sh" --unlock "$LOCKFILE"
 	exit 1
 fi
 
@@ -83,7 +83,7 @@ credentialCheck=false
 [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Verify git repository [$commonGradleBuildHomeGitUrl]."
 if ! eval "$CB_HOME/bin/include/cb-credential.sh \"$commonGradleBuildHomeGitUrl\""; then
 	updateError
-	eval $CB_HOME/bin/include/lock-unlock.sh --unlock "$LOCKFILE"
+	eval "$CB_HOME/bin/include/lock-unlock.sh" --unlock "$LOCKFILE"
 	exit 1
 fi 
 
@@ -97,25 +97,25 @@ mkdir -p "$CB_CUSTOM_CONFIG_PATH" >/dev/null 2>&1
 rm -rf "$UPDATE_CB_CUSTOM_PATH" >/dev/null 2>&1
 
 [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Check and update custom config from repository [$commonGradleBuildHomeGitUrl]."
-GIT_CB_CUSTOM_PATH=$UPDATE_CB_CUSTOM_PATH
+GIT_CB_CUSTOM_PATH="$UPDATE_CB_CUSTOM_PATH"
 [ "$CB_OS" = "cygwin" ] && GIT_CB_CUSTOM_PATH=$(cygpath.exe -w $GIT_CB_CUSTOM_PATH)
 if git clone -q "$commonGradleBuildHomeGitUrl" "$GIT_CB_CUSTOM_PATH"; then
 	commonGradleBuildHomeUpdated=true
 else
 	updateError
-	eval $CB_HOME/bin/include/lock-unlock.sh --unlock "$LOCKFILE"
+	eval "$CB_HOME/bin/include/lock-unlock.sh" --unlock "$LOCKFILE"
 	exit 1
 fi
 
 if [ "$commonGradleBuildHomeUpdated" = "false" ]; then
 	rm -rf "$UPDATE_CB_CUSTOM_PATH" 
 	updateError
-	eval $CB_HOME/bin/include/lock-unlock.sh --unlock "$LOCKFILE"
+	eval "$CB_HOME/bin/include/lock-unlock.sh" --unlock "$LOCKFILE"
 	exit 1
 fi
 
 # read version
-eval ". $CB_HOME/bin/include/read-version.sh ${UPDATE_CB_CUSTOM_PATH}/VERSION false"
+eval ". \"$CB_HOME/bin/include/read-version.sh\" ${UPDATE_CB_CUSTOM_PATH}/VERSION false"
 CB_CUSTOM_CONFIG_VERSION="$versionNumber"
 
 # if defined qualifier 
@@ -134,7 +134,7 @@ else
 	[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Successful updated version $CB_CUSTOM_CONFIG_VERSION."
 fi
 
-eval $CB_HOME/bin/include/lock-unlock.sh --unlock "$LOCKFILE"
+eval "$CB_HOME/bin/include/lock-unlock.sh" --unlock "$LOCKFILE"
 
 
 #########################################################################

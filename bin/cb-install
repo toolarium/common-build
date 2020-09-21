@@ -216,7 +216,7 @@ getCBJson() {
 		export CB_JSON
 
 		[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -sSL" || CMD="wget -q -O - /dev/null"
-		CMD="$CMD $CB_JSON_SCRIPT_URL 2>$cbErrorTemp > $CB_JSON"
+		CMD="$CMD $CB_JSON_SCRIPT_URL 2>\"$cbErrorTemp\" > $CB_JSON"
 		echo "${CB_LINEHEADER}Get json support..."
 		eval $CMD && chmod 755 $CB_JSON
 	fi
@@ -228,7 +228,7 @@ getCBJson() {
 #########################################################################
 getLatestRelease() {
 	[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -fsSL" || CMD="wget -q --header=\"Accept: application/json\" -O -"
-	CMD="$CMD $CB_RELEASE_URL 2>$cbErrorTemp | $CB_JSON"
+	CMD="$CMD $CB_RELEASE_URL 2>\"$cbErrorTemp\" | $CB_JSON"
 	[ "$1" = "true" ] && CMD="$CMD --filter \"prerelease=false\""
 	CMD="$CMD --value --name name"
 
@@ -242,9 +242,9 @@ getLatestRelease() {
 #########################################################################
 getRelease() {
 	[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -fsSL" || CMD="wget -q --header=\"Accept: application/json\" -O -"
-	CMD="$CMD $CB_RELEASE_URL 2>$cbErrorTemp | $CB_JSON --filter \"name=(v)?$1\\\"\" --value --name name"
+	CMD="$CMD $CB_RELEASE_URL 2>\"$cbErrorTemp\" | $CB_JSON --filter \"name=(v)?$1\\\"\" --value --name name"
 
- 	version=$(eval "$CMD" 2>>$cbErrorTemp)
+ 	version=$(eval "$CMD" 2>>"$cbErrorTemp")
 	[ $? -eq 0 ] && echo "$version" || echo ""
 }
 
@@ -254,11 +254,11 @@ getRelease() {
 #########################################################################
 getReleaseDownloadUrl() {
 	[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -fsSL" || CMD="wget -q --header=\"Accept: application/json\" -O -"
-	CMD="$CMD $CB_RELEASE_URL 2>$cbErrorTemp | $CB_JSON"
+	CMD="$CMD $CB_RELEASE_URL 2>\"$cbErrorTemp\" | $CB_JSON"
 	[ "$1" = "true" ] && CMD="$CMD --filter \"prerelease=false\""
 	CMD="$CMD --filter \"name=(v)?$1\\\"\" --value --name tarball_url"
 	
-	downloadUrl=$(eval "$CMD" 2>>$cbErrorTemp)
+	downloadUrl=$(eval "$CMD" 2>>"$cbErrorTemp")
 	[ $? -eq 0 ] && echo "$downloadUrl" || echo ""
 }
 
@@ -268,7 +268,7 @@ getReleaseDownloadUrl() {
 #########################################################################
 downloadRelease() {
 	[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -SsL \"$1\" -o \"$2\"" || CMD="wget -q -O \"$2\" \"$1\""
-	eval "$CMD" 2>$cbErrorTemp
+	eval "$CMD" 2>"$cbErrorTemp"
 }
 
 
