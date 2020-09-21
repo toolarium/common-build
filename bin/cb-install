@@ -314,7 +314,7 @@ updateShellInitialisation() {
 			rm -f "$newFileName" >/dev/null 2>&1
 
 			#TEST: CB_HOME="$CB_HOME/aa"
-			CB_HOME_ESCAPED=$(echo "$CB_HOME" | sed 's/\//\\\//g')
+			CB_HOME_ESCAPED=$(echo "$CB_HOME" | sed 's/\//\\\//g;s/ /\\ /g')
 			[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Update file $shellProfile"
 			cat "$shellProfile" | sed "s/CB_HOME\=.*\&/CB_HOME\=\"$CB_HOME_ESCAPED\"\ \&\&/g" > "$newFileName"
 			chmod --reference="$shellProfile $newFileName" >/dev/null 2>&1
