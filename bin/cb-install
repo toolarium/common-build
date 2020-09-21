@@ -416,12 +416,11 @@ else
 fi
 
 if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
-	[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Extract $CB_VERSION_NAME.tgz in $CB_DEVTOOLS ($CB_DEV_REPOSITORY)..."
+	[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Extract $CB_VERSION_NAME.tgz in $CB_DEVTOOLS..."
 
 	tar -zxf "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" -C "$CB_DEV_REPOSITORY/" >/dev/null 2>&1
-	tarContentName=$(find "$CB_DEV_REPOSITORY/*" -type d -name 'toolarium-common-build-*' -print 2>/dev/null)
-	[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Move content to [$tarContentName]..."
-	mv "$tarContentName" "$CB_DEVTOOLS/$CB_VERSION_NAME" 
+	tarContentName=$(find "$CB_DEV_REPOSITORY" -type d -name 'toolarium-common-build-*' -print 2>/dev/null)
+	mv "$tarContentName" "$CB_DEVTOOLS/$CB_VERSION_NAME" >/dev/null 2>&1
 
 	# remove unecessary files
 	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/.gitattributes" >/dev/null 2>&1
