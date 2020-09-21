@@ -304,7 +304,8 @@ updateShellInitialisation() {
 		backupFileName="${shellProfile}_cb-$(eval $FULLTIMESTAMP)"
 		cp "$shellProfile" "$backupFileName" >/dev/null 2>&1 && chmod +r "$backupFileName" >/dev/null 2>&1
 
-		if [ -z "$(cat "$shellProfile" | grep 'toolarium-common-build support')" ]; then
+		shellResult=$(cat "$shellProfile" | grep 'toolarium-common-build support')
+		if [ -z "$shellResult" ]; then
 			[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Modify file $shellProfile"
 			echo "" >> "$shellProfile"
 			echo "# toolarium-common-build support" >> "$shellProfile"
