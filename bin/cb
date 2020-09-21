@@ -15,7 +15,7 @@ CB_LINEHEADER=".: "
 PN=$(basename "$0" 2>/dev/null)
 PN_FULL="$0"
 #REL_PROG_PATH="${0%/*}"
-ABS_PROG_PATH=$(cd -- "`dirname $0 2>/dev/null`" && pwd)
+ABS_PROG_PATH=$(cd -- "`dirname "$0" 2>/dev/null`" && pwd)
 
 CB_SCRIPT_PATH=$(dirname "$0" 2>/dev/null)
 CB_WORKING_PATH=$PWD
