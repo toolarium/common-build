@@ -342,7 +342,7 @@ if .%urlPort%==. if .%urlProtocol%==.https set "urlPort=443"
 if .%urlPort%==. if .%urlProtocol%==.http set "urlPort=80"
 set "CB_CUSTOM_CONFIG_PATH=%CB_CONFIG_HOME%\conf\%baseUrlHost%@%urlPort%"
 if not exist "%CB_CUSTOM_CONFIG_PATH%" mkdir "%CB_CUSTOM_CONFIG_PATH%"
-ping %urlHost% -n 1 -w 1000 >nul 2>nul
+ping %baseUrlHost% -n 1 -w 1000 >nul 2>nul
 if errorlevel 1 echo %CB_LINEHEADER%Can not reach host [%urlHost%] for custom config update [%CB_CUSTOM_CONFIG%]! & set "UPDATE_OFFLINE=true" 
 set "urlProtocol=" & set "urlHost=" & set "urlPath=" & set "urlPort=" & set "baseUrlHost="
 

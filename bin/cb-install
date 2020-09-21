@@ -179,7 +179,7 @@ installationSuccess() {
 installationFailed() {
 	echo "$CB_LINE"
 	echo "Failed installation: $1"
- 	[ -r "$cbErrorTemp" ] && cat $cbErrorTemp 2>/dev/null
+ 	[ -r "$cbErrorTemp" ] && cat "$cbErrorTemp" 2>/dev/null
 	echo "$CB_LINE"
 }
 
@@ -304,7 +304,7 @@ updateShellInitialisation() {
 		backupFileName="${shellProfile}_cb-$(eval $FULLTIMESTAMP)"
 		cp "$shellProfile" "$backupFileName" >/dev/null 2>&1 && chmod +r "$backupFileName" >/dev/null 2>&1
 
-		if [ -z "$(cat $shellProfile | grep 'toolarium-common-build support')" ]; then
+		if [ -z "$(cat \"$shellProfile\" | grep 'toolarium-common-build support')" ]; then
 			[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Modify file $shellProfile"
 			echo "" >> "$shellProfile"
 			echo "# toolarium-common-build support" >> "$shellProfile"
@@ -411,14 +411,14 @@ else
 
 	# in case we donwload a new version we also extract new
 	! [ -r "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" ] && installationFailed "Could not download version $releaseVersion." && exit 1
-	[ $(getFileSize $CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz) -gt 0 ] && rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME" >/dev/null 2>&1
+	[ $(getFileSize "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz") -gt 0 ] && rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME" >/dev/null 2>&1
 fi
 
 if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Extract $CB_VERSION_NAME.tgz in $CB_DEVTOOLS..."
 
 	tar -zxf "$CB_DEV_REPOSITORY/$CB_VERSION_NAME.tgz" -C "$CB_DEV_REPOSITORY/" >/dev/null 2>&1
-	tarContentName=$(find $CB_DEV_REPOSITORY/* -type d -name 'toolarium-common-build-*' -print 2>/dev/null)
+	tarContentName=$(find "$CB_DEV_REPOSITORY/*" -type d -name 'toolarium-common-build-*' -print 2>/dev/null)
 	mv "$tarContentName" "$CB_DEVTOOLS/$CB_VERSION_NAME" >/dev/null 2>&1
 
 	# remove unecessary files
@@ -464,12 +464,12 @@ if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	# take over symbol link and config
 	if [ -d "$CB_HOME_PREVIOUS/current" ]; then
 		[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Copy symbolic link..."
-		( cd $CB_HOME_PREVIOUS/current ; tar cf - . ) | ( cd $CB_HOME/current ; tar xf - )
+		( cd "$CB_HOME_PREVIOUS/current" ; tar cf - . ) | ( cd "$CB_HOME/current" ; tar xf - )
 	fi
 
 	if [ -r "$CB_HOME_PREVIOUS/conf/tool-version-installed.properties" ]; then
 		[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Copy tool-version-installed.properties..."
-		cp $CB_HOME_PREVIOUS/conf/tool-version-installed.properties $CB_HOME/conf/tool-version-installed.properties >/dev/null 2>&1
+		cp "$CB_HOME_PREVIOUS/conf/tool-version-installed.properties" "$CB_HOME/conf/tool-version-installed.properties" >/dev/null 2>&1
 	fi 
 fi
 
