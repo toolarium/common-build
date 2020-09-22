@@ -79,7 +79,7 @@ printTypes() {
 	count=1
 	while IFS= read -r line; do 
 		configValue="${line#*=}"
-		[ -z "$2" ] && typeName="${configValue%%|*}" || typeName=""
+		[ -z "$2" ] && typeName="${configValue%%|*}" || typeName=$(echo "$line" | cut -d'=' -f1)
 		#echo "   [$count] ${line%%=*}   		${typeName}"
 		echo "   [$count] ${typeName}"
 		count=$((count+1))
@@ -216,7 +216,7 @@ projectReplaceParameters() {
 	actionName="$1"
 	shift
 	command="$*"	
-	command=$(echo "$command" | sed "s/@@projectType@@/$projectType/g;s/@@projectName@@/$projectName/g;s/@@projectRootPackageName@@/$projectRootPackageName/g;s/@@projectGroupId@@/$projectGroupId/g;s/@@projectComponentId@@/$projectComponentId/g;s/@@projectDescription@@/$projectDescription/g;")
+	command=$(echo "$command" | sed "s/@@projectType@@/$projectType/g;s/@@projectName@@/$projectName/g;s/@@projectRootPackageName@@/$projectRootPackageName/g;s/@@projectGroupId@@/$projectGroupId/g;s/@@projectComponentId@@/$projectComponentId/g;s/@@projectDescription@@/$projectDescription/g;s/@@logFile@@/\/dev\/null/g;")
 	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Prepared $actionName action: $command"	
 	echo $command
 }

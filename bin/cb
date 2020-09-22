@@ -285,7 +285,7 @@ executeCustomConfig() {
 	
 		if [ "$UPDATE_OFFLINE" = "true" ]; then
 			LAST_DATESTAMP_NAME=$(find "$CB_CUSTOM_CONFIG_PATH" -maxdepth 1 -type f -name "*.tsp" 2>/dev/null | tail -1 2>/dev/null | xargs -l basename 2>/dev/null)
-			mv "$CB_CUSTOM_CONFIG_PATH/$LAST_DATESTAMP_NAME" "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp" >nul 2>nul
+			mv "$CB_CUSTOM_CONFIG_PATH/$LAST_DATESTAMP_NAME" "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp" >/dev/null 2>&1
 			! [ -r "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp" ] && echo "${CB_LINEHEADER}Could not find nor update custom config, please repeat as soon as you are online!" && return 1
 			CB_CUSTOM_CONFIG_VERSION=$(cat "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp")
 			CB_CUSTOM_CONFIG_VERSION=$(echo ${CB_CUSTOM_CONFIG_VERSION% *} | awk '{print $1}')

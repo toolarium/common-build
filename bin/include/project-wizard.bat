@@ -274,6 +274,7 @@ exit /b 1
 
 :PROJECT_REPLACE_PARAMETERS
 set "PROJECT_WIZARD_TEMP_FILENAME=%2"
+powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@logFile@@', "nul" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
 powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectType@@', "$Env:projectType" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
 powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectName@@', "$Env:projectName" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
 powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectRootPackageName@@', "$Env:projectRootPackageName" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
