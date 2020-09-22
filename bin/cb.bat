@@ -83,6 +83,9 @@ ping 8.8.8.8 -n 1 -w 1000 >nul 2>nul
 if errorlevel 1 set "CB_OFFLINE=true"
 
 :: parameters without hooks
+if .%1==.--verbose shift & set "CB_VERBOSE=true"
+if .%1==.--force shift & set "CB_INSTALL_OVERWRITE_DIST=true"
+if .%1==.--verbose shift & set "CB_VERBOSE=true"
 if .%1==.-h goto HELP
 if .%1==.--help goto HELP
 if .%1==.-v goto VERSION
@@ -90,6 +93,7 @@ if .%1==.--version goto VERSION
 if .%1==.-exp shift & goto PROJECT_EXPLORE
 if .%1==.--explore shift & goto PROJECT_EXPLORE
 if .%1==.--packages shift & goto PACKAGES
+if .%1==.--install shift & goto INSTALL_CB
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

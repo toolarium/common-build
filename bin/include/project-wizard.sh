@@ -123,7 +123,7 @@ searchType() {
 		[ "$count" = "$2" ] && key="${line%%=*}" && break
 		count=$((count+1))
 	done < "$1"
-	echo "$key" 2>/dev/null | sed 's/ //g' 2>/dev/null
+	echo "${key}" 2>/dev/null | sed 's/[[:space:]]*$//g' 2>/dev/null 2>/dev/null
 }
 
 
@@ -169,7 +169,8 @@ selectProduct() {
 	if [ "$1" -ge 0 ] 2>/dev/null; then
 		productName=$(searchType "$CB_PRODUCT_CONFIGFILE_TMPFILE" "$1")
 	fi
-		
+	
+	productId=""
 	if [ -z "$productName" ]; then
 		echo "${CB_LINEHEADER}Products:"
 
@@ -183,6 +184,7 @@ selectProduct() {
 			read -p "${CB_LINEHEADER}Please select to which product it belongs [1]: " input
 			[ -z "$input" ] && input=1
 
+			productId="$input"
 			productName=$(searchType "$CB_PRODUCT_CONFIGFILE_TMPFILE" "$input")
 			[ -z "$productName" ] && echo "${CB_LINEHEADER}Invalid input $input" && echo ""
 		done
@@ -190,7 +192,7 @@ selectProduct() {
 		echo "${CB_LINEHEADER}Product name [$productName]"
 	fi
 	
-	export productName
+	export productName productId
 }
 
 
@@ -235,6 +237,7 @@ echo "$CB_LINE"
 [ -n "$CB_CUSTOM_RUNTIME_CONFIG_PATH" ] && [ -r "$CB_CUSTOM_RUNTIME_CONFIG_PATH/conf/project-types.properties" ] && CB_PROJECT_CONFIGFILE="$CB_CUSTOM_RUNTIME_CONFIG_PATH/conf/project-types.properties"
 [ -n "$CB_CUSTOM_RUNTIME_CONFIG_PATH" ] && [ -r "$CB_CUSTOM_RUNTIME_CONFIG_PATH/conf/product-types.properties" ] && CB_PRODUCT_CONFIGFILE="$CB_CUSTOM_RUNTIME_CONFIG_PATH/conf/product-types.properties"
 
+productId=
 projectTypeId=
 productName=
 projectType=
@@ -247,13 +250,12 @@ projectDescription=
 preapreProjectConfigurationFile "$CB_PROJECT_CONFIGFILE_TMPFILE"
 preapreProductConfigurationFile "$CB_PRODUCT_CONFIGFILE_TMPFILE"
 
-# if first parameter is a number, then it's the project type
-[ -n "$1" ] && [ "$1" -ge 0 ] 2>/dev/null && projectName=$1 && shift
-
 # select product
-selectProduct "$productName"
-if [ -n "${productName}" ]; then
-	productTypeConfiguration=$(getTypeConfiguration "$CB_PRODUCT_CONFIGFILE_TMPFILE" "$productName")
+[ -n "$1" ] && [ "$1" -ge 0 ] 2>/dev/null && productId="$1" && shift
+[ -z "$productId" ] && selectProduct "$productName"
+
+if [ -n "$productId" ]; then
+	productTypeConfiguration=$(getTypeConfiguration "$CB_PRODUCT_CONFIGFILE_TMPFILE" "$productId")
 	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Product type configuration: $(echo $productTypeConfiguration|sed 's/\n/|/')"
 	for i in $productTypeConfiguration; do
 		export $(echo "${i%:*}")=$(echo "${i#*:}")
@@ -261,30 +263,30 @@ if [ -n "${productName}" ]; then
 fi
 
 # select project type
-[ -n "$1" ] && [ "$1" -ge 0 ] 2>/dev/null && projectType=$1 && shift
+[ -n "$1" ] && [ "$1" -ge 0 ] 2>/dev/null && projectType="$1" && shift
 selectProjectType "$projectType"
 projectTypeConfiguration=$(getTypeConfiguration "$CB_PROJECT_CONFIGFILE_TMPFILE" "$projectTypeId" true)
 projectTypeConfigurationParameter=$projectTypeConfiguration
 [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Project type configuration: $(echo $projectTypeConfiguration|sed 's/\n/|/')"
 
 # select project details
-if hasProjectTypeConfiguration "projectName"; then
-	projectDefaultName="project"
-	[ -n "$projectComponentId" ] && projectDefaultName="${projectComponentId}-${projectDefaultName}" || projectDefaultName="my-${projectDefaultName}"
+projectNameEndingParameter=$(echo "$projectTypeConfiguration" | grep projectName | sed 's/^.*=//')
+projectDefaultName="project"
+[ -n "$projectComponentId" ] && projectDefaultName="${projectComponentId}-${projectDefaultName}" || projectDefaultName="my-${projectDefaultName}"
+[ -n "$projectNameEndingParameter" ] && projectDefaultName="$projectDefaultName$projectNameEndingParameter"
 
-	while ! [ -n "$projectName" ]; do
-		[ -z "$1" ] && selectInput "project name" "$projectDefaultName"
-		[ -n "$1" ] && selectInput "project name" "$projectDefaultName" "$1" && shift
-		
-		if [ -d "$inputResult" ]; then
-			echo "${CB_LINEHEADER}Project $projectName already exist!"
-		else
-			projectName="$inputResult"
-		fi
-	done
-	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
-fi
+while ! [ -n "$projectName" ]; do
+	[ -z "$1" ] && selectInput "project name" "$projectDefaultName"
+	[ -n "$1" ] && selectInput "project name" "$projectDefaultName" "$1" && shift
+	
+	validName="true"
+	[ -n "$projectComponentId" ] && [ -n "${inputResult##$projectComponentId-*}" ] && echo "${CB_LINEHEADER}Invalid name it must start with $projectComponentId-." && validName="false"
+	[ -n "$projectNameEndingParameter" ] && [ -n "${inputResult%%*$projectNameEndingParameter}" ] && echo "${CB_LINEHEADER}Invalid name it must end with $projectNameEndingParameter." && validName="false"
+	[ -d "$inputResult" ] && echo "${CB_LINEHEADER}Project $projectName already exist!" && validName=false 
+	[ "$validName" = "true" ] && projectName="$inputResult"
+done
 
+projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Selected project type [$projectType]/[$projectTypeId], configurationType: $projectTypeConfiguration, configurationParameter: $projectTypeConfigurationParameter"	
 if hasProjectTypeConfiguration "projectRootPackageName"; then
 	[ -z "$projectRootPackageName" ] && projectRootPackageName="my.rootpackage.name"

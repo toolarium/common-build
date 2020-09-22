@@ -115,16 +115,29 @@ set "projectTypeConfigurationParameter=%projectTypeConfigurationParameter:*|=%"
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Selected project type [%projectType%]/[%projectTypeId%], configurationType: "%projectTypeConfiguration%", configurationParameter: "%projectTypeConfigurationParameter%"
 
 echo "%projectTypeConfiguration%" | findstr /C:"projectName" >nul 2>nul
-if %ERRORLEVEL% NEQ 0 goto SET_PROJECT_NAME_END
+if %ERRORLEVEL% NEQ 0 goto VALIDATE_PROJECT_NAME
+:: get project name optional parameters
+FOR /F "tokens=1,* delims=^|" %%i in ("%projectTypeConfiguration%") do (set "projectNameEndingParameter=%%i")
+if ".%projectNameEndingParameter%" == ".projectName" set "projectNameEndingParameter="
+if not ".%projectNameEndingParameter%" == "." FOR /F "tokens=1,* delims==" %%i in ("%projectNameEndingParameter%") do (set "projectNameEndingParameter=%%j")
 set "projectTypeConfigurationParameter=%projectTypeConfigurationParameter:*|=%"
 if not .%1==. (set "projectName=%1" & shift)
-if not .%projectName% == . echo %CB_LINEHEADER%Project name [%projectName%] & goto SET_PROJECT_NAME_END
-
-if .%projectComponentId%==. set projectName=my-project
-if not .%projectComponentId%==. set projectName=%projectComponentId%-project
+if ".%projectNameEndingParameter%" == "." if not .%projectName% == . echo %CB_LINEHEADER%Project name [%projectName%] & goto VALIDATE_PROJECT_NAME
+if not ".%projectNameEndingParameter%" == "." if not .%projectName% == . (echo %projectName% | findstr /C:"%projectNameEndingParameter%" >nul 2>nul
+	if %ERRORLEVEL% EQU 0 goto VALIDATE_PROJECT_NAME)
+if .%projectComponentId%==. set "projectName=my-project%projectNameEndingParameter%"
+if not .%projectComponentId%==. set "projectName=%projectComponentId%-project%projectNameEndingParameter%"
+set "projectNameProposal=%projectName%" 
+:SET_PROJECT_NAME_START
 set /p projectName=%CB_LINEHEADER%Please enter project name, e.g. [%projectName%]: 
+:VALIDATE_PROJECT_NAME
+if ".%projectComponentId%" == "." if ".%projectNameEndingParameter%" == "." goto SET_PROJECT_NAME_END
+if not ".%projectComponentId%" == "." echo [%projectName%] | findstr /C:"[%projectComponentId%-" >nul 2>nul
+if not ".%projectComponentId%" == "." if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid name it must start with %projectComponentId%-. & goto SET_PROJECT_NAME_START )
+if not ".%projectNameEndingParameter%" == "." echo [%projectName%] | findstr /C:"%projectNameEndingParameter%]" >nul 2>nul
+if not ".%projectNameEndingParameter%" == "." if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid name it must end with %projectNameEndingParameter%. & goto SET_PROJECT_NAME_START )
 :SET_PROJECT_NAME_END
-if exist %projectName% echo %CB_LINEHEADER%Project %projectName% already exist! & set "projectName=" & goto END_PROJECT_TYPES
+if exist %projectName% echo %CB_LINEHEADER%Project %projectName% already exist! & goto SET_PROJECT_NAME_START
 ::if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Selected project type [%projectType%]/[%projectTypeId%], configurationType: "%projectTypeConfiguration%", configurationParameter: "%projectTypeConfigurationParameter%"
 
 echo "%projectTypeConfiguration%" | findstr /C:"projectRootPackageName" >nul 2>nul
@@ -274,7 +287,6 @@ exit /b 1
 
 :PROJECT_REPLACE_PARAMETERS
 set "PROJECT_WIZARD_TEMP_FILENAME=%2"
-powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@logFile@@', "nul" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
 powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectType@@', "$Env:projectType" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
 powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectName@@', "$Env:projectName" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
 powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectRootPackageName@@', "$Env:projectRootPackageName" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
