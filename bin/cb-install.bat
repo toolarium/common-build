@@ -29,7 +29,7 @@ set "CB_USER_DRIVE=%CD:~0,2%"
 set "CB_SCRIPT_PATH=%~dp0"
 set "CB_SCRIPT_DRIVE=%~d0"
 set CB_FORCE_INSALL=false
-set "CB_INSTALLER_VERSION=0.8.14"
+set "CB_INSTALLER_VERSION=0.8.15"
 set "CB_RELEASE_URL=https://api.github.com/repos/toolarium/common-build/releases"
 
 title %PN%

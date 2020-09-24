@@ -157,12 +157,12 @@ if [ "$initStoreFile" = "true" ]; then
 	[ -z "$GIT_CREDENTIALS_FILE" ] && GIT_CREDENTIALS_FILE="$HOME/.git-credentials" && defaultLocation=true
 	! [ -r "$GIT_CREDENTIALS_FILE" ] && touch "$GIT_CREDENTIALS_FILE" >/dev/null 2>&1 && chmod 600 "$GIT_CREDENTIALS_FILE" >/dev/null 2>&1
 	! [ -r "$GIT_CREDENTIALS_FILE" ] && echo ".: ERROR: Could not initialize $GIT_CREDENTIALS_FILE" && echo "" && endWithError
-	if [ -z "$($GIT_CLIENT config credential.helper)" ]; then
+	if [ -z "$($GIT_CLIENT config --global credential.helper)" ]; then
 		[ "$VERIFY_ONLY" = "true" ] && echo ".: Set git credential store"	
 		if [ "$defaultLocation" = "true" ]; then
-			eval "$GIT_CLIENT config credential.helper store"
+			eval "$GIT_CLIENT config --global credential.helper store"
 		else
-			eval "$GIT_CLIENT config credential.helper 'store --file $GIT_CREDENTIALS_FILE'"
+			eval "$GIT_CLIENT config --global credential.helper 'store --file $GIT_CREDENTIALS_FILE'"
 		fi
 	fi
 	
