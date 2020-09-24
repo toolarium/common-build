@@ -271,6 +271,7 @@ projectTypeConfigurationParameter=$projectTypeConfiguration
 
 # select project details
 projectNameEndingParameter=$(echo "$projectTypeConfiguration" | grep projectName | sed 's/^.*=//')
+[ "projectName" = "$projectNameEndingParameter" ] && projectNameEndingParameter=""
 projectDefaultName="project"
 [ -n "$projectComponentId" ] && projectDefaultName="${projectComponentId}-${projectDefaultName}" || projectDefaultName="my-${projectDefaultName}"
 [ -n "$projectNameEndingParameter" ] && projectDefaultName="$projectDefaultName$projectNameEndingParameter"

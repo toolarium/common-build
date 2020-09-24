@@ -369,6 +369,7 @@ fi
 HTTP_REQUEST_CLI=$(checkHttpRequestCLI)
 ! [ -n "$HTTP_REQUEST_CLI" ] && installationFailed "Either curl or wget is required, please install it before you continue!" && exit 1
 ! [ -n "$(existBinary unzip)" ] && installationFailed "Missing package unzip, please install it before you continue!" && exit 1
+unzip --version >/dev/null 2>&1 || installationFailed "Missing package unzip, please install it before you continue!" && exit 1
 ! [ -n "$(existBinary find)" ] && echo "${CB_LINEHEADER}Missing package find, please install it before you continue!" && exit 1
 checkInternetConnection
 
