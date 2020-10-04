@@ -438,6 +438,9 @@ exploreProject()
 		# gnome
 		[ -n "$fileExplorer" ] || fileExplorer=$(existBinary gnome-open)
 		[ -n "$fileExplorer" ] || fileExplorer=$(existBinary nautilus)
+		
+		# wsl
+		[ -n "$fileExplorer" ] || fileExplorer=$(existBinary explorer.exe)		
 	fi
 
 	if [ -n "$fileExplorer" ]; then
@@ -445,6 +448,7 @@ exploreProject()
 		then
 			exploreDirectory="$CB_WORKING_PATH"
 			[ "$CB_OS" = "cygwin" ] && exploreDirectory="$(cygpath --windows $CB_WORKING_PATH)"
+			[ -n "$(existBinary explorer.exe)" ] && exploreDirectory="."
 			$fileExplorer "$exploreDirectory" >/dev/null 2>&1 &
 		else
 			echo "$CB_LINE"
@@ -718,7 +722,7 @@ commonBuild() {
 	elif [ -r "$CB_PROJECT_JAVA_VERSION_FILE" ]; then
 		# project specific java switch
 		CB_JAVA_HOME=
-		cbJavaVersion=$(awk '{print $1}' < "$CB_PROJECT_JAVA_VERSION_FILE" 2>/dev/null)
+		cbJavaVersion=$(cat "$CB_PROJECT_JAVA_VERSION_FILE" 2>/dev/null | tr -d '\r' | awk '{print $1}')
 		[ -n "$cbJavaVersion" ] && echo "${CB_LINEHEADER}Set project java version $cbJavaVersion (from .java-version)"
 	else
 		# check CB_JAVA_HOME; otherwise set default java
