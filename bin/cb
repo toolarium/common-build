@@ -35,6 +35,8 @@ case $CB_OS in
 	'sunos') CB_OS="solaris";;
 	'cygwin') CB_OS="cygwin";;
 	'cygwin_') CB_OS="cygwin";;
+	'mingw32') CB_OS="cygwin";;
+	'mingw64') CB_OS="cygwin";;
 	'aix') CB_OS="aix";;
 	*) ;;
 esac
@@ -681,7 +683,7 @@ prepareCommonBuildNode() {
 		fi
 
 		! [ "$CB_NODE_HOME" = "$NODE_HOME" ] && NODE_HOME="$CB_NODE_HOME" && export NODE_HOME
-		[ "$(echo ${PATH#*$CB_NODE_HOME*})" = "$(echo $PATH)" ] && PATH="$CB_NODE_HOME:$PATH" && export PATH
+		[ "$(echo ${PATH#*$CB_NODE_HOME*})" = "$(echo $PATH)" ] && PATH="$CB_NODE_HOME/bin:$PATH" && export PATH
 
 		if ! [ -n "$(existBinary $NODE_EXEC)" ]; then
 			echo "${CB_LINEHEADER}Could not find node version in path."
@@ -1170,7 +1172,7 @@ installCb() {
 							[ -z "${i%%*.tar}" ] && CMD="tar $CB_TAR_PARAM -xf $i 2>&1" && TOPDIR_CMD="tar -tvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
 							[ -z "${i%%*.tar.gz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i 2>&1" && TOPDIR_CMD="tar -ztvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
 							[ -z "${i%%*.tgz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i 2>&1" && TOPDIR_CMD="tar -ztvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
-							[ -z "${i%%*.xz}" ] && CMD="xz $CB_XZ_PARAM --decompress $i 2>&1" && TOPDIR_CMD="tar -Jtvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
+							[ -z "${i%%*.xz}" ] && CMD="rm ${i%*.xz} > /dev/null 2>&1; xz $CB_XZ_PARAM --decompress $i 2>&1 && tar $CB_TAR_PARAM -xf ${i%*.xz} 2>&1; rm ${i%*.xz} > /dev/null 2>&1" && TOPDIR_CMD="tar -Jtvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
 						fi
 
 						if [ -n "$CMD" ]; then

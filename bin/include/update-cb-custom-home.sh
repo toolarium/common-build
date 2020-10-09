@@ -26,6 +26,8 @@ updateError() {
 		'sunos') CB_OS="solaris";;
 		'cygwin') CB_OS="cygwin";;
 		'cygwin_') CB_OS="cygwin";;
+		'mingw32') CB_OS="cygwin";;
+		'mingw64') CB_OS="cygwin";;		
 		'aix') CB_OS="aix";;
 		*) ;;
 	esac
