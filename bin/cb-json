@@ -11,8 +11,11 @@
 
 
 PN=$(basename "$0" 2>/dev/null)
-JQ=
 
+AWK=awk
+gawk --version >/dev/null 2>/null && AWK=gawk
+
+JQ=
 jq --help >/dev/null 2>&1 && JQ=jq && export JQ
 
 
@@ -30,7 +33,7 @@ catOut() {
 formatJson() {
 	# linux only
 	#grep -Eo '"[^"]*" *(: *([0-9]*|"[^"]*")[^{}\["]*|,)?|[^"\]\[\}\{]*|\{|\},?|\[|\],?|[0-9 ]*,?' \
-	#	| awk '{if ($0 ~ /^[}\]]/ ) offset-=4; printf "%*c%s\n", offset, " ", $0; if ($0 ~ /^[{\	\[]/) offset+=4 }' \
+	#	| $AWK '{if ($0 ~ /^[}\]]/ ) offset-=4; printf "%*c%s\n", offset, " ", $0; if ($0 ~ /^[{\	\[]/) offset+=4 }' \
 	#	| grep -E -v "^[ ]*$"
 
 	if [ -n "$JQ" ]; then
@@ -38,7 +41,7 @@ formatJson() {
 	else
 		# linux and osx:
 		grep -Eo '"[^"]*" *(: *([0-9]*|"[^"]*")[^{}\["]*|,)?|[^"\]\[\}\{]*|\{|\},?|\[|\],?|[0-9 ]*,?' \
-			| awk '{if ($0 ~ /^[}\]]/ ) offset-=4; printf "%*c%s\n", offset, " ", $0; if ($0 ~ /^[{\t\[]/) offset+=4 }' \
+			| $AWK '{if ($0 ~ /^[}\]]/ ) offset-=4; printf "%*c%s\n", offset, " ", $0; if ($0 ~ /^[{\t\[]/) offset+=4 }' \
 			| grep -E -v "^[ ]*$"
 	fi
 }
@@ -55,7 +58,7 @@ cutJsonElement() {
 	prepareResult="$(formatJson | grep -E -v \"^[[:space:]]*$\" | sed -e ':a' -e 'N;$!ba' | tr '\n' '\t')"
 	if [ -n "$tagElementFilter" ]; then	
 		#result=$(echo "$prepareResult" | grep -Po "\"$tagElementFilter\":.*" | formatJson | sed '/^ }/,$d')
-		result=$(echo "$prepareResult" | awk  "match(\$0,/\"$tagElementFilter\":.*/){print substr(\$0,RSTART)}" | formatJson | sed '/^ }/,$d')
+		result=$(echo "$prepareResult" | $AWK  "match(\$0,/\"$tagElementFilter\":.*/){print substr(\$0,RSTART)}" | formatJson | sed '/^ }/,$d')
 		secondLine=$(echo "$result" | sed -n '2p'|sed 's/ //')
 		if [ "$secondLine" = "{" ]; then
 			echo "$result" && echo " }"
@@ -63,7 +66,7 @@ cutJsonElement() {
 			# simple key / value
 			result=$(echo "$result" | sed -n '1p' | sed 's/,[ ]*$//')
 			if [ "$returnValue" = "true" ]; then
-				echo "$result" | awk -F\": '{print $2}' | awk -F\" '{print $2}'
+				echo "$result" | $AWK -F\": '{print $2}' | $AWK -F\" '{print $2}'
 			else
 				echo "$result"
 			fi
