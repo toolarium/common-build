@@ -13,7 +13,7 @@
 PN=$(basename "$0" 2>/dev/null)
 
 AWK=awk
-gawk --version >/dev/null 2>/null && AWK=gawk
+gawk --version >/dev/null 2>/dev/null && AWK=gawk
 
 JQ=
 jq --help >/dev/null 2>&1 && JQ=jq && export JQ
