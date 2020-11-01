@@ -102,7 +102,7 @@ if .%1==.--install shift & goto INSTALL_CB
 if defined CB_CUSTOM_CONFIG if not ".%CB_CUSTOM_CONFIG%"=="." goto CUSTOM_CONFIG_END
 set "CB_CONFIG_HOME=%USERPROFILE%\.common-build"
 if exist "%CB_CONFIG_HOME%\conf\.cb-custom-config" set /p CB_CUSTOM_CONFIG=<"%CB_CONFIG_HOME%\conf\.cb-custom-config"
-if ".%CB_CUSTOM_CONFIG%"=="." echo %CB_LINEHEADER%Ignore empty custom config, see %CB_CONFIG_HOME%\conf\.cb-custom-config
+::if ".%CB_CUSTOM_CONFIG%"=="." echo %CB_LINEHEADER%Ignore empty custom config, see %CB_CONFIG_HOME%\conf\.cb-custom-config
 if not ".%CB_CUSTOM_CONFIG%"=="." call :CB_CUSTOM_CONFIG_CHECK
 if %errorCode% NEQ 0 goto END_WITH_ERROR
 :CUSTOM_CONFIG_END

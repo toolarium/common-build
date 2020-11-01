@@ -293,5 +293,7 @@ powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace 
 powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectGroupId@@', "$Env:projectGroupId" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
 powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectComponentId@@', "$Env:projectComponentId" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
 powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectDescription@@', "$Env:projectDescription" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
+set "nullExpression=nul"
+powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@logFile@@', "$Env:nullExpression" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Prepared %1 action %PROJECT_WIZARD_TEMP_FILENAME%: & type "%PROJECT_WIZARD_TEMP_FILENAME%"
 goto :eof

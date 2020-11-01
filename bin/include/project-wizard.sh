@@ -225,6 +225,20 @@ projectReplaceParameters() {
 
 
 #########################################################################
+# Execute a cb command
+#########################################################################
+executeCBCommand() {
+	tempScriptFile=$(mktemp /tmp/cb-execute-command.XXXXXXXXX.sh)
+	echo "#!/bin/bash" > "$tempScriptFile"
+	echo ". cb --silent --setenv" >> "$tempScriptFile"
+	echo "$@" >> "$tempScriptFile"
+	chmod 755 "$tempScriptFile"
+	eval "$tempScriptFile"
+	rm -f "$tempScriptFile" > /dev/null 2>&1
+}
+
+
+#########################################################################
 # main
 #########################################################################
 trap 'exithandler $?; exit' 0
@@ -270,7 +284,7 @@ projectTypeConfigurationParameter=$projectTypeConfiguration
 [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Project type configuration: $(echo $projectTypeConfiguration|sed 's/\n/|/')"
 
 # select project details
-projectNameEndingParameter=$(echo "$projectTypeConfiguration" | grep projectName | sed 's/^.*=//')
+projectNameEndingParameter=$(echo "$projectTypeConfiguration" | grep projectName | sed 's/^.*=//' | head -1)
 [ "projectName" = "$projectNameEndingParameter" ] && projectNameEndingParameter=""
 projectDefaultName="project"
 [ -n "$projectComponentId" ] && projectDefaultName="${projectComponentId}-${projectDefaultName}" || projectDefaultName="my-${projectDefaultName}"
@@ -365,9 +379,9 @@ else
 
 		if [ -n "$initAction" ]; then
 			echo "${CB_LINEHEADER}Initialization..."
-			command=$(projectReplaceParameters init "cb --silent --setenv && $initAction")
+			command=$(projectReplaceParameters init "$initAction")
 			projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
-			if ! eval "$command"; then
+			if ! executeCBCommand "$command"; then
 				echo "${CB_LINEHEADER}Could not execute init action: [$command]."
 				endWithError
 			fi
@@ -381,10 +395,10 @@ else
 		mainAction=$(echo "${mainAction#*=}"| sed 's/^[[:space:]]*//g;s/[[:space:]]*$//g')
 		
 		if [ -n "$mainAction" ]; then
-			command=$(projectReplaceParameters main "cb --silent --setenv && $mainAction")
+			command=$(projectReplaceParameters main "$mainAction")
 			projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 
-			if ! eval "$command"; then
+			if ! executeCBCommand "$command"; then
 				echo "${CB_LINEHEADER}Could not execute main action: [$command]."
 				endWithError
 			fi
@@ -408,10 +422,10 @@ else
 		if [ -n "$postAction" ]; then
 			echo "$CB_LINE"
 			echo "${CB_LINEHEADER}Finishing..."
-			command=$(projectReplaceParameters post "cb --silent --setenv && $postAction")
+			command=$(projectReplaceParameters post "$postAction")
 			projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 
-			if ! eval "$command"; then
+			if ! executeCBCommand "$command"; then
 				echo "${CB_LINEHEADER}Could not execute post action: [$command]."
 				endWithError
 			fi

@@ -239,7 +239,8 @@ executeCustomConfig() {
 	CB_CONFIG_HOME="$OS_HOME/.common-build"
 	[ -r "$CB_CONFIG_HOME/conf/.cb-custom-config" ] && CB_CUSTOM_CONFIG=$(cat $CB_CONFIG_HOME/conf/.cb-custom-config | tr -d '\r')
 	[ -z "$CB_CUSTOM_CONFIG" ] && return
-	! [ -n "$CB_CUSTOM_CONFIG" ] && echo "${CB_LINEHEADER}Ignore empty custom config, see $CB_CONFIG_HOME/conf/.cb-custom-config" && return
+	#! [ -n "$CB_CUSTOM_CONFIG" ] && echo "${CB_LINEHEADER}Ignore empty custom config, see $CB_CONFIG_HOME/conf/.cb-custom-config"
+	! [ -n "$CB_CUSTOM_CONFIG" ] && return
 	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Verify custom config [$CB_CUSTOM_CONFIG]."
 	! [ -d "$CB_CONFIG_HOME" ] && mkdir "$CB_CONFIG_HOME"
 
@@ -492,25 +493,25 @@ setCBEnv() {
 	if [ -d "$CB_CURRENT_PATH/node" ]; then
 		CB_NODE_HOME=$CB_CURRENT_PATH/node && NODE_HOME=$CB_NODE_HOME
 		[ -z "$(echo $PATH | grep $NODE_HOME)" ] && PATH="$NODE_HOME:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add node to path ($NODE_HOME)."
-		export CB_NODE_HOME NODE_HOME
+		export CB_NODE_HOME NODE_HOME PATH
 	fi
 
 	if [ -d "$CB_CURRENT_PATH/ant" ]; then
 		CB_ANT_HOME=$CB_CURRENT_PATH/ant && ANT_HOME=$CB_ANT_HOME
 		[ -z "$(echo $PATH | grep $ANT_HOME/bin)" ] && PATH="$ANT_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add ant to path ($ANT_HOME/bin)."
-		export CB_ANT_HOME ANT_HOME
+		export CB_ANT_HOME ANT_HOME PATH
 	fi
 
 	if [ -d "$CB_CURRENT_PATH/maven" ]; then
 		CB_MAVEN_HOME=$CB_CURRENT_PATH/maven && MAVEN_HOME=$CB_MAVEN_HOME
 		[ -z "$(echo $PATH | grep $MAVEN_HOME/bin)" ] && PATH="$MAVEN_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add maven to path ($MAVEN_HOME/bin)."
-		export CB_MAVEN_HOME MAVEN_HOME
+		export CB_MAVEN_HOME MAVEN_HOME PATH
 	fi
 
 	if [ -d "$CB_CURRENT_PATH/gradle" ]; then
 		CB_GRADLE_HOME=$CB_CURRENT_PATH/gradle && GRADLE_HOME=$CB_GRADLE_HOME
 		[ -z "$(echo $PATH | grep $GRADLE_HOME/bin)" ] && PATH="$GRADLE_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add gradle to path ($GRADLE_HOME/bin)."
-		export CB_GRADLE_HOME GRADLE_HOME
+		export CB_GRADLE_HOME GRADLE_HOME PATH
 	fi
 
 	if [ -d "$CB_CURRENT_PATH/java" ]; then
@@ -683,7 +684,7 @@ prepareCommonBuildNode() {
 		fi
 
 		! [ "$CB_NODE_HOME" = "$NODE_HOME" ] && NODE_HOME="$CB_NODE_HOME" && export NODE_HOME
-		[ "$(echo ${PATH#*$CB_NODE_HOME*})" = "$(echo $PATH)" ] && PATH="$CB_NODE_HOME/bin:$PATH" && export PATH
+		[ "$(echo ${PATH#*$CB_NODE_HOME*})" = "$(echo $PATH)" ] && PATH="$CB_NODE_HOME:$PATH" && export PATH
 
 		if ! [ -n "$(existBinary $NODE_EXEC)" ]; then
 			echo "${CB_LINEHEADER}Could not find node version in path."
@@ -1305,7 +1306,7 @@ do
 		-exp)		shift; exploreProject; exit 0;;
 		--explore)	shift; exploreProject; exit 0;;
 		--packages)	shift; printPackages "$@"; exit 0;;
-		--setenv)	CB_EXECUTE_BUILD=false; setCBEnv "$@";;
+		--setenv)	CB_EXECUTE_BUILD=false; setCBEnv "$@"; unset errorCode;;
 		--install)	shift; installCb "$@"; exit 0;;
 		--java)		shift && echo $1 > $CB_JAVA_VERSION_FILE;;
 		*)			CB_PARAMETERS="$CB_PARAMETERS \"$1\"";;
@@ -1323,8 +1324,7 @@ CB_END_TIMESTAMP=$(getTimestamp)
 #CB_DUATION=$(eval "expr $(echo $CB_END_TIMESTAMP | sed 's/[ |.|:|-]*//g') - $(echo $CB_START_TIMESTAMP | sed 's/[ |.|:|-]*//g')")
 #CB_DUATION=$(printf %.3f "${CB_DUATION}e-3")
 [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Ended $CB_END_TIMESTAMP."
-
-exit $errorCode
+[ -n "$errorCode" ] && exit $errorCode
 
 
 #########################################################################
