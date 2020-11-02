@@ -492,7 +492,8 @@ setCBEnv() {
 
 	if [ -d "$CB_CURRENT_PATH/node" ]; then
 		CB_NODE_HOME=$CB_CURRENT_PATH/node && NODE_HOME=$CB_NODE_HOME
-		[ -z "$(echo $PATH | grep $NODE_HOME)" ] && PATH="$NODE_HOME:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add node to path ($NODE_HOME)."
+		[ -d "$CB_NODE_HOME/bin" ] && CB_NODE_BIN="$CB_NODE_HOME/bin" || CB_NODE_BIN="$CB_NODE_HOME"
+		[ -z "$(echo $PATH | grep $NODE_HOME)" ] && PATH="$CB_NODE_BIN:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add node to path ($CB_NODE_BIN)."
 		export CB_NODE_HOME NODE_HOME PATH
 	fi
 
@@ -683,8 +684,9 @@ prepareCommonBuildNode() {
 			endWithError
 		fi
 
+		[ -d "$CB_NODE_HOME/bin" ] && CB_NODE_BIN="$CB_NODE_HOME/bin" || CB_NODE_BIN="$CB_NODE_HOME"
 		! [ "$CB_NODE_HOME" = "$NODE_HOME" ] && NODE_HOME="$CB_NODE_HOME" && export NODE_HOME
-		[ "$(echo ${PATH#*$CB_NODE_HOME*})" = "$(echo $PATH)" ] && PATH="$CB_NODE_HOME:$PATH" && export PATH
+		[ "$(echo ${PATH#*$CB_NODE_BIN*})" = "$(echo $PATH)" ] && PATH="$CB_NODE_BIN:$PATH" && export PATH
 
 		if ! [ -n "$(existBinary $NODE_EXEC)" ]; then
 			echo "${CB_LINEHEADER}Could not find node version in path."
