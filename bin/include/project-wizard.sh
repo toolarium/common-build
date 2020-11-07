@@ -66,7 +66,7 @@ preapreProjectConfigurationFile() {
 		! [ -r "$CB_PROJECT_CONFIGFILE_TMPFILE" ] && echo "${CB_LINEHEADER}Create project types temp file: $CB_PROJECT_CONFIGFILE_TMPFILE"
 	fi
 
-	! [ -r "$CB_PROJECT_CONFIGFILE_TMPFILE" ] && echo 1a && cat "$CB_PROJECT_CONFIGFILE" 2>/dev/null | tr -d '\15\32' | grep -v "#" | grep "=" > "$CB_PROJECT_CONFIGFILE_TMPFILE" 2>/dev/null
+	! [ -r "$CB_PROJECT_CONFIGFILE_TMPFILE" ] && cat "$CB_PROJECT_CONFIGFILE" 2>/dev/null | tr -d '\15\32' | grep -v "#" | grep "=" > "$CB_PROJECT_CONFIGFILE_TMPFILE" 2>/dev/null
 }
 
 
