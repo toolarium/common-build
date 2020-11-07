@@ -18,6 +18,9 @@ if .%CB_DEVTOOLS%==. set "CB_DEVTOOLS=%CB_DEVTOOLS_DRIVE%\%CB_DEVTOOLS_NAME%"
 if .%CB_WGET_VERSION%==. set "CB_WGET_VERSION=1.20.3"
 if .%CB_WGET_DOWNLOAD_URL%==. set "CB_WGET_DOWNLOAD_URL=https://eternallybored.org/misc/wget/"
 if .%CB_UNZIP_DOWNLOAD_URL%==. set "CB_UNZIP_DOWNLOAD_URL=http://stahlworks.com/dev/"
+if not defined TEMP set "TEMP=%TMP%"
+if not defined CB_TEMP set "CB_TEMP=%TEMP%\cb"
+if not exist %CB_TEMP% mkdir "%CB_TEMP%" >nul 2>nul
 
 
 :: define parameters
@@ -94,7 +97,7 @@ if errorlevel 1 (set "ERROR_INFO=No internet connection detected." & goto INSTAL
 
 :: get the list of release from GitHub
 set CB_REMOTE_VERSION= & set CB_DOWNLOAD_VERSION_URL= & set ERROR_DETAIL_INFO= & set ERROR_INFO=
-set cbInfoTemp=%TEMP%\toolarium-common-build_info%RANDOM%%RANDOM%.txt & set cbErrorTemp=%TEMP%\toolarium-common-build_error%RANDOM%%RANDOM%.txt
+set cbInfoTemp=%CB_TEMP%\toolarium-common-build_info%RANDOM%%RANDOM%.txt & set cbErrorTemp=%CB_TEMP%\toolarium-common-build_error%RANDOM%%RANDOM%.txt
 del /f /q %cbInfoTemp% 2>nul & del /f /q %cbErrorTemp% 2>nul
 
 if [%CB_INSTALLER_SILENT%] equ [false] (if .%CB_VERSION% == . echo %CB_LINEHEADER%Check newest version of toolarium-common-build...

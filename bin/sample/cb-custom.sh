@@ -2,7 +2,7 @@
 
 #########################################################################
 #
-# cb-custom-sample
+# cb-custom
 #
 # Copyright by toolarium, all rights reserved.
 # MIT License: https://mit-license.org
@@ -10,22 +10,12 @@
 #########################################################################
 
 
-# define parameters
-CUSTOM_CB_LINE="****************************************************************************************"
-
-
 #########################################################################
 # customStart
 #########################################################################
 customStart() {
-	CB_LINE="${CUSTOM_CB_LINE}"
-	export CB_LINE
-	
-	echo "${CB_LINE}"
-	echo ""
-	echo "START SAMPLE"
-	echo ""
-	echo "${CB_LINE}"
+	#echo "${CB_LINEHEADER}START $*"
+	:
 }
 
 
@@ -33,7 +23,8 @@ customStart() {
 # customBuildStart
 #########################################################################
 customBuildStart() {
-	echo "${CB_LINEHEADER}START BUILD $*"
+	#echo "${CB_LINEHEADER}START BUILD $*"
+	:
 }
 
 
@@ -41,7 +32,8 @@ customBuildStart() {
 # customBuildEnd
 #########################################################################
 customBuildEnd() {
-	echo "${CB_LINEHEADER}END BUILD $*"
+	#echo "${CB_LINEHEADER}END BUILD $*"
+	:
 }
 
 
@@ -49,13 +41,8 @@ customBuildEnd() {
 # customNewProjectStart
 #########################################################################
 customNewProjectStart() {
-	echo "${CB_LINEHEADER}START NEW PROJECT $*"
-	
-	# define own project types
-	CB_CUSTOM_PROJECT_CONFIGFILE=$(mkdir /tmp/cb 2>/dev/null; mktemp /tmp/cb/cb-project-types-custom.XXXXXXXXX)
-	echo "java-library = Simple java library|projectName|projectRootPackageName|projectGroupId|projectComponentId|projectDescription" >> $CB_CUSTOM_PROJECT_CONFIGFILE
-	echo "config = Configuration Project|projectName|projectGroupId|projectComponentId|projectDescription" >> $CB_CUSTOM_PROJECT_CONFIGFILE
-	echo "my-own-type = My own type|projectName|projectGroupId|projectDescription" >> $CB_CUSTOM_PROJECT_CONFIGFILE
+	#echo "${CB_LINEHEADER}START NEW PROJECT $*"
+	:
 }
 
 
@@ -63,8 +50,8 @@ customNewProjectStart() {
 # customNewProjectEnd
 #########################################################################
 customNewProjectEnd() {
-	echo "${CB_LINEHEADER}END NEW PROJECT $*"
-	del $CB_CUSTOM_PROJECT_CONFIGFILE >/dev/null 2>&1
+	#echo "${CB_LINEHEADER}END NEW PROJECT $*"
+	:
 }
 
 
@@ -72,7 +59,8 @@ customNewProjectEnd() {
 # customInstallStart
 #########################################################################
 customInstallStart() {
-	echo "${CB_LINEHEADER}START INSTALL $*"
+	#echo "${CB_LINEHEADER}START INSTALL $*"
+	:
 }
 
 
@@ -80,7 +68,8 @@ customInstallStart() {
 # customInstallEnd
 #########################################################################
 customInstallEnd() {
-	echo "${CB_LINEHEADER}END INSTALL $*"
+	#echo "${CB_LINEHEADER}END INSTALL $*"
+	:
 }
 
 
@@ -88,7 +77,8 @@ customInstallEnd() {
 # customDownloadPackageStart
 #########################################################################
 customDownloadPackageStart() {
-	echo "${CB_LINEHEADER}START DOWNLOAD PACKAGE $*"
+	#echo "${CB_LINEHEADER}START DOWNLOAD PACKAGE $*"
+	:
 }
 
 
@@ -96,7 +86,8 @@ customDownloadPackageStart() {
 # customDownloadPackageEnd
 #########################################################################
 customDownloadPackageEnd() {
-	echo "${CB_LINEHEADER}END DOWNLOAD PACKAGE $*"
+	#echo "${CB_LINEHEADER}END DOWNLOAD PACKAGE $*"
+	:
 }
 
 
@@ -104,7 +95,8 @@ customDownloadPackageEnd() {
 # customExtractPackageStart
 #########################################################################
 customExtractPackageStart() {
-	echo "${CB_LINEHEADER}START EXTRACT PACKAGE $*"
+	#echo "${CB_LINEHEADER}START EXTRACT PACKAGE $*"
+	:
 }
 
 
@@ -112,7 +104,8 @@ customExtractPackageStart() {
 # customExtractPackageEnd
 #########################################################################
 customExtractPackageEnd() {
-	echo "${CB_LINEHEADER}END EXTRACT PACKAGE $*"
+	#echo "${CB_LINEHEADER}END EXTRACT PACKAGE $*"
+	:
 }
 
 
@@ -120,7 +113,8 @@ customExtractPackageEnd() {
 # customSetEnvStart
 #########################################################################
 customSetEnvStart() {
-	echo "${CB_LINEHEADER}START SETENV $*"
+	#echo "${CB_LINEHEADER}START SETENV $*"
+	:
 }
 
 
@@ -128,7 +122,8 @@ customSetEnvStart() {
 # customSetEnvEnd
 #########################################################################
 customSetEnvEnd() {
-	echo "${CB_LINEHEADER}END SETENV $*"
+	#echo "${CB_LINEHEADER}END SETENV $*"
+	:
 }
 
 
@@ -136,7 +131,8 @@ customSetEnvEnd() {
 # customConfigUpdateEnd
 #########################################################################
 customConfigUpdateEnd() {
-	echo "${CB_LINEHEADER}CUSTOM CONFIG UPDATE [$CB_CUSTOM_CONFIG_VERSION]"
+	#echo "${CB_LINEHEADER}CUSTOM CONFIG UPDATE [$CB_CUSTOM_CONFIG_VERSION]"
+	:
 }
 
 
@@ -144,7 +140,8 @@ customConfigUpdateEnd() {
 # customErrorEnd
 #########################################################################
 customErrorEnd() {
-	echo "${CB_LINEHEADER}ENDED WITH ERROR: $*"
+	#echo "${CB_LINEHEADER}ENDED WITH ERROR: $*"
+	:
 }
 
 

@@ -41,6 +41,9 @@ case $CB_OS in
 	*) ;;
 esac
 CB_MACHINE="$(uname -m | tr '[:upper:]' '[:lower:]')"
+! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb"
+! [ -r "$CB_TEMP" ] && mkdir "$CB_TEMP" >/dev/null 2>&1
+export CB_TEMP
 
 
 #########################################################################
@@ -315,7 +318,11 @@ executeCustomConfig() {
 	[ -n "$CB_CUSTOM_CONFIG_VERSION" ] && [ -r "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp" ] && echo "lastCheck=$LAST_CHECK_TSP">"$lastCheckPropertiesFile" && echo "version=$CB_CUSTOM_CONFIG_VERSION">>"$lastCheckPropertiesFile"
 
 	CB_CUSTOM_RUNTIME_CONFIG_PATH="$CB_CUSTOM_CONFIG_PATH/$CB_CUSTOM_CONFIG_VERSION" && export CB_CUSTOM_RUNTIME_CONFIG_PATH
-	[ -x "$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.sh" ] && CB_CUSTOM_SETTING="$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.sh" && export CB_CUSTOM_SETTING
+	if [ -r "$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.sh" ]; then
+		chmod 755 "$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.sh" >/dev/null 2>&1 
+		CB_CUSTOM_SETTING="$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.sh"
+		CB_CUSTOM_SETTING_SCRIPT="$CB_CUSTOM_SETTING" && export CB_CUSTOM_SETTING CB_CUSTOM_SETTING_SCRIPT
+	fi
 	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Use custom config version $CB_CUSTOM_CONFIG_VERSION."
 
 	export CB_CUSTOM_CONFIG CB_CUSTOM_CONFIG_VERSION
@@ -1092,7 +1099,7 @@ installCb() {
 				if [ -n "$lastCheck" ] && [ "$lastCheck" = "$DATETIMESTAMP" ]; then
 					break
 				else
-					TOOL_VERSION_DEFAULT_TMP=$(mktemp /tmp/cb-tool-version-default.XXXXXXXXX)
+					TOOL_VERSION_DEFAULT_TMP=$(mktemp $CB_TEMP/cb-tool-version-default.XXXXXXXXX)
 					echo "${CB_LINEHEADER}Updated ${CB_TOOL_VERSION_DEFAULT##*/}."
 					downloadFiles "$CB_TOOL_VERSION_DEFAULT_URL" "$TOOL_VERSION_DEFAULT_TMP"
 					[ -r "$TOOL_VERSION_DEFAULT_TMP" ] && mv $TOOL_VERSION_DEFAULT_TMP $CB_TOOL_VERSION_DEFAULT >/dev/null 2>&1 || break
@@ -1103,7 +1110,7 @@ installCb() {
 
 		if [ -z "$CB_INSTALL_VERSION" ] && [ -r "$CB_TOOL_VERSION_DEFAULT" ]; then
 			[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Use [%CB_TOOL_VERSION_DEFAULT%]."
-			CB_TOOL_VERSION_DEFAULT_TMPFILE=$(mktemp /tmp/cb-tool-version-default.XXXXXXXXX)
+			CB_TOOL_VERSION_DEFAULT_TMPFILE=$(mktemp $CB_TEMP/cb-tool-version-default.XXXXXXXXX)
 			cat $CB_TOOL_VERSION_DEFAULT 2>/dev/null | grep -v "#" | grep "=" > $CB_TOOL_VERSION_DEFAULT_TMPFILE 2>/dev/null
 			while IFS= read -r line; do
 				key="${line%=*}" && key="$(echo $key 2>/dev/null| sed 's/ //g' 2>/dev/null)"								
@@ -1219,8 +1226,8 @@ installCb() {
 					CB_UPDATED=false
 
 					if [ "$CB_PACKAGE_NO_DEFAULT" = "false" ]; then
-						CB_TOOL_VERSION_INSTALLED_TMPFILE=$(mktemp /tmp/cb-tool-version-default.XXXXXXXXX)
-						CB_TOOL_VERSION_INSTALLED_TMPFILE2=$(mktemp /tmp/cb-tool-version-default.XXXXXXXXX)
+						CB_TOOL_VERSION_INSTALLED_TMPFILE=$(mktemp $CB_TEMP/cb-tool-version-default.XXXXXXXXX)
+						CB_TOOL_VERSION_INSTALLED_TMPFILE2=$(mktemp $CB_TEMP/cb-tool-version-default.XXXXXXXXX)
 						cat $CB_TOOL_VERSION_INSTALLED 2>/dev/null | grep -v "#" | grep "=" > $CB_TOOL_VERSION_INSTALLED_TMPFILE 2>/dev/null
 						while IFS= read -r line; do
 							key="${line%=*}" && key="$(echo $key 2>/dev/null| sed 's/ //g' 2>/dev/null)"

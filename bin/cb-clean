@@ -1,0 +1,83 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-clean
+#
+# Copyright by toolarium, all rights reserved.
+# MIT License: https://mit-license.org
+#
+#########################################################################
+
+
+PN=$(basename "$0" 2>/dev/null)
+! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb"
+export CB_TEMP
+CLEAN_PATH="$CB_TEMP"
+CLEAN_PATTERN="*"
+CLEAN_DAYS=1
+
+
+#########################################################################
+# Parse a json output an element
+#########################################################################
+parseJson() {
+	processed=$(catOut "$@")
+	for i in $(echo "$nameFilter" | tr "." "\n"); do
+		[ "#" = "$i" ] && tagElementFilter="" || tagElementFilter="$i"
+		processed="$(echo $processed | cutJsonElement)"
+	done
+	echo "$processed"
+}
+
+
+#########################################################################
+# printUsage
+#########################################################################
+printUsage() {
+	echo "$PN - clean files"
+	echo "usage: $PN [OPTION]"	
+	echo ""
+	echo "Overview of the available OPTIONs:"
+	echo " -h, --help           Show this help message."
+	echo " --path path          Defines the path, default \$CB_TEMP"
+	echo " --pattern pattern    Defines the file pattern, default $CLEAN_PATTERN"
+	echo " --days days          The number of days back to delete, default $CLEAN_DAYS"
+	echo ""
+	echo "Examples:"
+	echo " Delete cb temp files:"
+	echo " cb-clean"
+	echo ""
+	echo " Delete gradle worrker files:"
+	echo " cb-clean --path /tmp --pattern gradle-worker*"
+}
+
+
+#########################################################################
+# main
+#########################################################################
+parseContent="false"
+returnValue=false
+while [ $# -gt 0 ]; do
+    case "$1" in
+		-h) 			printUsage; exit 0;;
+		--help) 		printUsage; exit 0;;
+		--path) 		shift; CLEAN_PATH="$1";;
+		--pattern) 		shift; CLEAN_PATTERN="$1";;
+		--days) 		shift; CLEAN_DAYS="$1";;
+		*) 				echo "Invalid parameter: $1"; echo ""; printUsage; exit 1;;
+    esac
+	shift
+done
+
+if [ -r "$CLEAN_PATH" ]; then
+	echo ".: Clean in [$CLEAN_PATH] with pattern [$CLEAN_PATTERN] which are older than $CLEAN_DAYS day(s)..."
+	find "$CLEAN_PATH" -name "$CLEAN_PATTERN" -mtime $CLEAN_DAYS -exec rm -f {} \;
+else
+	echo ".: Path $CLEAN_PATH don't exist"
+fi
+
+
+#########################################################################
+#  EOF
+#########################################################################

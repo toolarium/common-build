@@ -12,8 +12,11 @@
 set "CB_WT_RELEASE_URL=https://api.github.com/repos/microsoft/terminal/releases"
 set "CB_WT_ONLY_STABLE=true"
 set "CB_PACKAGE_NO_DEFAULT=true"
+if not defined TEMP set "TEMP=%TMP%"
+if not defined CB_TEMP set "CB_TEMP=%TEMP%\cb"
+if not exist %CB_TEMP% mkdir "%CB_TEMP%" >nul 2>nul
 
-set cbInfoTemp=%TEMP%\toolarium-common-build_wt-info%RANDOM%%RANDOM%.txt & set cbErrorTemp=%TEMP%\toolarium-common-build_wt-error%RANDOM%%RANDOM%.txt
+set cbInfoTemp=%CB_TEMP%\toolarium-common-build_wt-info%RANDOM%%RANDOM%.txt & set cbErrorTemp=%CB_TEMP%\toolarium-common-build_wt-error%RANDOM%%RANDOM%.txt
 del %cbInfoTemp% 2>nul & del %cbErrorTemp% 2>nul
 if .%CB_WT_ONLY_STABLE% == .true powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_WT_RELEASE_URL%"; $releases | ? { $_.prerelease -ne 'false' } | Select-Object -Property tag_name |  select-object -First 1 -ExpandProperty tag_name" 2>%cbErrorTemp% > %cbInfoTemp%
 if .%CB_WT_ONLY_STABLE% == .false powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_WT_RELEASE_URL%" | Select-Object -First 1; Split-Path -Path $releases.zipball_url -Leaf" 2>%cbErrorTemp% > %cbInfoTemp%

@@ -12,9 +12,12 @@
 
 setlocal EnableDelayedExpansion
 set PN=%~nx0
-set "CB_SILENT=false"
-set "CLEAN_PATH=%TEMP%"
-set "CLEAN_PATTERN=cb-*.*"
+if not defined TEMP set "TEMP=%TMP%"
+if not defined CB_TEMP set "CB_TEMP=%TEMP%\cb"
+if not exist %CB_TEMP% mkdir "%CB_TEMP%" >nul 2>nul
+set "CB_SILENT=true"
+set "CLEAN_PATH=%CB_TEMP%"
+set "CLEAN_PATTERN=*.*"
 set "CLEAN_DAYS=1"
 if [%CLEAN_PATH%] EQU [] set "CLEAN_PATH=%TMP%"
 
@@ -35,12 +38,12 @@ if not exist %CLEAN_PATH% echo .: Path %CLEAN_PATH% don't exist & goto END
 
 if .%CB_SILENT%==.true goto CLEAN_SILENT
 echo .: Clean in [%CLEAN_PATH%] with pattern [%CLEAN_PATTERN%] which are older than %CLEAN_DAYS% day(s)...
-forfiles /p "%CLEAN_PATH%" /m %CLEAN_PATTERN% /D -%CLEAN_DAYS% /C "cmd /c del /f /q @path & echo Delete file @path"
+forfiles /p "%CLEAN_PATH%" /m %CLEAN_PATTERN% /D -%CLEAN_DAYS% /C "cmd /c del /f /q @path & echo Delete file @path" 2>nul
 goto END
 
 :CLEAN_SILENT
 echo .: Clean silent in [%CLEAN_PATH%] with pattern [%CLEAN_PATTERN%] which are older than %CLEAN_DAYS% day(s)...
-forfiles /p "%CLEAN_PATH%" /m %CLEAN_PATTERN% /D -%CLEAN_DAYS% /C "cmd /c del /f /q @path"
+forfiles /p "%CLEAN_PATH%" /m %CLEAN_PATTERN% /D -%CLEAN_DAYS% /C "cmd /c del /f /q @path" 2>nul
 goto END
 
 
@@ -52,9 +55,17 @@ echo usage: %PN% [OPTION]
 echo.
 echo Overview of the available OPTIONs:
 echo  -h, --help           Show this help message.
-echo  --path path          Defines the path, default %%TEMP%%.
+echo  --path path          Defines the path, default %%CB_TEMP%%.
 echo  --pattern pattern    Defines the file pattern, default cb-^*.^* 
 echo  --days days          The number of days back to delete, default 1  
+echo.
+echo Examples:
+echo  Delete cb temp files:
+echo  cb-clean
+echo.
+echo  Delete gradle worrker files:
+echo  cb-clean --path %%TEMP%% --pattern gradle-worker^*
+echo.
 goto END
 
 

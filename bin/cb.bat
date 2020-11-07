@@ -23,7 +23,9 @@ set CB_CUSTOM_SETTING_SCRIPT=
 set "CB_VERBOSE=false"
 if .%1==.--verbose shift & set "CB_VERBOSE=true"
 set errorCode=0
-if not defined TEMP set TEMP=%TMP%
+if not defined TEMP set "TEMP=%TMP%"
+if not defined CB_TEMP set "CB_TEMP=%TEMP%\cb"
+if not exist %CB_TEMP% mkdir "%CB_TEMP%" >nul 2>nul
 
 where powershell >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Please install powershell. & goto END_WITH_ERROR
@@ -94,6 +96,7 @@ if .%1==.-exp shift & goto PROJECT_EXPLORE
 if .%1==.--explore shift & goto PROJECT_EXPLORE
 if .%1==.--packages shift & goto PACKAGES
 if .%1==.--install shift & goto INSTALL_CB
+if .%1==.--setenv shift & goto SET_ENV
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -398,7 +401,9 @@ echo lastCheck=%LAST_CHECK_TSP%>"%lastCheckPropertiesFile%"
 echo version=%CB_CUSTOM_CONFIG_VERSION%>>"%lastCheckPropertiesFile%"
 set "CB_CUSTOM_RUNTIME_CONFIG_PATH=%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%"
 if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat" set "CB_CUSTOM_SETTING=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat"
+if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat" set "CB_CUSTOM_SETTING_SCRIPT=%CB_CUSTOM_SETTING%"
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use custom config version %CB_CUSTOM_CONFIG_VERSION%.
+if .%CB_VERBOSE% == .true if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat" echo %CB_LINEHEADER%Found custom script %CB_CUSTOM_SETTING_SCRIPT%.
 if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" custom-config-update-end %1 %2 %3 %4 %5 %6 %7 2>nul
 goto :eof
 
@@ -437,7 +442,7 @@ goto COMMON_BUILD_VERIFY_JAVA
 if defined cbJavaVersion set "cbJavaVersionFilter=%cbJavaVersion%*"
 set /a "cbJavaMajorVersion=%cbJavaVersion%" 2>nul
 if not .%cbJavaMajorVersion% == .%cbJavaVersion% echo %CB_LINEHEADER%Invalid java version paramter %cbJavaVersion% (only major version can be referenced, e.g. 11, 12...) & goto END_WITH_ERROR
-set "TMPFILE=%TEMP%\cb-java-%RANDOM%%RANDOM%.tmp"
+set "TMPFILE=%CB_TEMP%\cb-java-%RANDOM%%RANDOM%.tmp"
 if not defined CB_DEVTOOLS_JAVA_PREFIX set "CB_DEVTOOLS_JAVA_PREFIX=*"
 if defined cbJavaVersion dir %CB_DEVTOOLS%\%CB_DEVTOOLS_JAVA_PREFIX%%cbJavaVersionFilter% /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
 if defined cbJavaVersion for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install java %cbJavaVersion%
@@ -489,7 +494,7 @@ if exist gradlew set "GRADLE_EXEC=gradlew" & goto COMMON_BUILD_GRADLE_EXEC
 if defined CB_GRADLE_HOME goto COMMON_BUILD_VERIFY_GRADLE
 if not exist %CB_CURRENT_PATH%\gradle\bin (call %PN_FULL% --silent --install gradle --default)
 if exist %CB_CURRENT_PATH%\gradle\bin set "CB_GRADLE_HOME=%CB_CURRENT_PATH%\gradle"
-::set "TMPFILE=%TEMP%\cb-gradle-%RANDOM%%RANDOM%.tmp"
+::set "TMPFILE=%CB_TEMP%\cb-gradle-%RANDOM%%RANDOM%.tmp"
 ::dir %CB_DEVTOOLS%\*gradle* /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
 ::for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install gradle
 ::dir %CB_DEVTOOLS%\*gradle* /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
@@ -523,7 +528,7 @@ if exist mvnw set "MAVEN_EXEC=mvnw" & goto COMMON_BUILD_MAVEN_EXEC
 if defined CB_MAVEN_HOME goto COMMON_BUILD_VERIFY_MAVEN
 if not exist %CB_CURRENT_PATH%\maven\bin (call %PN_FULL% --silent --install maven --default)
 if exist %CB_CURRENT_PATH%\maven\bin set "CB_MAVEN_HOME=%CB_CURRENT_PATH%\maven"
-::set "TMPFILE=%TEMP%\cb-maven-%RANDOM%%RANDOM%.tmp"
+::set "TMPFILE=%CB_TEMP%\cb-maven-%RANDOM%%RANDOM%.tmp"
 ::dir %CB_DEVTOOLS%\*maven* /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
 ::for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install maven
 ::dir %CB_DEVTOOLS%\*maven* /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
@@ -553,7 +558,7 @@ set ANT_EXEC=ant
 if defined CB_ANT_HOME goto COMMON_BUILD_VERIFY_ANT
 if not exist %CB_CURRENT_PATH%\ant\bin (call %PN_FULL% --silent --install ant --default)
 if exist %CB_CURRENT_PATH%\ant\bin set "CB_ANT_HOME=%CB_CURRENT_PATH%\ant"
-::set "TMPFILE=%TEMP%\cb-ant-%RANDOM%%RANDOM%.tmp"
+::set "TMPFILE=%CB_TEMP%\cb-ant-%RANDOM%%RANDOM%.tmp"
 ::dir %CB_DEVTOOLS%\*ant* /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
 ::for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install ant
 ::dir %CB_DEVTOOLS%\*ant* /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
@@ -691,9 +696,9 @@ if not exist %CB_TOOL_VERSION_DEFAULT_CHECK% goto GET_TOOL_VERSION_DEFAULT
 set /plastCheck=<%CB_TOOL_VERSION_DEFAULT_CHECK%
 if [%lastCheck%] EQU [%DATETIMESTAMP%] goto READ_TOOL_VERSION_DEFAULT
 :GET_TOOL_VERSION_DEFAULT
-set "TOOL_VERSION_DEFAULT_TMP=%TEMP%\tool-version-default.properties"
+set "TOOL_VERSION_DEFAULT_TMP=%CB_TEMP%\tool-version-default.properties"
 echo %CB_LINEHEADER%Updated tool-version-default.properties.
-cd /D %TEMP%
+cd /D %CB_TEMP%
 %CB_BIN%\%CB_WGET_CMD% %CB_TOOL_VERSION_DEFAULT_URL% %CB_WGET_PARAM% %CB_WGET_SECURITY_CREDENTIALS% %CB_WGET_PROGRESSBAR% %CB_WGET_LOG%
 cd /D %CB_WORKING_PATH%
 for %%R in ("%TOOL_VERSION_DEFAULT_TMP%") do if not %%~zR lss 1 move %TOOL_VERSION_DEFAULT_TMP% %CB_TOOL_VERSION_DEFAULT% >nul 2>nul
@@ -703,7 +708,7 @@ goto TOOL_VERSION_DEFAULT_START
 :READ_TOOL_VERSION_DEFAULT
 dir %CB_TOOL_VERSION_DEFAULT% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 goto TOOL_VERSION_DEFAULT_END
-set "CB_TOOL_VERSION_DEFAULT_TMPFILE=%TEMP%\cb-tool-version-default-%RANDOM%%RANDOM%.tmp"
+set "CB_TOOL_VERSION_DEFAULT_TMPFILE=%CB_TEMP%\cb-tool-version-default-%RANDOM%%RANDOM%.tmp"
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use [%CB_TOOL_VERSION_DEFAULT%].
 type %CB_TOOL_VERSION_DEFAULT% 2>nul | findstr /C:= > %CB_TOOL_VERSION_DEFAULT_TMPFILE% 2>nul
 for /f "tokens=1,2* delims== " %%i in (%CB_TOOL_VERSION_DEFAULT_TMPFILE%) do (if .%%i == .%CB_INSTALL_PKG% set "CB_INSTALL_VERSION=%%j" & set "CB_INSTALL_VERSION_PARAM=%%k")
@@ -798,7 +803,7 @@ if %ERRORLEVEL% EQU 0 cmd /c "%1 %CB_PACKAGE_INSTALL_PARAMETER%" & set "errorCod
 echo %1 | findstr /I /C:.msixbundle >nul 2>nul	
 if %ERRORLEVEL% EQU 0 cmd /c "%1 %CB_PACKAGE_INSTALL_PARAMETER%" & set "errorCode=%ERRORLEVEL%" & goto :eof
 
-set "TMPFILE=%TEMP%\cb-extract-file-%RANDOM%%RANDOM%.tmp"
+set "TMPFILE=%CB_TEMP%\cb-extract-file-%RANDOM%%RANDOM%.tmp"
 if exist %CB_BIN%\%CB_UNZIP_CMD% %CB_BIN%\%CB_UNZIP_CMD% -Z -1 %1 | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
 if %ERRORLEVEL% NEQ 0 set "errorCode=%ERRORLEVEL%" & echo %CB_LINEHEADER%Could not extract package. & del /f /q "%TMPFILE%" >nul 2>nul & goto :eof
 for %%R in ("%TMPFILE%") do if not %%~zR lss 1 set /ptopDirectory=<"%TMPFILE%"
@@ -831,8 +836,8 @@ if not .%CB_PACKAGE_VERSION% == . set CB_INSTALLED_VERSION=%CB_PACKAGE_VERSION%
 set CB_INSTALLED_PKG_PREFIX= & for /f "tokens=1 delims=-" %%i in ("%CB_INSTALL_PKG%") do (set "CB_INSTALLED_PKG_PREFIX=%%i")
 ::if .java == .%CB_INSTALLED_PKG_PREFIX% set CB_INSTALL_PKG=%CB_INSTALLED_PKG_PREFIX%
 ::if .java == .%CB_INSTALL_PKG% set CB_INSTALL_PKG=%CB_INSTALL_PKG%%installedMajorNumber%
-set "CB_TOOL_VERSION_INSTALLED_TMPFILE=%TEMP%\cb-tool-version-installed-%RANDOM%%RANDOM%.tmp"
-set "CB_TOOL_VERSION_INSTALLED_TMPFILE2=%TEMP%\cb-tool-version-installed-%RANDOM%%RANDOM%.tmp"
+set "CB_TOOL_VERSION_INSTALLED_TMPFILE=%CB_TEMP%\cb-tool-version-installed-%RANDOM%%RANDOM%.tmp"
+set "CB_TOOL_VERSION_INSTALLED_TMPFILE2=%CB_TEMP%\cb-tool-version-installed-%RANDOM%%RANDOM%.tmp"
 set CB_ENTRY_FOUND=false
 set CB_UPDATED=false
 type %CB_TOOL_VERSION_INSTALLED% 2>nul | findstr /C:= > %CB_TOOL_VERSION_INSTALLED_TMPFILE% 2>nul

@@ -10,8 +10,9 @@
 #########################################################################
 
 
-CB_PROJECT_CONFIGFILE_TMPFILE=$(mktemp /tmp/cb-project-types.XXXXXXXXX)
-CB_PRODUCT_CONFIGFILE_TMPFILE=$(mktemp /tmp/cb-product-types.XXXXXXXXX)
+! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb"
+! [ -r "$CB_TEMP" ] && mkdir "$CB_TEMP" >/dev/null 2>&1
+export CB_TEMP
 
 
 #########################################################################
@@ -27,8 +28,7 @@ errorhandler() {
 # exit handler
 #########################################################################
 exithandler() {
-	rm "$CB_PROJECT_CONFIGFILE_TMPFILE" >/dev/null 2>&1
-	rm "$CB_PRODUCT_CONFIGFILE_TMPFILE" >/dev/null 2>&1
+	:
 }
 
 
@@ -53,9 +53,20 @@ preapreProjectConfigurationFile() {
 		echo "$CB_LINE"
 		endWithError
 	fi
-	
-	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Use project configuration file: $CB_PROJECT_CONFIGFILE"
-	cat "$CB_PROJECT_CONFIGFILE" 2>/dev/null | tr -d '\15\32' | grep -v "#" | grep "=" > "$1" 2>/dev/null
+
+	cbProjectConfigFileTimestamp=$(stat -c $'%Y\t%y\t%n' "$CB_PROJECT_CONFIGFILE" 2>/dev/null | awk '{print $2$3}' 2>/dev/null | sed 's/-//g;s/://g;s/\.//g' 2>/dev/null | cut -c1-14 2>/dev/null )
+	if [ -n "$cbProjectConfigFileTimestamp" ]; then
+		CB_PROJECT_CONFIGFILE_TMPFILE="$CB_TEMP/cb-project-types-$cbProjectConfigFileTimestamp.tmp"
+	else
+		CB_PROJECT_CONFIGFILE_TMPFILE=$(mktemp $CB_TEMP/cb-project-types-XXXXXXXXX.tmp)
+	fi
+
+	if [ "$CB_VERBOSE" = "true" ]; then
+		echo "${CB_LINEHEADER}Use project configuration file: $CB_PROJECT_CONFIGFILE"
+		! [ -r "$CB_PROJECT_CONFIGFILE_TMPFILE" ] && echo "${CB_LINEHEADER}Create project types temp file: $CB_PROJECT_CONFIGFILE_TMPFILE"
+	fi
+
+	! [ -r "$CB_PROJECT_CONFIGFILE_TMPFILE" ] && echo 1a && cat "$CB_PROJECT_CONFIGFILE" 2>/dev/null | tr -d '\15\32' | grep -v "#" | grep "=" > "$CB_PROJECT_CONFIGFILE_TMPFILE" 2>/dev/null
 }
 
 
@@ -65,8 +76,19 @@ preapreProjectConfigurationFile() {
 preapreProductConfigurationFile() {
 	[ -z "$CB_PRODUCT_CONFIGFILE" ] && CB_PRODUCT_CONFIGFILE="$CB_SCRIPT_PATH/../conf/product-types.properties"
 	! [ -r "$CB_PRODUCT_CONFIGFILE" ] && rm "$CB_PRODUCT_CONFIGFILE_TMPFILE" >/dev/null 2>&1 && return
-	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Use product configuration file: $CB_PRODUCT_CONFIGFILE"
-	cat "$CB_PRODUCT_CONFIGFILE" 2>/dev/null | tr -d '\15\32' | grep -v "#" | grep "=" > "$1" 2>/dev/null
+		
+	cbProductConfigFileTimestamp=$(stat -c $'%Y\t%y\t%n' "$CB_PRODUCT_CONFIGFILE" 2>/dev/null | awk '{print $2$3}' 2>/dev/null | sed 's/-//g;s/://g;s/\.//g' 2>/dev/null | cut -c1-14 2>/dev/null )
+	if [ -n "$cbProductConfigFileTimestamp" ]; then
+		CB_PRODUCT_CONFIGFILE_TMPFILE="$CB_TEMP/cb-product-types-$cbProductConfigFileTimestamp.tmp"
+	else
+		CB_PRODUCT_CONFIGFILE_TMPFILE=$(mktemp $CB_TEMP/cb-product-types-XXXXXXXXX.tmp)
+	fi
+	
+	if [ "$CB_VERBOSE" = "true" ]; then
+		echo "${CB_LINEHEADER}Use product configuration file: $CB_PRODUCT_CONFIGFILE"
+		! [ -r "$CB_PRODUCT_CONFIGFILE_TMPFILE" ] && echo "${CB_LINEHEADER}Create product types temp file: $CB_PRODUCT_CONFIGFILE_TMPFILE"
+	fi
+	! [ -r "$CB_PRODUCT_CONFIGFILE_TMPFILE" ] && cat "$CB_PRODUCT_CONFIGFILE" 2>/dev/null | tr -d '\15\32' | grep -v "#" | grep "=" > "$CB_PRODUCT_CONFIGFILE_TMPFILE" 2>/dev/null
 }
 
 
@@ -228,7 +250,7 @@ projectReplaceParameters() {
 # Execute a cb command
 #########################################################################
 executeCBCommand() {
-	tempScriptFile=$(mktemp /tmp/cb-execute-command.XXXXXXXXX.sh)
+	tempScriptFile=$(mktemp $CB_TEMP/cb-execute-command.XXXXXXXXX.sh)
 	echo "#!/bin/bash" > "$tempScriptFile"
 	echo ". cb --silent --setenv" >> "$tempScriptFile"
 	echo "$@" >> "$tempScriptFile"
@@ -261,8 +283,8 @@ projectRootPackageName=
 projectDescription=
 
 # read the configuration file
-preapreProjectConfigurationFile "$CB_PROJECT_CONFIGFILE_TMPFILE"
-preapreProductConfigurationFile "$CB_PRODUCT_CONFIGFILE_TMPFILE"
+preapreProjectConfigurationFile 
+preapreProductConfigurationFile 
 
 # select product
 [ -n "$1" ] && [ "$1" -ge 0 ] 2>/dev/null && productId="$1" && shift

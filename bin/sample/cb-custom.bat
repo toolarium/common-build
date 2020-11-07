@@ -2,16 +2,12 @@
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ::
-:: cb-custom-sample.bat
+:: cb-custom.bat
 ::
 :: Copyright by toolarium, all rights reserved.
 :: MIT License: https://mit-license.org
 ::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-
-:: define parameters
-set CUSTOM_CB_LINE=****************************************************************************************
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -41,117 +37,105 @@ exit /b 1
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CUSTOM_CB_LINE%
-echo.
-echo START SAMPLE
-echo.
-echo %CUSTOM_CB_LINE%
-set CB_LINE=%CUSTOM_CB_LINE%
+::echo %CB_LINEHEADER%START START %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_BUILD_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%START BUILD %1 %2 %3 %4 %5 %6 %7 %8 %9
+::echo %CB_LINEHEADER%START BUILD %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_BUILD_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%END BUILD %1 %2 %3 %4 %5 %6 %7 %8 %9
+::echo %CB_LINEHEADER%END BUILD %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_NEW_PROJECT_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%START NEW PROJECT %1 %2 %3 %4 %5 %6 %7 %8 %9
-
-:: define own project types
-set "CB_CUSTOM_PROJECT_CONFIGFILE=%CB_TEMP%\cb-project-types-custom-%RANDOM%%RANDOM%.tmp"
-echo java-library = Simple java library^|projectName^|projectRootPackageName^|projectGroupId^|projectComponentId^|projectDescription >> %CB_CUSTOM_PROJECT_CONFIGFILE%
-echo config = Configuration Project^|projectName^|projectGroupId^|projectComponentId^|projectDescription >> %CB_CUSTOM_PROJECT_CONFIGFILE%
-echo my-own-type = My own type^|projectName^|projectGroupId^|projectDescription >> %CB_CUSTOM_PROJECT_CONFIGFILE%
+::echo %CB_LINEHEADER%START NEW PROJECT %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_NEW_PROJECT_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%END NEW PROJECT %1 %2 %3 %4 %5 %6 %7 %8 %9
-del %CB_CUSTOM_PROJECT_CONFIGFILE%
+::echo %CB_LINEHEADER%END NEW PROJECT %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_INSTALL_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%START INSTALL %1 %2 %3 %4 %5 %6 %7 %8 %9
+::echo %CB_LINEHEADER%START INSTALL %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_INSTALL_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%END INSTALL %1 %2 %3 %4 %5 %6 %7 %8 %9
+::echo %CB_LINEHEADER%END INSTALL %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_DOWNLOAD_PACKAGE_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%START DOWNLOAD PACKAGE %1 %2 %3 %4 %5 %6 %7 %8 %9
+::echo %CB_LINEHEADER%START DOWNLOAD PACKAGE %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_DOWNLOAD_PACKAGE_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%END DOWNLOAD PACKAGE %1 %2 %3 %4 %5 %6 %7 %8 %9
+::echo %CB_LINEHEADER%END DOWNLOAD PACKAGE %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_EXTRACT_PACKAGE_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%START EXTRACT PACKAGE %1 %2 %3 %4 %5 %6 %7 %8 %9
+::echo %CB_LINEHEADER%START EXTRACT PACKAGE %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_EXTRACT_PACKAGE_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%END EXTRACT PACKAGE %1 %2 %3 %4 %5 %6 %7 %8 %9
+::echo %CB_LINEHEADER%END EXTRACT PACKAGE %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_SETENV_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%START SETENV %1 %2 %3 %4 %5 %6 %7 %8 %9
+::echo %CB_LINEHEADER%START SETENV %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_SETENV_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%END SETENV %1 %2 %3 %4 %5 %6 %7 %8 %9
+::echo %CB_LINEHEADER%END SETENV %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_CONFIG_UPDATE_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%CUSTOM CONFIG UPDATE [%CB_CUSTOM_CONFIG_VERSION%]
+::echo %CB_LINEHEADER%CUSTOM CONFIG UPDATE [%CB_CUSTOM_CONFIG_VERSION%]
 goto CUSTOM_END
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CUSTOM_ERROR_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo %CB_LINEHEADER%ENDED WITH ERROR: %1 %2 %3 %4 %5 %6 %7 %8 %9
+::echo %CB_LINEHEADER%ENDED WITH ERROR: %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 

@@ -9,6 +9,8 @@
 ::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+if not defined TEMP set "TEMP=%TMP%"
+if not defined CB_TEMP set "CB_TEMP=%TEMP%\cb" & mkdir "%CB_TEMP%" >nul 2>nul
 echo %CB_LINE%
 if exist build.gradle echo %CB_LINEHEADER%The current path is inside a project [%CD%], please start outside. & goto PROJECT_WIZARD_ERROR_END
 echo %CB_LINEHEADER%Create new project, enter project basic data.
@@ -29,7 +31,7 @@ if ".%CB_PRODUCT_CONFIGFILE%"=="." if exist "%CB_SCRIPT_PATH%\..\conf\product-ty
 if not ".%CB_CUSTOM_RUNTIME_CONFIG_PATH%"=="." goto VERIFY_PROJECT_CONFIGFILE_END
 dir "%USERPROFILE%\.gradle\common-gradle-build" >nul 2>nul
 if not %ERRORLEVEL% EQU 0 goto VERIFY_PROJECT_CONFIGFILE_END
-set "TMPFILE=%TEMP%\cb-new-project-%RANDOM%%RANDOM%.tmp"
+set "TMPFILE=%CB_TEMP%\cb-new-project-%RANDOM%%RANDOM%.tmp"
 dir /o-D/b "%USERPROFILE%\.gradle\common-gradle-build\???.???.???" | findstr /C:^. 2>nul | findstr/n ^^ | findstr 1:> "%TMPFILE%"
 for %%R in ("%TMPFILE%") do if not %%~zR lss 1 set /pcommonGradleBuildVersion=<"%TMPFILE%"
 del /f /q "%TMPFILE%" 2>nul
@@ -40,9 +42,17 @@ if not ".%LOCAL_CB_CUSTOM_RUNTIME_CONFIG_PATH%"=="." if exist "%LOCAL_CB_CUSTOM_
 
 :VERIFY_PROJECT_CONFIGFILE_END
 if not exist "%CB_PROJECT_CONFIGFILE%" (echo %CB_LINE% & echo %CB_LINEHEADER%Missing project types configuration file %CB_PROJECT_CONFIGFILE%, please install with the cb-install.bat. & echo %CB_LINE% & goto PROJECT_WIZARD_ERROR_END)
-set "CB_PROJECT_CONFIGFILE_TMPFILE=%TEMP%\cb-project-types-%RANDOM%%RANDOM%.tmp"
+
+:: get file timestamp
+for /f "tokens=1,2 delims= " %%i in ('dir /O:D /T:W /A:-D /4 %CB_PROJECT_CONFIGFILE% 2^>nul ^| findstr /C:project-types.properties 2^>nul') do (set "cbProjectConfigFileTimestamp=%%i %%j")
+set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp: =%"
+set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp::=%"
+set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp:.=%"
+if .%cbProjectConfigFileTimestamp%==. set cbProjectConfigFileTimestamp=%RANDOM%%RANDOM%
+set "CB_PROJECT_CONFIGFILE_TMPFILE=%CB_TEMP%\cb-project-types-%cbProjectConfigFileTimestamp%.tmp"
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use project types file: %CB_PROJECT_CONFIGFILE%
-type "%CB_PROJECT_CONFIGFILE%" 2>nul | findstr /V "#" | findstr /C:= > "%CB_PROJECT_CONFIGFILE_TMPFILE%" 2>nul
+if .%CB_VERBOSE% == .true if not exist %CB_PROJECT_CONFIGFILE_TMPFILE% echo %CB_LINEHEADER%Create project types temp file: %CB_PROJECT_CONFIGFILE_TMPFILE%
+if not exist %CB_PROJECT_CONFIGFILE_TMPFILE% type "%CB_PROJECT_CONFIGFILE%" 2>nul | findstr /V "#" | findstr /C:= > "%CB_PROJECT_CONFIGFILE_TMPFILE%" 2>nul
 
 set "productTypeId="
 set "productName="
@@ -56,9 +66,17 @@ set "projectDescription="
 	
 if ".%CB_PRODUCT_CONFIGFILE%"=="." goto END_PRODUCT_TYPES
 if not exist "%CB_PRODUCT_CONFIGFILE%" goto END_PRODUCT_TYPES
-set "CB_PRODUCT_CONFIGFILE_TMPFILE=%TEMP%\cb-product-types-%RANDOM%%RANDOM%.tmp"
+for /f "tokens=1,2 delims= " %%i in ('dir /O:D /T:W /A:-D /4 %CB_PRODUCT_CONFIGFILE% 2^>nul ^| findstr /C:product-types.properties 2^>nul') do (set "cbProjectConfigFileTimestamp=%%i %%j")
+set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp: =%"
+set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp::=%"
+set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp:.=%"
+if .%cbProjectConfigFileTimestamp%==. set cbProjectConfigFileTimestamp=%RANDOM%%RANDOM%
+set "CB_PRODUCT_CONFIGFILE_TMPFILE=%CB_TEMP%\cb-product-types-%cbProjectConfigFileTimestamp%.tmp"
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use product types file: %CB_PRODUCT_CONFIGFILE%
-type "%CB_PRODUCT_CONFIGFILE%" 2>nul | findstr /V "#" | findstr /C:= > %CB_PRODUCT_CONFIGFILE_TMPFILE% 2>nul
+
+if .%CB_VERBOSE% == .true if not exist %CB_PRODUCT_CONFIGFILE_TMPFILE% echo %CB_LINEHEADER%Create product types temp file: %CB_PRODUCT_CONFIGFILE_TMPFILE%
+if not exist %CB_PRODUCT_CONFIGFILE_TMPFILE% type "%CB_PRODUCT_CONFIGFILE%" 2>nul | findstr /V "#" | findstr /C:= > %CB_PRODUCT_CONFIGFILE_TMPFILE% 2>nul
+
 
 :: choose first product which it belongs to
 if not .%1==. (set "productName=%1" & shift)
@@ -214,7 +232,7 @@ echo %CB_LINEHEADER%Create project %projectName%...
 echo "%projectTypeConfiguration%" | findstr /C:"initAction" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 goto INIT_ACTION_END
 echo %CB_LINE%
-set "INITACTION_CMD_TMP=%TEMP%\cb-initaction-%RANDOM%%RANDOM%.bat"
+set "INITACTION_CMD_TMP=%CB_TEMP%\cb-initaction-%RANDOM%%RANDOM%.bat"
 echo @ECHO OFF>"%INITACTION_CMD_TMP%"
 echo call cb --silent --setenv>>"%INITACTION_CMD_TMP%"
 powershell -Command "$call=($ENV:projectTypeConfigurationParameter -split '\|' -split '=' | select-object -skip 1 -first 1); Write-Host 'call '$call" >>"%INITACTION_CMD_TMP%"
@@ -230,7 +248,7 @@ if not ".%INITACTION_CMD_TMP%"=="." if exist "%INITACTION_CMD_TMP%" del /f /q "%
 echo %CB_LINE%
 echo "%projectTypeConfiguration%" | findstr /C:"mainAction" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 goto DEFAULT_MAIN_ACTION
-set "MAINACTION_CMD_TMP=%TEMP%\cb-mainaction-%RANDOM%%RANDOM%.bat"
+set "MAINACTION_CMD_TMP=%CB_TEMP%\cb-mainaction-%RANDOM%%RANDOM%.bat"
 echo @ECHO OFF>"%MAINACTION_CMD_TMP%"
 echo call cb --silent --setenv>>"%MAINACTION_CMD_TMP%"
 powershell -Command "$call=($ENV:projectTypeConfigurationParameter -split '\|' -split '=' | select-object -skip 1 -first 1); Write-Host 'call '$call" >>"%MAINACTION_CMD_TMP%"
@@ -257,7 +275,7 @@ if %ERRORLEVEL% NEQ 0 goto PROJECT_WIZARD_ERROR_END
 echo "%projectTypeConfiguration%" | findstr /C:"postAction" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 goto PREAPRE_POST_ACTION_END
 echo %CB_LINE%
-set "POSTACTION_CMD_TMP=%TEMP%\cb-postaction-%RANDOM%%RANDOM%.bat"
+set "POSTACTION_CMD_TMP=%CB_TEMP%\cb-postaction-%RANDOM%%RANDOM%.bat"
 echo @ECHO OFF>"%POSTACTION_CMD_TMP%"
 echo call cb --silent --setenv>>"%POSTACTION_CMD_TMP%"
 powershell -Command "$call=($ENV:projectTypeConfigurationParameter -split '\|' -split '=' | select-object -skip 1 -first 1); Write-Host 'call '$call" >>"%POSTACTION_CMD_TMP%"
@@ -271,13 +289,11 @@ if not ".%POSTACTION_CMD_TMP%"=="." if exist "%POSTACTION_CMD_TMP%" del /f /q "%
 :PREAPRE_POST_ACTION_END
 
 :PROJECT_WIZARD_END
-del "%CB_PROJECT_CONFIGFILE_TMPFILE%" 2>nul
 cd "%BACKUP_CB_WORKING_PATH%" >nul 2>nul
 echo %CB_LINE%
 exit /b 0
 
 :PROJECT_WIZARD_ERROR_END
-if not ".%CB_PROJECT_CONFIGFILE_TMPFILE%"=="." if exist "%CB_PROJECT_CONFIGFILE_TMPFILE%" del /f /q "%CB_PROJECT_CONFIGFILE_TMPFILE%" 2>nul
 if not ".%INITACTION_CMD_TMP%"=="." if exist "%INITACTION_CMD_TMP%" del /f /q "%INITACTION_CMD_TMP%" 2>nul
 if not ".%MAINACTION_CMD_TMP%"=="." if exist "%MAINACTION_CMD_TMP%" del /f /q "%MAINACTION_CMD_TMP%" 2>nul
 if not ".%POSTACTION_CMD_TMP%"=="." if exist "%POSTACTION_CMD_TMP%" del /f /q "%POSTACTION_CMD_TMP%" 2>nul

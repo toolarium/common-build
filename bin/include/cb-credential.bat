@@ -18,6 +18,9 @@ set PN=%~nx0
 set "PRINT_CREDENTIAL=false"
 set "RAW_CREDENTIAL=false"
 set "VERIFY_ONLY="
+if not defined TEMP set "TEMP=%TMP%"
+if not defined CB_TEMP set "CB_TEMP=%TEMP%\cb"
+if not exist %CB_TEMP% mkdir "%CB_TEMP%" >nul 2>nul
 if not defined GIT_CLIENT set "GIT_CLIENT=%CB_HOME%\current\git\bin\git"
 %GIT_CLIENT% --version >nul 2>nul
 if %ERRORLEVEL% NEQ 0 set "GIT_CLIENT=git"
@@ -68,8 +71,8 @@ for /f "tokens=1,* delims=:" %%i in ("%urlProtocol%") do (set "urlProtocol=%%i")
 if .%urlProtocol% == . echo .: ERROR: No protocol found & goto END_WITH_ERROR
 if .%urlHost% == . echo .: ERROR: No host found & goto END_WITH_ERROR
 
-set "tempFile=%TEMP%\cb-%RANDOM%%RANDOM%.dat"
-set "credentialFile=%TEMP%\cb-%RANDOM%%RANDOM%.dat"
+set "tempFile=%CB_TEMP%\cb-%RANDOM%%RANDOM%.dat"
+set "credentialFile=%CB_TEMP%\cb-%RANDOM%%RANDOM%.dat"
 echo protocol=%urlProtocol%>"%tempFile%"
 echo host=%urlHost%>>"%tempFile%"
 
@@ -78,15 +81,12 @@ if defined VERIFY_ONLY if %ERRORLEVEL% neq 0 goto END_WITH_ERROR
 if defined VERIFY_ONLY goto END
 
 if not defined VERIFY_ONLY type %tempFile% | %GIT_CLIENT% credential-manager get > "%credentialFile%"
-del %tempFile%
 
 set "cbUsername=" & set "cbPassword="
 type %credentialFile% | findstr /C:username= > %tempFile%
 for /f "tokens=1,2* delims==" %%i in (%tempFile%) do (set "cbUsername=%%j")
 type %credentialFile% | findstr /C:password= > %tempFile%
 for /f "tokens=1,2* delims==" %%i in (%tempFile%) do (set "cbPassword=%%j")
-del %tempFile%
-del %credentialFile%
 
 if .%RAW_CREDENTIAL% == .false (powershell -Command "[Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($env:cbUsername + ':' + $env:cbPassword), 'InsertLineBreaks')" > "%credentialFile%"
 	set /p BASIC_AUTHENTICATION=<"%credentialFile%")
@@ -102,11 +102,15 @@ endlocal & (
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :END_WITH_ERROR
+del %tempFile% >nul 2>nul
+del %credentialFile% >nul 2>nul
 exit /b 1
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :END
+del %tempFile% >nul 2>nul
+del %credentialFile% >nul 2>nul
 exit /b 0
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

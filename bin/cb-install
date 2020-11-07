@@ -32,7 +32,11 @@ CB_RELEASE_URL="https://api.github.com/repos/toolarium/common-build/releases"
 CB_JSON_SCRIPT_URL="https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-json"
 FULLTIMESTAMP="date '+%Y%d%m%H%M%S'"
 USER_FRIENDLY_FULLTIMESTAMP="date '+%d.%m.%Y %H:%M:%S'"
-cbErrorTemp=$(mktemp /tmp/toolarium-common-build_error.XXXXXXXXX)
+! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb"
+! [ -r "$CB_TEMP" ] && mkdir "$CB_TEMP" >/dev/null 2>&1
+export CB_TEMP
+
+cbErrorTemp=$(mktemp $CB_TEMP/toolarium-common-build_error.XXXXXXXXX)
 
 CB_OS="$(uname | tr '[:upper:]' '[:lower:]')"
 CB_OS=$(echo "$CB_OS" | awk '{print substr($0, 0, 7)}')
@@ -214,7 +218,7 @@ checkHttpRequestCLI() {
 #########################################################################
 getCBJson() {
 	if ! [ -x "$CB_JSON" ]; then
-		CB_JSON="/tmp/cb-json"
+		CB_JSON="$CB_TEMP/cb-json"
 		export CB_JSON
 
 		[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -sSL" || CMD="wget -q -O - /dev/null"
@@ -287,7 +291,7 @@ errorhandler() {
 # exit handler
 #########################################################################
 exithandler() {
-	rm /tmp/cb-json >/dev/null 2>&1
+	rm $CB_TEMP/cb-json >/dev/null 2>&1
 	rm -f "$cbErrorTemp" >/dev/null 2>&1
 }
 

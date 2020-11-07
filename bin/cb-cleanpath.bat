@@ -17,7 +17,10 @@ for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKLM\S
 for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKCU\Environment" /v "Path" 2^>nul') do (if /I "%%N" == "Path" (set "USER_PATH=%%P" & goto GET_USER_PATH_FROM_REGISTRY_END))
 :GET_USER_PATH_FROM_REGISTRY_END
 
-set "TMPFILE="%temp%\tmp%RANDOM%%RANDOM%.txt""
+if not defined TEMP set "TEMP=%TMP%"
+if not defined CB_TEMP set "CB_TEMP=%TEMP%\cb"
+if not exist %CB_TEMP% mkdir "%CB_TEMP%" >nul 2>nul
+set "TMPFILE=%CB_TEMP%\cb-cleanuppath-%RANDOM%%RANDOM%.txt"
 set VERBOSE=false
 
 

@@ -19,7 +19,10 @@ set CB_PACKAGE_VERSION_NAME=
 set CB_PACKAGE_DEST_VERSION_NAME=
 set CB_PACKAGE_DOWNLOAD_URL=
 
-set "TMPFILE=%TEMP%\cb-download-%RANDOM%%RANDOM%.tmp"
+if not defined TEMP set "TEMP=%TMP%"
+if not defined CB_TEMP set "CB_TEMP=%TEMP%\cb"
+if not exist %CB_TEMP% mkdir "%CB_TEMP%" >nul 2>nul
+set "TMPFILE=%CB_TEMP%\cb-download-%RANDOM%%RANDOM%.tmp"
 if not exist %CB_SCRIPT_PATH%\packages\%CB_PACKAGE_NAME%\%CB_PACKAGE_NAME%.bat goto DOWNLOAD_PACKAGE_NOTFOUND_ERROR
 :: we expecte:
 :: 1) the CB_PACKAGE_VERSION contains the version which will be installed (optional)
