@@ -72,7 +72,7 @@ done
 
 if [ -r "$CLEAN_PATH" ]; then
 	echo ".: Clean in [$CLEAN_PATH] with pattern [$CLEAN_PATTERN] which are older than $CLEAN_DAYS day(s)..."
-	find "$CLEAN_PATH" -name "$CLEAN_PATTERN" -mtime $CLEAN_DAYS -exec rm -f {} \;
+	find "$CLEAN_PATH" -name "$CLEAN_PATTERN" -mtime $CLEAN_DAYS -exec rm -f 2>/dev/null {} \;
 else
 	echo ".: Path $CLEAN_PATH don't exist"
 fi
