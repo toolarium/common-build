@@ -144,6 +144,7 @@ if .%1==.--packages shift & goto PACKAGES
 if .%1==.--setenv shift & goto SET_ENV
 if .%1==.--install shift & goto INSTALL_CB
 if .%1==.--java goto SET_JAVA_PARAM
+if .%1==.--update goto UPDATE
 set CB_PARAMETERS=%CB_PARAMETERS% %~1
 ::if ".%CB_PARAMETERS%"=="." (set CB_PARAMETERS=%~1) else (set CB_PARAMETERS=%CB_PARAMETERS% %~1)
 shift
@@ -180,6 +181,7 @@ echo                       Additionally a parameter -d or --default marks this v
 echo                       as default.
 echo  --packages           Shows the supported packages.
 echo  -exp, --explore      Starts the file explorer with the current path.
+echo  --update             Updates the custom config and can be combined with force.
 echo  --setenv             Set all internal used environment variables.
 echo.
 echo Environment variable:
@@ -224,6 +226,14 @@ echo.
 echo %CB_LINEHEADER%Installed tool versions:
 for /f "tokens=1,* delims=^=" %%i in ('type %CB_TOOL_VERSION_INSTALLED%') do (echo     -%%i: %%j)
 echo %CB_LINE%
+goto END
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:UPDATE
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+if defined CB_CUSTOM_CONFIG_VERSION echo %CB_LINEHEADER%Found custom config version %CB_CUSTOM_CONFIG_VERSION%
+if not defined CB_CUSTOM_CONFIG_VERSION echo %CB_LINEHEADER%No custom config found
 goto END
 
 
@@ -356,6 +366,11 @@ set "urlProtocol=" & set "urlHost=" & set "urlPath=" & set "urlPort=" & set "bas
 :: set the common gradle build home path to checkout to proper destination
 set "COMMON_GRADLE_BUILD_HOME=%CB_CUSTOM_CONFIG_PATH%"
 set "CB_CUSTOM_CONFIG_VERSION="
+set "lastCheckPropertiesFile=%CB_CUSTOM_CONFIG_PATH%\lastCheck.properties"
+
+:: force to update
+if .%CB_INSTALL_OVERWRITE_DIST% == .true (del /f /q "%CB_CUSTOM_CONFIG_PATH%\*.tsp" >nul 2>nul
+	del /f /q "%lastCheckPropertiesFile%" >nul 2>nul)
 
 :: if we have a timestamp wihtin same day then its fine
 call :GET_TIMESTAMP LAST_CHECK_TSP "yyyy-MM-ddTHH\\:mm\\:ss.fff+0000"
@@ -378,7 +393,6 @@ if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%CB_VERBOSE% == .true ech
 if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Timestamp %CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp do not exist.
 
 :: simulate lasCheck.properties
-set "lastCheckPropertiesFile=%CB_CUSTOM_CONFIG_PATH%\lastCheck.properties"
 ::if exist %lastCheckPropertiesFile% for /f "tokens=2 delims==" %%i in ('type "%lastCheckPropertiesFile%"^|findstr /C:lastCheck') do ( set "lastCheckTimestamp=%%i" )
 ::if exist %lastCheckPropertiesFile% set lastCheckTimestamp=%lastCheckTimestamp:~0,10%
 ::if exist %lastCheckPropertiesFile% set lastCheckTimestamp=%lastCheckTimestamp:-=%

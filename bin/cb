@@ -186,6 +186,18 @@ readVersion() {
 
 
 #########################################################################
+# Update custom config
+#########################################################################
+updateCustomConfig() {
+	if [ -n "$CB_CUSTOM_CONFIG_VERSION" ]; then
+		echo "${CB_LINEHEADER}Found custom config version $CB_CUSTOM_CONFIG_VERSION"
+	else 
+		echo "${CB_LINEHEADER}No custom config found"
+	fi
+}
+
+
+#########################################################################
 # Execute custom initialisation
 #########################################################################
 executeCustomSettings() {
@@ -271,6 +283,15 @@ executeCustomConfig() {
 	[ "$CB_OS" = "cygwin" ] && COMMON_GRADLE_BUILD_HOME=$(cygpath -w "$COMMON_GRADLE_BUILD_HOME" 2>/dev/null)
 	export COMMON_GRADLE_BUILD_HOME
 	CB_CUSTOM_CONFIG_VERSION=""
+
+	# simulate lasCheck.properties
+	lastCheckPropertiesFile="$CB_CUSTOM_CONFIG_PATH/lastCheck.properties"
+	
+	# force to update
+	if [ "$CB_INSTALL_OVERWRITE_DIST" = "true" ]; then
+		rm -f $CB_CUSTOM_CONFIG_PATH/*.tsp >/dev/null 2>&1
+		rm -f $lastCheckPropertiesFile >/dev/null 2>&1 
+	fi
 		
 	# if we have a timestamp wihtin same day then its fine
 	LAST_CHECK_TSP=$(date '+%Y-%m-%dT%H\:%M\:%S.000+0000')
@@ -307,12 +328,10 @@ executeCustomConfig() {
 			return 1
 		fi
 		
-		[ -n "$CB_CUSTOM_CONFIG_VERSION" ] && rm -f "$CB_CUSTOM_CONFIG_PATH/*.tsp" > /dev/null 2>&1
+		[ -n "$CB_CUSTOM_CONFIG_VERSION" ] && rm -f $CB_CUSTOM_CONFIG_PATH/*.tsp > /dev/null 2>&1
 		echo "$CB_CUSTOM_CONFIG_VERSION" > "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp"
 	fi
 	
-	# simulate lasCheck.properties
-	lastCheckPropertiesFile="$CB_CUSTOM_CONFIG_PATH/lastCheck.properties"
 	#[ -r "$lastCheckPropertiesFile" ] && lastCheckTimestamp=$(cat $lastCheckPropertiesFile | grep lastCheck | awk -F= '{print $2}' | awk -FT '{print $1}' |  sed 's/\-//g')
 	#[ "$lastCheckTimestamp" = "$DATESTAMP" ] && [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Common gradle timestamp is differently [$DATESTAMP] [$lastCheckTimestamp]."
 	[ -n "$CB_CUSTOM_CONFIG_VERSION" ] && [ -r "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp" ] && echo "lastCheck=$LAST_CHECK_TSP">"$lastCheckPropertiesFile" && echo "version=$CB_CUSTOM_CONFIG_VERSION">>"$lastCheckPropertiesFile"
@@ -356,6 +375,7 @@ printUsage() {
     echo "                      as default."
 	echo " --packages           Shows the supported packages."
 	echo " -exp, --explore      Starts the file explorer with the current path."
+	echo " --update             Updates the custom config and can be combined with force."
 	echo " --setenv             Set all internal used environment variables."
 	echo ""
 	echo "Environment variable:"
@@ -1287,7 +1307,10 @@ if [ $# -gt 0 ]; then
 	[ "$1" = "-exp" ] && shift && exploreProject $1 && exit 0
 	[ "$1" = "--explore" ] && shift && exploreProject $1 && exit 0
 	[ "$1" = "--packages" ] && shift && readVersion && printPackages $1 && exit 0
+	[ "$1" = "--force" ] && shift && CB_INSTALL_OVERWRITE_DIST="true"
 fi
+#	[ "$1" = "--install" ] && shift installCb "$@"; exit 0
+#	[ "$1" = "--setenv" ] && CB_EXECUTE_BUILD=false; setCBEnv "$@"; unset errorCode && exit 0
 
 checkInternetConnection
 if ! executeCustomConfig; then
@@ -1318,6 +1341,7 @@ do
 		--setenv)	CB_EXECUTE_BUILD=false; setCBEnv "$@"; unset errorCode;;
 		--install)	shift; installCb "$@"; exit 0;;
 		--java)		shift && echo $1 > $CB_JAVA_VERSION_FILE;;
+		--update)	updateCustomConfig; exit 0;;
 		*)			CB_PARAMETERS="$CB_PARAMETERS \"$1\"";;
     esac
     shift
