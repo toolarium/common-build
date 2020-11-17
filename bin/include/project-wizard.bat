@@ -48,6 +48,7 @@ for /f "tokens=1,2 delims= " %%i in ('dir /O:D /T:W /A:-D /4 %CB_PROJECT_CONFIGF
 set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp: =%"
 set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp::=%"
 set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp:.=%"
+set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp:/=%"
 if .%cbProjectConfigFileTimestamp%==. set cbProjectConfigFileTimestamp=%RANDOM%%RANDOM%
 set "CB_PROJECT_CONFIGFILE_TMPFILE=%CB_TEMP%\cb-project-types-%cbProjectConfigFileTimestamp%.tmp"
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use project types file: %CB_PROJECT_CONFIGFILE%
@@ -70,6 +71,7 @@ for /f "tokens=1,2 delims= " %%i in ('dir /O:D /T:W /A:-D /4 %CB_PRODUCT_CONFIGF
 set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp: =%"
 set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp::=%"
 set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp:.=%"
+set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp:/=%"
 if .%cbProjectConfigFileTimestamp%==. set cbProjectConfigFileTimestamp=%RANDOM%%RANDOM%
 set "CB_PRODUCT_CONFIGFILE_TMPFILE=%CB_TEMP%\cb-product-types-%cbProjectConfigFileTimestamp%.tmp"
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use product types file: %CB_PRODUCT_CONFIGFILE%
