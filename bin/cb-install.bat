@@ -32,7 +32,7 @@ set "CB_USER_DRIVE=%CD:~0,2%"
 set "CB_SCRIPT_PATH=%~dp0"
 set "CB_SCRIPT_DRIVE=%~d0"
 set CB_FORCE_INSALL=false
-set "CB_INSTALLER_VERSION=0.8.16"
+set "CB_INSTALLER_VERSION=0.9.2"
 set "CB_RELEASE_URL=https://api.github.com/repos/toolarium/common-build/releases"
 
 title %PN%
@@ -205,6 +205,9 @@ if exist %CB_BIN%\%CB_WGET_CMD% goto DOWNLOAD_WGET_END
 set "CB_WGET_PACKAGE_URL=%CB_WGET_DOWNLOAD_URL%/%CB_WGET_VERSION%/%CB_PROCESSOR_ARCHITECTURE_NUMBER%/%CB_WGET_CMD%"
 if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Install %CB_BIN%\%CB_WGET_CMD%
 powershell -Command "iwr $start_time = Get-Date; [Net.ServicePointManager]::SecurityProtocol = \"tls12, tls11, tls\" ; Invoke-WebRequest -Uri '%CB_WGET_PACKAGE_URL%' -OutFile %CB_BIN%\%CB_WGET_CMD%;Write-Output 'Time taken: $((Get-Date).Subtract($start_time).Seconds) seconds' 2>nul | iex 2>nul" 2>nul
+if exist %CB_BIN%\%CB_WGET_CMD% goto DOWNLOAD_WGET_END
+set "ERROR_INFO=Could not download %CB_WGET_CMD% from %CB_WGET_DOWNLOAD_URL%"
+goto INSTALL_FAILED
 :DOWNLOAD_WGET_END
 
 set CB_UNZIP_CMD=unzip.exe
@@ -212,6 +215,9 @@ if exist %CB_BIN%\%CB_UNZIP_CMD% goto DOWNLOAD_UNZIP_END
 set "CB_UNZIP_PACKAGE_URL=%CB_UNZIP_DOWNLOAD_URL%/%CB_UNZIP_CMD%"
 if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Install %CB_BIN%\%CB_UNZIP_CMD%
 powershell -Command "iwr $start_time = Get-Date;Invoke-WebRequest -Uri '%CB_UNZIP_PACKAGE_URL%' -OutFile %CB_BIN%\%CB_UNZIP_CMD%;Write-Output 'Time taken: $((Get-Date).Subtract($start_time).Seconds) seconds' 2>nul | iex 2>nul" 2>nul
+if exist %CB_BIN%\%CB_UNZIP_CMD% goto DOWNLOAD_UNZIP_END
+set "ERROR_INFO=Could not download %CB_UNZIP_CMD% from %CB_UNZIP_PACKAGE_URL%"
+goto INSTALL_FAILED
 :DOWNLOAD_UNZIP_END
 goto INSTALL_SUCCESSFULL_END
 
