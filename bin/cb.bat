@@ -234,6 +234,9 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 if defined CB_CUSTOM_CONFIG_VERSION echo %CB_LINEHEADER%Found custom config version %CB_CUSTOM_CONFIG_VERSION%
 if not defined CB_CUSTOM_CONFIG_VERSION echo %CB_LINEHEADER%No custom config found
+
+:: in case there is common-gradle-build remove the lastCheck.properties
+if exist "%USERPROFILE%\.gradle\common-gradle-build\lastCheck.properties" del /f /q "%USERPROFILE%\.gradle\common-gradle-build\lastCheck.properties" 2>nul
 goto END
 
 

@@ -194,6 +194,9 @@ updateCustomConfig() {
 	else 
 		echo "${CB_LINEHEADER}No custom config found"
 	fi
+
+	# in case there is common-gradle-build remove the lastCheck.properties
+	[ -r "$HOME/.gradle/common-gradle-build/lastCheck.properties" ] && rm -f "$HOME/.gradle/common-gradle-build/lastCheck.properties" >/dev/null 2>&1
 }
 
 
