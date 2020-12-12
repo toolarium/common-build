@@ -16,7 +16,7 @@ AWK=awk
 gawk --version >/dev/null 2>/dev/null && AWK=gawk
 
 JQ=
-jq --help >/dev/null 2>&1 && JQ=jq && export JQ
+#jq --help >/dev/null 2>&1 && JQ=jq && export JQ
 
 
 #########################################################################
