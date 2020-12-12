@@ -75,7 +75,10 @@ preapreProjectConfigurationFile() {
 #########################################################################
 preapreProductConfigurationFile() {
 	[ -z "$CB_PRODUCT_CONFIGFILE" ] && CB_PRODUCT_CONFIGFILE="$CB_SCRIPT_PATH/../conf/product-types.properties"
-	! [ -r "$CB_PRODUCT_CONFIGFILE" ] && rm "$CB_PRODUCT_CONFIGFILE_TMPFILE" >/dev/null 2>&1 && return
+	if ! [ -r "$CB_PRODUCT_CONFIGFILE" ]; then
+		rm "$CB_PRODUCT_CONFIGFILE_TMPFILE" >/dev/null 2>&1
+		return
+	fi
 		
 	cbProductConfigFileTimestamp=$(stat -c $'%Y\t%y\t%n' "$CB_PRODUCT_CONFIGFILE" 2>/dev/null | awk '{print $2$3}' 2>/dev/null | sed 's/-//g;s/://g;s/\.//g' 2>/dev/null | cut -c1-14 2>/dev/null )
 	if [ -n "$cbProductConfigFileTimestamp" ]; then
