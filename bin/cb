@@ -41,7 +41,7 @@ case $CB_OS in
 	*) ;;
 esac
 CB_MACHINE="$(uname -m | tr '[:upper:]' '[:lower:]')"
-! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb"
+! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb-$USER"
 ! [ -r "$CB_TEMP" ] && mkdir "$CB_TEMP" >/dev/null 2>&1
 export CB_TEMP
 
