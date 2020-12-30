@@ -600,8 +600,10 @@ commonBuildGradle() {
 		fi
 	fi
 
+	BACKUP_CB_PARAMETERS="$CB_PARAMETERS"
 	[ "$CB_OFFLINE" = "true" ] && CB_PARAMETERS="--offline $CB_PARAMETERS" && echo "${CB_LINEHEADER}Offline build."
 	[ -r "$CB_WORKING_PATH/package.json" ] && prepareCommonBuildNode
+	CB_PARAMETERS="$BACKUP_CB_PARAMETERS"
 	
 	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Execute gradle [$GRADLE_EXEC], parameters: [$CB_PARAMETERS]."	
     eval "$GRADLE_EXEC $CB_PARAMETERS"
