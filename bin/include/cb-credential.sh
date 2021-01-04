@@ -89,6 +89,27 @@ printUsage() {
 
 
 #########################################################################
+# url encode
+#########################################################################
+urlEncode() {
+	#echo -e "$1" | od -An -tx1 | tr ' ' % | xargs printf "%s"
+    old_lc_collate=$LC_COLLATE
+    LC_COLLATE=C
+    local length="${#1}"
+    for (( i = 0; i < length; i++ )); do
+        local c="${1:$i:1}"
+        case $c in
+            [a-zA-Z0-9.~_-]) printf '%s' "$c" ;;
+            #*) printf '%%%02X' "'$c" ;;
+			*) printf '%%%02X' "'$c"
+        esac
+    done
+
+    LC_COLLATE=$old_lc_collate
+}
+
+
+#########################################################################
 # main
 #########################################################################
 CB_OS="$(uname | tr '[:upper:]' '[:lower:]')"
@@ -192,7 +213,8 @@ if [ "$initStoreFile" = "true" ]; then
 	read -s -p ".: Passord: " GIT_PASSWORD
 	echo ""
 	requestString="$requestString\nusernam=$GIT_USERNAME\npassword=$GIT_PASSWORD\n"
-	
+	#GIT_PASSWORD=$(urlEncode $GIT_PASSWORD)
+
 	if [ -z "$urlPort" ]; then
 		fileContent=$(cat "$GIT_CREDENTIALS_FILE" | grep -v "@$urlHost" | grep -v "")
 		[ -n "$fileContent" ] && echo "$fileContent" > "$GIT_CREDENTIALS_FILE" || echo -n "" > "$GIT_CREDENTIALS_FILE"
