@@ -328,6 +328,19 @@ updateShellInitialisation() {
 			chmod +r+w "$newFileName" >/dev/null 2>&1
 			mv -f "$newFileName" "$shellProfile" >/dev/null 2>&1
 		fi
+
+		if [ -n "$CB_DEVTOOLS_INITIALISATION_CMD" ]; then
+			shellResult=$(cat "$shellProfile" | grep 'toolarium-common-build devtools support')
+			if [ -z "$shellResult" ]; then
+				echo "" >> "$shellProfile"
+				echo "# toolarium-common-build devtools support" >> "$shellProfile"
+				echo "$CB_DEVTOOLS_INITIALISATION_CMD" >> "$shellProfile"
+			fi
+		fi
+		
+		if ! [ -n "$(diff "$backupFileName" "$shellProfile" 2>/dev/null)" ]; then
+			rm -f "$backupFileName" >/dev/null 2>&1
+		fi
 	else
 		echo "${CB_LINEHEADER}Can not set CB_HOME in $shellProfile, it's write protected."
 	fi
@@ -376,6 +389,7 @@ HTTP_REQUEST_CLI=$(checkHttpRequestCLI)
 ! [ -n "$HTTP_REQUEST_CLI" ] && installationFailed "Either curl or wget is required, please install it before you continue!" && exit 1
 ! [ -n "$(existBinary unzip)" ] && installationFailed "Missing package unzip, please install it before you continue!" && exit 1
 ! [ -n "$(existBinary find)" ] && echo "${CB_LINEHEADER}Missing package find, please install it before you continue!" && exit 1
+! [ -n "$(existBinary diff)" ] && echo "${CB_LINEHEADER}Missing package diff, please install it before you continue!" && exit 1
 checkInternetConnection
 
 if [ "$CB_INSTALLER_SILENT" = "false" ]; then
@@ -458,12 +472,19 @@ if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	export CB_HOME="$CB_DEVTOOLS/$CB_VERSION_NAME"
 	export PATH="$CB_HOME/bin:$PATH"
 	CB_SHELL_INITIALISATION_CMD="export CB_HOME=\"$CB_HOME\" && export PATH=\"\$CB_HOME/bin:\$PATH\""
-
+	CB_DEVTOOLS_INITIALISATION_CMD="export PATH=\"\${PATH}:\$(cb --setenv|sed 's/^.*(//;s/).*//g'|xargs|sed 's/ /:/g')\""
 	[ -n "$(existBinary bash)" ] && updateShellInitialisation "$HOME/.bashrc"
 	[ -n "$(existBinary ash)" ] && updateShellInitialisation "$HOME/.ashrc"
 	[ -n "$(existBinary zsh)" ] && updateShellInitialisation "$HOME/.zshrc"
 	if [ -n "$(existBinary fish)" ]; then
+		if ! [ -d "$HOME/.config/fish/" ]; then
+			mkdir -p "$HOME/.config/fish/" >/dev/null 2>&1
+			chmod -R 750 "$HOME/.config" >/dev/null 2>&1
+		fi
+		
 		CB_SHELL_INITIALISATION_CMD="export CB_HOME=\"$CB_HOME\" ; and export PATH=\"\$CB_HOME/bin:\$PATH\""
+	    #CB_DEVTOOLS_INITIALISATION_CMD="export PATH=\"\${PATH}:\$(cb --setenv|sed 's/^.*(//;s/).*//g'|xargs|sed 's/ /:/g')\""
+		CB_DEVTOOLS_INITIALISATION_CMD=""
 		updateShellInitialisation "$HOME/.config/fish/config.fish"
 	fi
 
