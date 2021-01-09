@@ -47,6 +47,13 @@ endWithError() {
 #########################################################################
 preapreProjectConfigurationFile() {
 	[ -z "$CB_PROJECT_CONFIGFILE" ] && CB_PROJECT_CONFIGFILE="$CB_SCRIPT_PATH/../conf/project-types.properties"
+	
+	projectTypesFileAppendix=""
+	if [ -n "$1" ] && [ -n "$CB_CUSTOM_RUNTIME_CONFIG_PATH" ] && [ -r "$CB_CUSTOM_RUNTIME_CONFIG_PATH/conf/project-types-$1.properties" ]; then
+		 CB_PROJECT_CONFIGFILE="$CB_CUSTOM_RUNTIME_CONFIG_PATH/conf/project-types-$1.properties"
+		 projectTypesFileAppendix="$1-"
+	fi
+	
 	if ! [ -r "$CB_PROJECT_CONFIGFILE" ]; then
 		echo "$CB_LINE"
 		echo "${CB_LINEHEADER}Missing project type configuration file $CB_PROJECT_CONFIGFILE, please install with the cb-install.bat."
@@ -56,9 +63,9 @@ preapreProjectConfigurationFile() {
 
 	cbProjectConfigFileTimestamp=$(stat -c $'%Y\t%y\t%n' "$CB_PROJECT_CONFIGFILE" 2>/dev/null | awk '{print $2$3}' 2>/dev/null | sed 's/-//g;s/://g;s/\.//g' 2>/dev/null | cut -c1-14 2>/dev/null )
 	if [ -n "$cbProjectConfigFileTimestamp" ]; then
-		CB_PROJECT_CONFIGFILE_TMPFILE="$CB_TEMP/cb-project-types-$cbProjectConfigFileTimestamp.tmp"
+		CB_PROJECT_CONFIGFILE_TMPFILE="$CB_TEMP/cb-project-types-${projectTypesFileAppendix}$cbProjectConfigFileTimestamp.tmp"
 	else
-		CB_PROJECT_CONFIGFILE_TMPFILE=$(mktemp $CB_TEMP/cb-project-types-XXXXXXXXX.tmp)
+		CB_PROJECT_CONFIGFILE_TMPFILE=$(mktemp $CB_TEMP/cb-project-types-${projectTypesFileAppendix}XXXXXXXXX.tmp)
 	fi
 
 	if [ "$CB_VERBOSE" = "true" ]; then
@@ -217,6 +224,7 @@ selectProduct() {
 		echo "${CB_LINEHEADER}Product name [$productName]"
 	fi
 	
+	productName=$(echo $productName | awk '{print $1}')
 	export productName productId
 }
 
@@ -294,6 +302,9 @@ preapreProductConfigurationFile
 [ -z "$productId" ] && selectProduct "$productName"
 
 if [ -n "$productId" ]; then
+	# check product individuel project configuration
+	preapreProjectConfigurationFile "$productName"
+
 	productTypeConfiguration=$(getTypeConfiguration "$CB_PRODUCT_CONFIGFILE_TMPFILE" "$productId")
 	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Product type configuration: $(echo $productTypeConfiguration|sed 's/\n/|/')"
 	for i in $productTypeConfiguration; do

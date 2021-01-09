@@ -101,6 +101,11 @@ FOR /F "tokens=1,2 delims=^|" %%i in ("%productConfiguration%") do (set "product
 set "previousProductConfiguration=%productConfiguration%"
 set "productConfiguration=%productConfiguration:*|=%"
 if not "%previousProductConfiguration%"=="%productConfiguration%" goto SET_PRODUCT_TYPE_PARAMETERS
+
+:: check product individuel project configuration
+call :PRODUCT_PROJECT_CONFIGFILE %productName%
+if not ".%CB_PRODUCT_PROJECT_CONFIGFILE_TMPFILE%"=="." set "CB_PROJECT_CONFIGFILE_TMPFILE=%CB_PRODUCT_PROJECT_CONFIGFILE_TMPFILE%"
+
 :END_PRODUCT_TYPES
 
 :SET_PROJECT_TYPE
@@ -314,4 +319,22 @@ powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace 
 set "nullExpression=nul"
 powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@logFile@@', "$Env:nullExpression" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Prepared %1 action %PROJECT_WIZARD_TEMP_FILENAME%: & type "%PROJECT_WIZARD_TEMP_FILENAME%"
+goto :eof
+
+:PRODUCT_PROJECT_CONFIGFILE
+if ".%CB_CUSTOM_RUNTIME_CONFIG_PATH%"=="." goto :eof
+if not exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\project-types-%1.properties" goto :eof
+set "CB_PRODUCT_PROJECT_CONFIGFILE=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\project-types-%1.properties"
+
+:: get file timestamp
+for /f "tokens=1,2 delims= " %%i in ('dir /O:D /T:W /A:-D /4 %CB_PRODUCT_PROJECT_CONFIGFILE% 2^>nul ^| findstr /C:project-types-%1.properties 2^>nul') do (set "cbProjectConfigFileTimestamp=%%i %%j")
+set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp: =%"
+set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp::=%"
+set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp:.=%"
+set "cbProjectConfigFileTimestamp=%cbProjectConfigFileTimestamp:/=%"
+if .%cbProjectConfigFileTimestamp%==. set cbProjectConfigFileTimestamp=%RANDOM%%RANDOM%
+set "CB_PRODUCT_PROJECT_CONFIGFILE_TMPFILE=%CB_TEMP%\cb-project-types-%1-%cbProjectConfigFileTimestamp%.tmp"
+if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Use %1 project types file: %CB_PRODUCT_PROJECT_CONFIGFILE%
+if .%CB_VERBOSE% == .true if not exist %CB_PRODUCT_PROJECT_CONFIGFILE_TMPFILE% echo %CB_LINEHEADER%Create %1 project types temp file: %CB_PRODUCT_PROJECT_CONFIGFILE_TMPFILE%
+if not exist %CB_PRODUCT_PROJECT_CONFIGFILE_TMPFILE% type "%CB_PRODUCT_PROJECT_CONFIGFILE%" 2>nul | findstr /V "#" | findstr /C:= > "%CB_PRODUCT_PROJECT_CONFIGFILE_TMPFILE%" 2>nul
 goto :eof
