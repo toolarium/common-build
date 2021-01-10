@@ -306,7 +306,7 @@ updateShellInitialisation() {
 	shellProfile="$1"
 
 	# in case it does not exist, just create empty file
-	! [ -f "$shellProfile" ] && touch "$shellProfile" 2>/dev/null && chmod +r+w "$shellProfile"
+	! [ -f "$shellProfile" ] && touch "$shellProfile" >/dev/null 2>&1 && chmod +r+w "$shellProfile" >/dev/null 2>&1
 
 	if [ -w "$shellProfile" ]; then
 		backupFileName="${shellProfile}_cb-$(eval $FULLTIMESTAMP)"
