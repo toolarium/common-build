@@ -161,6 +161,8 @@ if not ".%projectComponentId%" == "." echo [%projectName%] | findstr /C:"[%proje
 if not ".%projectComponentId%" == "." if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid name it must start with %projectComponentId%-. & goto SET_PROJECT_NAME_START )
 if not ".%projectNameEndingParameter%" == "." echo [%projectName%] | findstr /C:"%projectNameEndingParameter%]" >nul 2>nul
 if not ".%projectNameEndingParameter%" == "." if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid name it must end with %projectNameEndingParameter%. & goto SET_PROJECT_NAME_START )
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" new-project-validate-name %projectName% 2>nul
+if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid name %projectName% & goto SET_PROJECT_NAME_START )
 :SET_PROJECT_NAME_END
 if exist %projectName% echo %CB_LINEHEADER%Project %projectName% already exist! & goto SET_PROJECT_NAME_START
 ::if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Selected project type [%projectType%]/[%projectTypeId%], configurationType: "%projectTypeConfiguration%", configurationParameter: "%projectTypeConfigurationParameter%"
@@ -168,29 +170,47 @@ if exist %projectName% echo %CB_LINEHEADER%Project %projectName% already exist! 
 echo "%projectTypeConfiguration%" | findstr /C:"projectRootPackageName" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 goto SET_PROJECT_PACKAGENAME_END
 set "projectTypeConfigurationParameter=%projectTypeConfigurationParameter:*|=%"
-if not .%1==. (set "projectRootPackageName=%1" & shift)
+if not .%1==. echo %CB_LINEHEADER%Project package name [%1]
+if not .%1==. (set "projectRootPackageName=%1" & set "parentProjectRootPackageName=%projectRootPackageName%" & shift & goto VERIFY_PROJECT_PACKAGENAME)
 :: ask always
 ::if not .%projectRootPackageName% == . echo %CB_LINEHEADER%Project package name [%projectRootPackageName%] & goto SET_PROJECT_PACKAGENAME_END
+if .%parentProjectRootPackageName% == . set "parentProjectRootPackageName=%projectRootPackageName%"
+set "projectRootPackageNameSuggestion="%parentProjectRootPackageName%
 if .%projectRootPackageName% == . set projectRootPackageName=my.rootpackage.name
-set /p projectRootPackageName=%CB_LINEHEADER%Please enter package name, e.g. [%projectRootPackageName%]: 
+if .%projectRootPackageNameSuggestion% == . set projectRootPackageNameSuggestion=%projectRootPackageName%
+:SET_PROJECT_PACKAGENAME_START
+if .%projectRootPackageName% == . set "projectRootPackageName=%parentProjectRootPackageName%"
+set /p projectRootPackageName=%CB_LINEHEADER%Please enter package name, e.g. [%projectRootPackageNameSuggestion%]: 
+:VERIFY_PROJECT_PACKAGENAME
+if .%parentProjectRootPackageName% == . echo >nul
+if not .%parentProjectRootPackageName% == . echo %projectRootPackageName% | findstr /C:%parentProjectRootPackageName% >nul 2>nul
+if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid package name %projectRootPackageName% starts not with %parentProjectRootPackageName% & set "projectRootPackageName=" & goto SET_PROJECT_PACKAGENAME_START )
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" new-project-validate-rootpackagename %projectRootPackageName% 2>nul
+if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid package name %projectRootPackageName% & set "projectRootPackageName=" & goto SET_PROJECT_PACKAGENAME_START )
 :SET_PROJECT_PACKAGENAME_END
 
 echo "%projectTypeConfiguration%" | findstr /C:"projectGroupId" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 goto SET_PROJECT_GROUPID_END
 set "projectTypeConfigurationParameter=%projectTypeConfigurationParameter:*|=%"
-if not .%1==. (set "projectGroupId=%1" & shift)
+if .%projectGroupId% == . if not .%1==. (set "projectGroupId=%1" & shift)
 if not .%projectGroupId% == . echo %CB_LINEHEADER%Project project group id [%projectGroupId%] & goto SET_PROJECT_GROUPID_END
+:SET_PROJECT_GROUPID_START
 FOR /F "tokens=1,2 delims=-" %%i in ("%projectName%") do ( set "projectGroupId=%%i" )
 set /p projectGroupId=%CB_LINEHEADER%Please enter project group id, e.g. [%projectGroupId%]:
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" new-project-validate-groupid %projectGroupId% 2>nul
+if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid group id %projectGroupId%. & goto SET_PROJECT_GROUPID_START )
 :SET_PROJECT_GROUPID_END
 
 echo "%projectTypeConfiguration%" | findstr /C:"projectComponentId" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 goto SET_PROJECT_COMPONENTID_END
-if not .%1==. (set "projectComponentId=%1" & shift)
+if .%projectComponentId% == . if not .%1==. (set "projectComponentId=%1" & shift)
 set "projectTypeConfigurationParameter=%projectTypeConfigurationParameter:*|=%"
 if not .%projectComponentId% == . echo %CB_LINEHEADER%Project project component id [%projectComponentId%] & goto SET_PROJECT_COMPONENTID_END
+:SET_PROJECT_COMPONENTID_START
 FOR /F "tokens=1,2 delims=-" %%i in ("%projectName%") do ( set "projectComponentId=%%i" )
 set /p projectComponentId=%CB_LINEHEADER%Please enter project component id, e.g. [%projectComponentId%]: 
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" new-project-validate-componentid %projectGroupId% 2>nul
+if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid component id %projectGroupId%. & goto SET_PROJECT_COMPONENTID_START )
 :SET_PROJECT_COMPONENTID_END
 ::if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Selected project type [%projectType%]/[%projectTypeId%], configuration: "%projectTypeConfigurationParameter%"
 
@@ -207,6 +227,8 @@ goto CHECK_PROJECT_DESCRIPTION
 if not ".%projectDescription%" == "." echo %CB_LINEHEADER%Project project description [%projectDescription%] & goto SET_PROJECT_DESCRIPTION_END
 set "projectDescription=The implementation of the %projectName%."
 set /p projectDescription=%CB_LINEHEADER%Please enter project description, e.g. [%projectDescription%]: 
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" new-project-validate-description %projectDescription% 2>nul
+if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid description. & set "projectDescription=" & goto SET_PROJECT_DESCRIPTION )
 :SET_PROJECT_DESCRIPTION_END
 
 ::if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Selected project type [%projectType%]/[%projectTypeId%], configuration: "%projectTypeConfigurationParameter%"

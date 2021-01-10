@@ -19,6 +19,11 @@ if .%1==.start shift & goto CUSTOM_START
 if .%1==.build-start shift & goto CUSTOM_BUILD_START
 if .%1==.build-end shift & goto CUSTOM_BUILD_END
 if .%1==.new-project-start shift & goto CUSTOM_NEW_PROJECT_START
+if .%1==.new-project-validate-name shift & goto CUSTOM_NEW_PROJECT_VALIDATE_NAME
+if .%1==.new-project-validate-rootpackagename shift & goto CUSTOM_NEW_PROJECT_VALIDATE_ROOTPACKAGENAME
+if .%1==.new-project-validate-groupid shift & goto CUSTOM_NEW_PROJECT_VALIDATE_GROUPID
+if .%1==.new-project-validate-componentid shift & goto CUSTOM_NEW_PROJECT_VALIDATE_COMPONENTID
+if .%1==.new-project-validate-description shift & goto CUSTOM_NEW_PROJECT_VALIDATE_DESCRIPTION
 if .%1==.new-project-end shift & goto CUSTOM_NEW_PROJECT_END
 if .%1==.install-start shift & goto CUSTOM_INSTALL_START
 if .%1==.install-end shift & goto CUSTOM_INSTALL_END
@@ -60,6 +65,45 @@ goto CUSTOM_END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ::echo %CB_LINEHEADER%START NEW PROJECT %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:CUSTOM_NEW_PROJECT_VALIDATE_NAME
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+::echo %CB_LINEHEADER%VALIDATE NAME %1 %2 %3 %4 %5 %6 %7 %8 %9
+:: invalid project name: exit /b 1
+exit /b 0
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:CUSTOM_NEW_PROJECT_VALIDATE_ROOTPACKAGENAME
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+::echo %CB_LINEHEADER%VALIDATE ROOTPACKAGENAME %1 %2 %3 %4 %5 %6 %7 %8 %9
+:: invalid rootpackagename: exit /b 1
+exit /b 0
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:CUSTOM_NEW_PROJECT_VALIDATE_GROUPID
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+::echo %CB_LINEHEADER%VALIDATE GROUPID %1 %2 %3 %4 %5 %6 %7 %8 %9
+:: invalid group id: exit /b 1
+exit /b 0
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:CUSTOM_NEW_PROJECT_VALIDATE_COMPONENTID
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+::echo %CB_LINEHEADER%VALIDATE COMPONENTID %1 %2 %3 %4 %5 %6 %7 %8 %9
+:: invalid component id: exit /b 1
+exit /b 0
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:CUSTOM_NEW_PROJECT_VALIDATE_DESCRIPTION
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+::echo %CB_LINEHEADER%VALIDATE DESCRIPTION %1 %2 %3 %4 %5 %6 %7 %8 %9
+:: invalid description: exit /b 1
+exit /b 0
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

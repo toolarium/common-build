@@ -47,6 +47,51 @@ customNewProjectStart() {
 
 
 #########################################################################
+# customNewProjectValidateName
+#########################################################################
+customNewProjectValidateName() {
+	#echo "${CB_LINEHEADER}VALIDATE NAME $*"
+	:
+}
+
+
+#########################################################################
+# customNewProjectValidateRootPackageName
+#########################################################################
+customNewProjectValidateRootPackageName() {
+	#echo "${CB_LINEHEADER}VALIDATE ROOTPACKAGENAME $*"
+	:
+}
+
+
+#########################################################################
+# customNewProjectValidateGroupId
+#########################################################################
+customNewProjectValidateGroupId() {
+	#echo "${CB_LINEHEADER}VALIDATE GROUPID $*"
+	:
+}
+
+
+#########################################################################
+# customNewProjectValidateComponentId
+#########################################################################
+customNewProjectValidateComponentId() {
+	#echo "${CB_LINEHEADER}VALIDATE COMPONENTID $*"
+	:
+}
+
+
+#########################################################################
+# customNewProjectValidateDescription
+#########################################################################
+customNewProjectValidateDescription() {
+	#echo "${CB_LINEHEADER}VALIDATE DESCRIPTION $*"
+	:
+}
+
+
+#########################################################################
 # customNewProjectEnd
 #########################################################################
 customNewProjectEnd() {
@@ -155,6 +200,11 @@ do
 	build-start)				shift; customBuildStart $*; return 0;;
 	build-end)					shift; customBuildEnd $*; return 0;;
 	new-project-start)			shift; customNewProjectStart $*; return 0;;
+	new-project-validate-name)	          shift; customNewProjectValidateName $*; return 0;;
+	new-project-validate-rootpackagename) shift; customNewProjectValidateRootPackageName $*; return 0;;
+	new-project-validate-groupid)	      shift; customNewProjectValidateGroupId $*; return 0;;
+	new-project-validate-componentid)     shift; customNewProjectValidateComponentId $*; return 0;;
+	new-project-validate-description)     shift; customNewProjectValidateDescription $*; return 0;;
 	new-project-end)			shift; customNewProjectEnd $*; return 0;;
 	install-start)				shift; customInstallStart $*; return 0;;
 	install-end)				shift; customInstallEnd $*; return 0;;

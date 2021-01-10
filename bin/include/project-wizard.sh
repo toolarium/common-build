@@ -83,6 +83,7 @@ preapreProjectConfigurationFile() {
 preapreProductConfigurationFile() {
 	[ -z "$CB_PRODUCT_CONFIGFILE" ] && CB_PRODUCT_CONFIGFILE="$CB_SCRIPT_PATH/../conf/product-types.properties"
 	if ! [ -r "$CB_PRODUCT_CONFIGFILE" ]; then
+		CB_PRODUCT_CONFIGFILE=""
 		rm "$CB_PRODUCT_CONFIGFILE_TMPFILE" >/dev/null 2>&1
 		return
 	fi
@@ -196,7 +197,7 @@ selectProjectType() {
 #########################################################################
 # Select the product
 #########################################################################
-selectProduct() {	
+selectProduct() {		
 	! [ -r "$CB_PRODUCT_CONFIGFILE_TMPFILE" ] && productName="" && return 
 	if [ "$1" -ge 0 ] 2>/dev/null; then
 		productName=$(searchType "$CB_PRODUCT_CONFIGFILE_TMPFILE" "$1")
@@ -298,8 +299,8 @@ preapreProjectConfigurationFile
 preapreProductConfigurationFile 
 
 # select product
-[ -n "$1" ] && [ "$1" -ge 0 ] 2>/dev/null && productId="$1" && shift
-[ -z "$productId" ] && selectProduct "$productName"
+[ -n "$CB_PRODUCT_CONFIGFILE" ] && [ -n "$1" ] && [ "$1" -ge 0 ] 2>/dev/null && productId="$1" && shift
+[ -n "$CB_PRODUCT_CONFIGFILE" ] && [ -z "$productId" ] && selectProduct "$productName"
 
 if [ -n "$productId" ]; then
 	# check product individuel project configuration
@@ -326,53 +327,114 @@ projectDefaultName="project"
 [ -n "$projectComponentId" ] && projectDefaultName="${projectComponentId}-${projectDefaultName}" || projectDefaultName="my-${projectDefaultName}"
 [ -n "$projectNameEndingParameter" ] && projectDefaultName="$projectDefaultName$projectNameEndingParameter"
 
+parameterInput=""
+[ -n "$1" ] && parameterInput="$1" && shift
 while ! [ -n "$projectName" ]; do
-	[ -z "$1" ] && selectInput "project name" "$projectDefaultName"
-	[ -n "$1" ] && selectInput "project name" "$projectDefaultName" "$1" && shift
+	selectInput "project name" "$projectDefaultName" "$parameterInput"
 	
 	validName="true"
 	[ -n "$projectComponentId" ] && [ -n "${inputResult##$projectComponentId-*}" ] && echo "${CB_LINEHEADER}Invalid name it must start with $projectComponentId-." && validName="false"
 	[ -n "$projectNameEndingParameter" ] && [ -n "${inputResult%%*$projectNameEndingParameter}" ] && echo "${CB_LINEHEADER}Invalid name it must end with $projectNameEndingParameter." && validName="false"
-	[ -d "$inputResult" ] && echo "${CB_LINEHEADER}Project $projectName already exist!" && validName=false 
-	[ "$validName" = "true" ] && projectName="$inputResult"
+	[ -d "$inputResult" ] && echo "${CB_LINEHEADER}Project $inputResult already exist!" && validName=false 
+
+	if [ -n "$CB_CUSTOM_SETTING_SCRIPT" ]; then
+		eval "$CB_CUSTOM_SETTING_SCRIPT new-project-validate-name $inputResult" 2>/dev/null
+		if [ $? -ne 0 ]; then
+			echo "${CB_LINEHEADER}Invalid name $inputResult!"
+			validName=false 
+		fi
+	fi
+	
+	if [ "$validName" = "true" ]; then
+		projectName="$inputResult"
+	else
+		[ -n "$parameterInput" ] && parameterInput=""
+	fi
 done
 
 projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Selected project type [$projectType]/[$projectTypeId], configurationType: $projectTypeConfiguration, configurationParameter: $projectTypeConfigurationParameter"	
 if hasProjectTypeConfiguration "projectRootPackageName"; then
-	[ -z "$projectRootPackageName" ] && projectRootPackageName="my.rootpackage.name"
-	[ -z "$1" ] && selectInput "project package name" "$projectRootPackageName"
-	[ -n "$1" ] && selectInput "project package name" "$projectRootPackageName" "$1" && shift
-	projectRootPackageName="$inputResult"
+	parentProjectRootPackageName="$projectRootPackageName"
+	projectRootPackageNameSuggestion="$parentProjectRootPackageName"
+	[ -z "$projectRootPackageNameSuggestion" ] && projectRootPackageNameSuggestion="my.rootpackage.name"
+	projectRootPackageName=""
+	parameterInput=""
+	[ -n "$1" ] && parameterInput="$1" && shift
+
+	while ! [ -n "$projectRootPackageName" ]; do
+		validName="true"
+		selectInput "project package name" "$projectRootPackageNameSuggestion" "$parameterInput"
+		
+		if [ -n "$CB_CUSTOM_SETTING_SCRIPT" ]; then
+			eval "$CB_CUSTOM_SETTING_SCRIPT new-project-validate-rootpackagename $inputResult" 2>/dev/null
+			if [ $? -ne 0 ]; then
+				echo "${CB_LINEHEADER}Invalid rootpackage name $inputResult!"
+				validName=false 
+			fi
+		fi
+		
+		if [ -z $(echo "START:${inputResult}" | grep "START:${parentProjectRootPackageName}") ]; then
+			echo "${CB_LINEHEADER}Invalid package name $inputResult starts not with $parentProjectRootPackageName!"
+			validName=false 
+		fi
+
+		if [ "$validName" = "true" ]; then
+			projectRootPackageName="$inputResult"
+		else
+			[ -n "$parameterInput" ] && parameterInput=""
+		fi
+	done
 	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 fi
 
 if hasProjectTypeConfiguration "projectGroupId"; then
-	if [ -n "$projectGroupId" ]; then
-		selectInput "project group id" "${projectName%%-*}" "$projectGroupId" 	
-	else
-		[ -z "$1" ] && selectInput "project group id" "${projectName%%-*}"
-		[ -n "$1" ] && selectInput "project group id" "${projectName%%-*}" "$1" && shift
-	fi
-	projectGroupId="$inputResult"
+	parameterInput=""
+	[ -z "$projectGroupId" ] && [ -n "$1" ] && parameterInput="$1" && shift
+	while ! [ -n "$projectGroupId" ]; do
+		selectInput "project group id" "${projectName%%-*}" "$parameterInput"
+			
+		if [ -n "$CB_CUSTOM_SETTING_SCRIPT" ]; then
+			eval "$CB_CUSTOM_SETTING_SCRIPT new-project-validate-groupid $inputResult" 2>/dev/null
+			[ $? -ne 0 ] && echo "${CB_LINEHEADER}Invalid group id $inputResult!" || projectGroupId="$inputResult"
+			#[ -n "$parameterInput" ] && parameterInput=""
+		else
+			projectGroupId="$inputResult"
+		fi
+	done
 	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 fi
 
 if hasProjectTypeConfiguration "projectComponentId"; then
-	if [ -n "$projectComponentId" ]; then
-		selectInput "project component id" "${projectName%%-*}" "$projectComponentId"
-	else
-		[ -z "$1" ] && selectInput "project component id" "${projectName%%-*}"
-		[ -n "$1" ] && selectInput "project component id" "${projectName%%-*}" "$1" && shift
-	fi
-	projectComponentId="$inputResult"
+	parameterInput=""
+	[ -z "$projectComponentId" ] && [ -n "$1" ] && parameterInput="$1" && shift
+	while ! [ -n "$projectComponentId" ]; do
+		selectInput "project component id" "${projectName%%-*}" "$parameterInput"
+		
+		if [ -n "$CB_CUSTOM_SETTING_SCRIPT" ]; then
+			eval "$CB_CUSTOM_SETTING_SCRIPT new-project-validate-componentid $inputResult" 2>/dev/null
+			[ $? -ne 0 ] && echo "${CB_LINEHEADER}Invalid component id $inputResult!" || projectComponentId="$inputResult"
+			#[ -n "$parameterInput" ] && parameterInput=""
+		else
+			projectComponentId="$inputResult"
+		fi
+	done
 	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 fi
 
 if hasProjectTypeConfiguration "projectDescription"; then
-	[ -z "$*" ] && [ -z "$projectDescription" ] && projectDescription="The implementation of the $projectName."
-	selectInput "project description" "$projectDescription" "$*"
-	projectDescription="$inputResult"
+	[ -z "$*" ] && parameterInput="The implementation of the $projectName." || projectDescription="$*"
+	while ! [ -n "$projectDescription" ]; do
+		selectInput "project description" "$parameterInput"
+		
+		if [ -n "$CB_CUSTOM_SETTING_SCRIPT" ]; then
+			eval "$CB_CUSTOM_SETTING_SCRIPT new-project-validate-description $inputResult" 2>/dev/null
+			[ $? -ne 0 ] && echo "${CB_LINEHEADER}Invalid description $inputResult!" || projectDescription="$inputResult"
+			#[ -n "$parameterInput" ] && parameterInput=""
+		else
+			projectDescription="$inputResult"
+		fi
+	done
 	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 fi
 
