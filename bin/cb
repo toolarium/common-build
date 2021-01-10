@@ -111,13 +111,13 @@ existBinary() {
 		else
 			result=$(whereis -b "$1" 2>/dev/null | awk '{print $2}')
 		fi
-		result="${result##*.exe}"
+		[ "$2" = "true" ] || result="${result##*.exe}"
 		
 		[ -n "$result" ] && echo "$result"
 		[ -n "$result" ] && return 0 || return 1
 	else
 		result=$(which "$1" 2>/dev/null)
-		result="${result##*.exe}"
+		[ "$2" = "true" ] || result="${result##*.exe}"
 		[ -n "$result" ] && echo "$result"
 		[ $? -eq 0 ] && return 0 || return 1
 	fi
@@ -460,8 +460,8 @@ projectWizard() {
 #########################################################################
 exploreProject()
 {
-	[ "$CB_OS" = "windows" ] && fileExplorer=$(existBinary explorer.exe)
-	[ "$CB_OS" = "cygwin" ] && fileExplorer=$(existBinary explorer.exe)
+	[ "$CB_OS" = "windows" ] && fileExplorer=$(existBinary explorer.exe true)
+	[ "$CB_OS" = "cygwin" ] && fileExplorer=$(existBinary explorer.exe true)
 	[ "$CB_OS" = "mac" ] && fileExplorer=$(existBinary open)
 
 	if [ "$CB_OS" = "linux" ]; then
@@ -475,19 +475,18 @@ exploreProject()
 		[ -n "$fileExplorer" ] || fileExplorer=$(existBinary nautilus)
 		
 		# wsl
-		[ -n "$fileExplorer" ] || fileExplorer=$(existBinary explorer.exe)		
+		[ -n "$fileExplorer" ] || fileExplorer=$(existBinary explorer.exe true)
 	fi
 
 	if [ -n "$fileExplorer" ]; then
-		if [ -x "$fileExplorer" ]
-		then
+		if [ -x "$fileExplorer" ]; then
 			exploreDirectory="$CB_WORKING_PATH"
 			[ "$CB_OS" = "cygwin" ] && exploreDirectory="$(cygpath --windows $CB_WORKING_PATH)"
-			[ -n "$(existBinary explorer.exe)" ] && exploreDirectory="."
+			[[ $(grep microsoft /proc/version) ]] && exploreDirectory=$(cmd.exe /c 2>&1 | grep wsl | sed s"/\"//g")
 			$fileExplorer "$exploreDirectory" >/dev/null 2>&1 &
 		else
 			echo "$CB_LINE"
-			echo "${CB_LINEHEADER}Could not found explorer.exe."
+			echo "${CB_LINEHEADER}Could not found execute $fileExplorer."
 			echo "$CB_LINE"
 		fi
 	else
