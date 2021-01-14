@@ -194,7 +194,7 @@ echo.
 echo Customizing:
 echo  CB_CUSTOM_SETTING    The common build is flexible. You can define a script which
 echo                       that is called as a hook for all operations. You can find an
-echo                       example sciipt in %%CB_HOME%%\bin\sample\cb-custom-sample.bat
+echo                       example script in %%CB_HOME%%\bin\sample\cb-custom-sample.bat
 echo  CB_CUSTOM_CONFIG     For complete customizing of the common build you can create 
 echo                       a custom config project. This can be done by cb --new (select 
 echo                       Common Config Home project). After customizing (see further 
