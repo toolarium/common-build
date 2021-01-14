@@ -147,7 +147,7 @@ do
 		--raw) 			RAW_CREDENTIAL=true;;
 		--print)		PRINT_CREDENTIAL="true";;
 		--verifyOnly) 	VERIFY_ONLY="true";;
-		--grgit)		CB_GIT_USERNAME_KEY="GRGIT_USER" && CB_GIT_PASSWORD_KEY="GRGIT_PASSWORD";;
+		--grgit)		CB_GIT_USERNAME_KEY="GRGIT_USER" && CB_GIT_PASSWORD_KEY="GRGIT_PASS";;
 		*)				CB_PARAMETERS="$CB_PARAMETERS $1";;
     esac
     shift

@@ -102,7 +102,7 @@ if .%RAW_CREDENTIAL% == .false (powershell -Command "[Convert]::ToBase64String([
 
 set "CB_GIT_USERNAME_KEY=GIT_USERNAME"
 set "CB_GIT_PASSWORD_KEY=GIT_PASSWORD"
-if .%GRGIT% == .true set "CB_GIT_USERNAME_KEY=GRGIT_USER" & set "CB_GIT_PASSWORD_KEY=GRGIT_PASSWORD"
+if .%GRGIT% == .true set "CB_GIT_USERNAME_KEY=GRGIT_USER" & set "CB_GIT_PASSWORD_KEY=GRGIT_PASS"
 
 endlocal & (
 	if not defined VERIFY_ONLY if .%RAW_CREDENTIAL% == .true if .%PRINT_CREDENTIAL% == .true echo %CB_GIT_USERNAME_KEY%=%cbUsername% & echo %CB_GIT_PASSWORD_KEY%=%cbPassword% & goto END
