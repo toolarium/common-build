@@ -65,6 +65,7 @@ customNewProjectStart() {
 customNewProjectValidateName() {
 	echo "${CB_LINEHEADER}VALIDATE NAME $*"
 	# invalid project name: exit 1
+	exit 0
 }
 
 
@@ -74,6 +75,7 @@ customNewProjectValidateName() {
 customNewProjectValidateRootPackageName() {
 	echo "${CB_LINEHEADER}VALIDATE ROOTPACKAGENAME $*"
 	# invalid rootpackagename: exit 1
+	exit 0
 }
 
 
@@ -83,6 +85,7 @@ customNewProjectValidateRootPackageName() {
 customNewProjectValidateGroupId() {
 	echo "${CB_LINEHEADER}VALIDATE GROUPID $*"
 	# invalid group id: exit 1
+	exit 0
 }
 
 
@@ -92,6 +95,7 @@ customNewProjectValidateGroupId() {
 customNewProjectValidateComponentId() {
 	echo "${CB_LINEHEADER}VALIDATE COMPONENTID $*"
 	# invalid component id: exit 1
+	exit 0
 }
 
 
@@ -101,6 +105,7 @@ customNewProjectValidateComponentId() {
 customNewProjectValidateDescription() {
 	echo "${CB_LINEHEADER}VALIDATE DESCRIPTION $*"
 	# invalid description: exit 1
+	exit 0
 }
 
 
