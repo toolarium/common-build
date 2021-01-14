@@ -27,8 +27,8 @@ printCredentials() {
 	if [ "$RAW_CREDENTIAL" = "false" ]; then
 		echo "$GIT_USERNAME:$GIT_PASSWORD" | base64
 	else
-		echo "GIT_USERNAME=$GIT_USERNAME" 
-		echo "GIT_PASSWORD=$GIT_PASSWORD"
+		echo "$CB_GIT_USERNAME_KEY=$GIT_USERNAME" 
+		echo "$CB_GIT_PASSWORD_KEY=$GIT_PASSWORD"
 	fi
 }
 
@@ -83,6 +83,7 @@ printUsage() {
 	echo "                      In case of not print parameter the environment"
 	echo "                      variable will be set GIT_USERNAME, GIT_PASSWORD or"
 	echo "                      BASIC_AUTHENTICATION"
+	echo " --grgit              Return the plaintext credentials compatible with grgit"
 	echo " --verifyOnly         Verifies only the credentials."
 	echo ""
 }
@@ -131,7 +132,12 @@ esac
 
 GIT_USERNAME=
 GIT_PASSWORD=
+GRGIT_USER=
+GRGIT_PASSWORD=
 BASIC_AUTHENTICATION=
+GRGIT="false"
+CB_GIT_USERNAME_KEY="GIT_USERNAME"
+CB_GIT_PASSWORD_KEY="GIT_PASSWORD"
 
 while [ $# -gt 0 ]
 do
@@ -141,6 +147,7 @@ do
 		--raw) 			RAW_CREDENTIAL=true;;
 		--print)		PRINT_CREDENTIAL="true";;
 		--verifyOnly) 	VERIFY_ONLY="true";;
+		--grgit)		CB_GIT_USERNAME_KEY="GRGIT_USER" && CB_GIT_PASSWORD_KEY="GRGIT_PASSWORD";;
 		*)				CB_PARAMETERS="$CB_PARAMETERS $1";;
     esac
     shift
@@ -160,6 +167,8 @@ if ! eval $GIT_CLIENT --version >/dev/null 2>&1; then
 	echo "" 
 	endWithError
 fi
+
+[ -r "$PWD/.git/config" ] && CB_PARAMETERS=$(cat "$PWD/.git/config" | grep url | grep http | awk -F= '{print $2}')
 
 CB_PARAMETERS=$(echo $CB_PARAMETERS | sed 's/ //g')
 ! [ -n "$CB_PARAMETERS" ] && echo "" && echo ".: ERROR: No url found. Please provide external git url." && echo "" && endWithError

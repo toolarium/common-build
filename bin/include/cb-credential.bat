@@ -9,9 +9,10 @@
 ::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-
 set GIT_USERNAME=
 set GIT_PASSWORD=
+set GRGIT_USER=
+set GRGIT_PASSWORD=
 set BASIC_AUTHENTICATION=
 setlocal EnableDelayedExpansion
 set PN=%~nx0
@@ -22,8 +23,10 @@ if not defined TEMP set "TEMP=%TMP%"
 if not defined CB_TEMP set "CB_TEMP=%TEMP%\cb"
 if not exist %CB_TEMP% mkdir "%CB_TEMP%" >nul 2>nul
 if not defined GIT_CLIENT set "GIT_CLIENT=%CB_HOME%\current\git\bin\git"
+if not defined GRGIT set "GRGIT=false"
 %GIT_CLIENT% --version >nul 2>nul
 if %ERRORLEVEL% NEQ 0 set "GIT_CLIENT=git"
+set CB_PARAMETERS=
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -34,6 +37,7 @@ if .%1==.-h goto HELP
 if .%1==.--help goto HELP
 if .%1==.--raw shift & set "RAW_CREDENTIAL=true"
 if .%1==.--print shift & set "PRINT_CREDENTIAL=true"
+if .%1==.--grgit shift & set "GRGIT=true"
 if .%1==.--verifyOnly shift & set "VERIFY_ONLY=true"
 if not .%1==. set "CB_PARAMETERS=%~1"
 shift
@@ -56,6 +60,7 @@ echo                       with parameter raw or the BASIC_AUTHENTICATION string
 echo                       In case of not print parameter the environment
 echo                       variable will be set GIT_USERNAME, GIT_PASSWORD or
 echo                       BASIC_AUTHENTICATION
+echo  --grgit              Return the plaintext credentials compatible with grgit
 echo  --verifyOnly         Verifies only the credentials.
 goto END
 
@@ -65,6 +70,10 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 %GIT_CLIENT% --version >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo. & echo .: ERROR: No git client found. & echo. & goto END_WITH_ERROR
+
+if [%CB_PARAMETERS%] EQU [] if exist .git\config for /f "tokens=1,2 delims==" %%i in ('type .git\config^|findstr /C:http') do ( call :SET_URL %%j ) 
+::if [%CB_PARAMETERS%] EQU [] if exist .git\config for /f "tokens=* delims= " %%a in ("%CB_PARAMATERS%") do ( set "CB_PARAMATERS=%%a" )
+
 if [%CB_PARAMETERS%] EQU [] echo. & echo .: ERROR: No url found. Please provide external git url & echo. & goto END_WITH_ERROR
 for /f "tokens=1,2,3,* delims=/" %%i in ("%CB_PARAMETERS%") do (set "urlProtocol=%%i" & set "urlHost=%%j" & set "urlPath=%%k")
 for /f "tokens=1,* delims=:" %%i in ("%urlProtocol%") do (set "urlProtocol=%%i")
@@ -91,14 +100,22 @@ for /f "tokens=1,2* delims==" %%i in (%tempFile%) do (set "cbPassword=%%j")
 if .%RAW_CREDENTIAL% == .false (powershell -Command "[Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($env:cbUsername + ':' + $env:cbPassword), 'InsertLineBreaks')" > "%credentialFile%"
 	set /p BASIC_AUTHENTICATION=<"%credentialFile%")
 
+set "CB_GIT_USERNAME_KEY=GIT_USERNAME"
+set "CB_GIT_PASSWORD_KEY=GIT_PASSWORD"
+if .%GRGIT% == .true set "CB_GIT_USERNAME_KEY=GRGIT_USER" & set "CB_GIT_PASSWORD_KEY=GRGIT_PASSWORD"
+
 endlocal & (
-	if not defined VERIFY_ONLY if .%RAW_CREDENTIAL% == .true if .%PRINT_CREDENTIAL% == .true echo GIT_USERNAME=%cbUsername% & echo GIT_PASSWORD=%cbPassword% & goto END
-	if not defined VERIFY_ONLY if .%RAW_CREDENTIAL% == .true if .%PRINT_CREDENTIAL% == .false set "GIT_USERNAME=%cbUsername%" & set "GIT_PASSWORD=%cbPassword%" & goto END
+	if not defined VERIFY_ONLY if .%RAW_CREDENTIAL% == .true if .%PRINT_CREDENTIAL% == .true echo %CB_GIT_USERNAME_KEY%=%cbUsername% & echo %CB_GIT_PASSWORD_KEY%=%cbPassword% & goto END
+	if not defined VERIFY_ONLY if .%RAW_CREDENTIAL% == .true if .%PRINT_CREDENTIAL% == .false set "%CB_GIT_USERNAME_KEY%=%cbUsername%" & set "%CB_GIT_PASSWORD_KEY%=%cbPassword%" & goto END
 	if not defined VERIFY_ONLY if .%PRINT_CREDENTIAL% == .true echo %BASIC_AUTHENTICATION% & goto END
 	if not defined VERIFY_ONLY if .%PRINT_CREDENTIAL% == .false set "BASIC_AUTHENTICATION=%BASIC_AUTHENTICATION%"
 	goto END
 )
 
+
+:SET_URL
+set "CB_PARAMETERS=%~1"
+goto :eof
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :END_WITH_ERROR
