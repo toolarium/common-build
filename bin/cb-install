@@ -175,6 +175,7 @@ installationSuccess() {
 		echo "${CB_LINEHEADER}Please re-login $msgInfo, before you start."
 		[ -n "$(existBinary unzip)" ] || echo "${CB_LINEHEADER}Missing package unzip, please install it before you continue!"
 		[ -n "$(existBinary find)" ] || echo "${CB_LINEHEADER}Missing package find, please install it before you continue!"
+		#[ -n "$(existBinary xz)" ] || echo "${CB_LINEHEADER}Missing package xz, please install it before you continue!"
 		echo "$CB_LINE"
 		echo ""
 	fi
