@@ -1228,6 +1228,9 @@ installCb() {
 								if [ -z "$topDirectory" ]; then
 									echo "${CB_LINEHEADER}Could not extract package $i:"
 									cat "$CB_INSTALL_ERRORFILE"
+							        rm -f "$CB_INSTALL_ERRORFILE" >/dev/null 2>&1
+								    errorCode=1
+								    return
 								else
 									CB_PACKAGE_DIRECTORY_NAME="$topDirectory"
 								fi
@@ -1238,6 +1241,9 @@ installCb() {
 							if ! eval "cd $CB_DEVTOOLS && $CMD" 2>"$CB_INSTALL_ERRORFILE" >> "$CB_LOGFILE"; then
 								echo "${CB_LINEHEADER}Could not extract package $i:"
 								cat "$CB_INSTALL_ERRORFILE"
+							    rm -f "$CB_INSTALL_ERRORFILE" >/dev/null 2>&1
+								errorCode=1
+								return
 							else
 								[ "$CB_INSTALL_SILENT" = "false" ] && [ -d "$CB_PACKAGE_DIRECTORY_NAME" ] && echo "${CB_LINEHEADER}Directory $CB_PACKAGE_DIRECTORY_NAME will be updated."
 								
@@ -1353,7 +1359,7 @@ do
 		--explore)	shift; exploreProject; exit 0;;
 		--packages)	shift; printPackages "$@"; exit 0;;
 		--setenv)	CB_EXECUTE_BUILD=false; setCBEnv "$@"; unset errorCode;;
-		--install)	shift; installCb "$@"; exit 0;;
+		--install)	shift; installCb "$@"; [ -n "$errorCode" ] && exit $errorCode || exit 0;;
 		--java)		shift && echo $1 > $CB_JAVA_VERSION_FILE;;
 		--update)	updateCustomConfig; exit 0;;
 		*)			CB_PARAMETERS="$CB_PARAMETERS \"$1\"";;

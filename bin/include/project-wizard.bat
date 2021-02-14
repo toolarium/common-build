@@ -249,6 +249,7 @@ FOR /F "tokens=1,* delims=," %%i in ("%installPackages%") do ( echo %CB_LINEHEAD
 	set "installPackages=%%j"
 	goto INSTALL_DEPENDENCY)
 :INSTALL_DEPENDENCY_END
+call %PN_FULL% --setenv --silent
 
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Set projectName:%projectName% projectRootPackageName:%projectRootPackageName% projectGroupId:%projectGroupId% projectComponentId:%projectComponentId% projectDescription:"%projectDescription%" projectTypeConfiguration:"%projectTypeConfiguration%" projectTypeConfigurationParameter:"%projectTypeConfigurationParameter%"
 echo.

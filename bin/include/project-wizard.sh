@@ -459,6 +459,9 @@ if hasProjectTypeConfiguration ".*install.*=.*"; then
 	projectTypeConfigurationParameter=$(echo "$projectTypeConfigurationParameter" | sed '1d')
 fi
 
+# expand path
+export PATH="${PATH}:$($PN_FULL --setenv|sed 's/^.*(//;s/).*//g'|xargs|sed 's/ /:/g')"
+
 [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Set projectName:$projectName projectRootPackageName:$projectRootPackageName projectGroupId:$projectGroupId projectComponentId:$projectComponentId projectDescription:$projectDescription projectTypeConfigurationParameter:$projectTypeConfigurationParameter"
 echo ""
 echo "$CB_LINE"
