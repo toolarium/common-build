@@ -1199,23 +1199,23 @@ installCb() {
 								CMD=""
 							else
 								#[ -z "${i%%*.zip}" ] && CMD="unzip $CB_UNZIP_PARAM $i" && TOPDIR_CMD="unzip -Z -1 $i | head -n1 | sed 's/\/\$//g'"
-								[ -z "${i%%*.zip}" ] && CMD="unzip $CB_UNZIP_PARAM $i" && TOPDIR_CMD="unzip -q -l $i | head -n3 | tail -1 | awk '{print \$4}'| sed 's/\/\$//g'"
+								[ -z "${i%%*.zip}" ] && CMD="unzip $CB_UNZIP_PARAM $i" && TOPDIR_CMD="unzip -q -l $i | head -n3 | tail -1 | awk '{print \$4}'| sed 's/\/$//g;s/^\.\///g'"
 							fi
 						elif [ -z "${i%%*.exe}" ]; then
 							[ "$CB_OS" = "cygwin" ] && eval "cmd /c $(cygpath --windows $i | sed 's/\\/\\\\/g')" >> "$CB_LOGFILE"
 						elif [ -z "${i%%*.sh}" ]; then
 							eval "$i $CB_PACKAGE_INSTALL_PARAMETER" >> "$CB_LOGFILE"
 						else
-							[ -z "${i%%*.tar}" ] && CMD="tar $CB_TAR_PARAM -xf $i 2>&1" && TOPDIR_CMD="tar -tvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
-							[ -z "${i%%*.tar.gz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i 2>&1" && TOPDIR_CMD="tar -ztvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
-							[ -z "${i%%*.tgz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i 2>&1" && TOPDIR_CMD="tar -ztvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
+							[ -z "${i%%*.tar}" ] && CMD="tar $CB_TAR_PARAM -xf $i 2>&1" && TOPDIR_CMD="tar -tvf $i | head -n1 | awk '{print \$6}' | sed 's/\/$//g;s/^\.\///g'"
+							[ -z "${i%%*.tar.gz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i 2>&1" && TOPDIR_CMD="tar -ztvf $i | head -n1 | awk '{print \$6}' | sed 's/\/$//g;s/^\.\///g'"
+							[ -z "${i%%*.tgz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i 2>&1" && TOPDIR_CMD="tar -ztvf $i | head -n1 | awk '{print \$6}' | sed 's/\/$//g;s/^\.\///g'"
 							if [ -z "${i%%*.xz}" ]; then
 								if ! [ -n "$(existBinary xz)" ]; then
 									CMD="echo \"${CB_LINEHEADER}Missing package xz (xz-utils), please install it before you continue!\">&2; false"
 									TOPDIR_CMD="true; echo \"ok\""
 								else
 									CMD="rm ${i%*.xz} > /dev/null 2>&1; xz $CB_XZ_PARAM --decompress $i 2>&1 && tar $CB_TAR_PARAM -xf ${i%*.xz} 2>&1; rm ${i%*.xz} > /dev/null 2>&1" 
-									TOPDIR_CMD="tar -Jtvf $i | head -n1 | awk '{print \$6}' | sed 's/\/\$//g'"
+									TOPDIR_CMD="tar -Jtvf $i | head -n1 | awk '{print \$6}' | sed 's/\/$//g;s/^\.\///g'"
 								fi
 							fi
 						fi
