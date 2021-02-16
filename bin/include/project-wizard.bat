@@ -176,7 +176,7 @@ if not ".%projectComponentId%" == "." if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADE
 if not ".%projectNameEndingParameter%" == "." echo [%projectName%] | findstr /C:"%projectNameEndingParameter%]" >nul 2>nul
 if not ".%projectNameEndingParameter%" == "." if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid name it must end with %projectNameEndingParameter%. & goto SET_PROJECT_NAME_START )
 if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" new-project-validate-name %projectName% 2>nul
-if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid name %projectName% & goto SET_PROJECT_NAME_START )
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid name %projectName% & goto SET_PROJECT_NAME_START )
 :SET_PROJECT_NAME_END
 if exist %projectName% echo %CB_LINEHEADER%Project %projectName% already exist! & goto SET_PROJECT_NAME_START
 ::if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Selected project type [%projectType%]/[%projectTypeId%], configurationType: "%projectTypeConfiguration%", configurationParameter: "%projectTypeConfigurationParameter%"
@@ -200,7 +200,7 @@ if .%parentProjectRootPackageName% == . echo >nul
 if not .%parentProjectRootPackageName% == . echo %projectRootPackageName% | findstr /C:%parentProjectRootPackageName% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid package name %projectRootPackageName% starts not with %parentProjectRootPackageName% & set "projectRootPackageName=" & goto SET_PROJECT_PACKAGENAME_START )
 if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" new-project-validate-rootpackagename %projectRootPackageName% 2>nul
-if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid package name %projectRootPackageName% & set "projectRootPackageName=" & goto SET_PROJECT_PACKAGENAME_START )
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid package name %projectRootPackageName% & set "projectRootPackageName=" & goto SET_PROJECT_PACKAGENAME_START )
 :SET_PROJECT_PACKAGENAME_END
 
 echo "%projectTypeConfiguration%" | findstr /C:"projectGroupId" >nul 2>nul
@@ -212,7 +212,7 @@ if not .%projectGroupId% == . echo %CB_LINEHEADER%Project project group id [%pro
 FOR /F "tokens=1,2 delims=-" %%i in ("%projectName%") do ( set "projectGroupId=%%i" )
 set /p projectGroupId=%CB_LINEHEADER%Please enter project group id, e.g. [%projectGroupId%]:
 if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" new-project-validate-groupid %projectGroupId% 2>nul
-if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid group id %projectGroupId%. & goto SET_PROJECT_GROUPID_START )
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid group id %projectGroupId%. & goto SET_PROJECT_GROUPID_START )
 :SET_PROJECT_GROUPID_END
 
 echo "%projectTypeConfiguration%" | findstr /C:"projectComponentId" >nul 2>nul
@@ -224,7 +224,7 @@ if not .%projectComponentId% == . echo %CB_LINEHEADER%Project project component 
 FOR /F "tokens=1,2 delims=-" %%i in ("%projectName%") do ( set "projectComponentId=%%i" )
 set /p projectComponentId=%CB_LINEHEADER%Please enter project component id, e.g. [%projectComponentId%]: 
 if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" new-project-validate-componentid %projectGroupId% 2>nul
-if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid component id %projectGroupId%. & goto SET_PROJECT_COMPONENTID_START )
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid component id %projectGroupId%. & goto SET_PROJECT_COMPONENTID_START )
 :SET_PROJECT_COMPONENTID_END
 ::if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Selected project type [%projectType%]/[%projectTypeId%], configuration: "%projectTypeConfigurationParameter%"
 
@@ -242,7 +242,7 @@ if not ".%projectDescription%" == "." echo %CB_LINEHEADER%Project project descri
 set "projectDescription=The implementation of the %projectName%."
 set /p projectDescription=%CB_LINEHEADER%Please enter project description, e.g. [%projectDescription%]: 
 if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" new-project-validate-description %projectDescription% 2>nul
-if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid description. & set "projectDescription=" & goto SET_PROJECT_DESCRIPTION )
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid description. & set "projectDescription=" & goto SET_PROJECT_DESCRIPTION )
 :SET_PROJECT_DESCRIPTION_END
 
 ::if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Selected project type [%projectType%]/[%projectTypeId%], configuration: "%projectTypeConfigurationParameter%"
@@ -353,6 +353,7 @@ powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace 
 powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectGroupId@@', "$Env:projectGroupId" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
 powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectComponentId@@', "$Env:projectComponentId" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
 powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@projectDescription@@', "$Env:projectDescription" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
+powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@delete@@', 'cb-deltree' | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
 set "nullExpression=nul"
 powershell -Command "(Get-Content "$Env:PROJECT_WIZARD_TEMP_FILENAME") -replace '@@logFile@@', "$Env:nullExpression" | Out-File -encoding ASCII "$Env:PROJECT_WIZARD_TEMP_FILENAME""
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Prepared %1 action %PROJECT_WIZARD_TEMP_FILENAME%: & type "%PROJECT_WIZARD_TEMP_FILENAME%"

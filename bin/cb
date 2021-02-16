@@ -271,7 +271,7 @@ checkInternetConnection() {
 #########################################################################
 executeCustomConfig() {
 	CB_CONFIG_HOME="$OS_HOME/.common-build"
-	[ -r "$CB_CONFIG_HOME/conf/.cb-custom-config" ] && CB_CUSTOM_CONFIG=$(cat $CB_CONFIG_HOME/conf/.cb-custom-config | tr -d '\r')
+	[ -r "$CB_CONFIG_HOME/conf/.cb-custom-config" ] && CB_CUSTOM_CONFIG=$(cat $CB_CONFIG_HOME/conf/.cb-custom-config | grep -v "#" | grep -v "^$" |  tr -d '\r' | head -1)
 	[ -z "$CB_CUSTOM_CONFIG" ] && return
 	#! [ -n "$CB_CUSTOM_CONFIG" ] && echo "${CB_LINEHEADER}Ignore empty custom config, see $CB_CONFIG_HOME/conf/.cb-custom-config"
 	! [ -n "$CB_CUSTOM_CONFIG" ] && return
