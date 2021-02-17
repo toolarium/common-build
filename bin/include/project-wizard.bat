@@ -196,7 +196,7 @@ if .%projectRootPackageNameSuggestion% == . set projectRootPackageNameSuggestion
 if .%projectRootPackageName% == . set "projectRootPackageName=%parentProjectRootPackageName%"
 set /p projectRootPackageName=%CB_LINEHEADER%Please enter package name, e.g. [%projectRootPackageNameSuggestion%]: 
 :VERIFY_PROJECT_PACKAGENAME
-if .%parentProjectRootPackageName% == . echo >nul
+if .%parentProjectRootPackageName% == . cmd /c "exit /b 0"
 if not .%parentProjectRootPackageName% == . echo %projectRootPackageName% | findstr /C:%parentProjectRootPackageName% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 ( echo %CB_LINEHEADER%Invalid package name %projectRootPackageName% starts not with %parentProjectRootPackageName% & set "projectRootPackageName=" & goto SET_PROJECT_PACKAGENAME_START )
 if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" new-project-validate-rootpackagename %projectRootPackageName% 2>nul
