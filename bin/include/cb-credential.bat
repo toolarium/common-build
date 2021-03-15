@@ -51,7 +51,7 @@ if .%1==.-h goto HELP
 if .%1==.--help goto HELP
 if .%1==.--raw shift & set "RAW_CREDENTIAL=true"
 if .%1==.--print shift & set "PRINT_CREDENTIAL=true"
-if .%1==.--grgit shift & set "GRGIT=true"
+if .%1==.--grgit shift & set "RAW_CREDENTIAL=true" & set "GRGIT=true"
 if .%1==.--verifyOnly shift & set "VERIFY_ONLY=true"
 if not .%1==. set "CB_PARAMETERS=%~1"
 shift
