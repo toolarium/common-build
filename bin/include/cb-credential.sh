@@ -182,7 +182,10 @@ if ! eval $GIT_CLIENT --version >/dev/null 2>&1; then
 	endWithError
 fi
 
-[ -r "$PWD/.git/config" ] && CB_PARAMETERS=$(cat "$PWD/.git/config" | grep url | grep http | awk -F= '{print $2}')
+
+if ! [ -n "$CB_PARAMETERS" ]; then
+	[ -r "$PWD/.git/config" ] && CB_PARAMETERS=$(cat "$PWD/.git/config" | grep url | grep http | awk -F= '{print $2}')
+fi
 
 CB_PARAMETERS=$(echo $CB_PARAMETERS | sed 's/ //g')
 ! [ -n "$CB_PARAMETERS" ] && echo "" && echo ".: ERROR: No url found. Please provide external git url." && echo "" && endWithError
