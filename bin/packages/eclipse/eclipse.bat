@@ -25,7 +25,7 @@
 
 
 set eclipseFilter=
-if not defined CB_ECLIPSE_VERSION set "CB_ECLIPSE_VERSION=2020-06 jee-package"
+if not defined CB_ECLIPSE_VERSION set "CB_ECLIPSE_VERSION=2021-06 jee-package"
 set "CB_PACKAGE_VERSION=%1"
 set "CB_ECLIPSE_PACKAGE_NAME=%2"
 if .%CB_PACKAGE_VERSION% == . FOR /F "tokens=1,2 delims= " %%i in ("%CB_ECLIPSE_VERSION%") do ( set "CB_PACKAGE_VERSION=%%i" )

@@ -23,7 +23,7 @@
 ::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-if not defined CB_VSCODE_VERSION set "CB_VSCODE_VERSION=1.48.2"
+if not defined CB_VSCODE_VERSION set "CB_VSCODE_VERSION=1.58.0"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_VSCODE_VERSION%"
 set "CB_PACKAGE_DOWNLOAD_URL=https://update.code.visualstudio.com/%CB_PACKAGE_VERSION%/win32-x64-user/stable"

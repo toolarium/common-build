@@ -24,10 +24,10 @@
 #########################################################################
 
 
-[ -z "$CB_FLUTTER_VERSION" ] && CB_FLUTTER_VERSION=1.20.2
+[ -z "$CB_FLUTTER_VERSION" ] && CB_FLUTTER_VERSION=2.2.3
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_FLUTTER_VERSION
-CB_PACKAGE_BASE_URL=https://storage.googleapis.com/flutter_infra/releases/stable
+CB_PACKAGE_BASE_URL=https://storage.googleapis.com/flutter_infra_release/releases/stable
 
 if [ "$CB_OS" = "linux" ]; then
 	CB_PACKAGE_BASE_URL=$CB_PACKAGE_BASE_URL/linux
@@ -42,5 +42,6 @@ else
 	CB_PACKAGE_BASE_URL=$CB_PACKAGE_BASE_URL/windows
 	CB_PACKAGE_DOWNLOAD_NAME=flutter_windows_$CB_PACKAGE_VERSION-stable.zip
 fi
+#CB_PACKAGE_DEST_VERSION_NAME="flutter-$CB_PACKAGE_VERSION"
 
-export CB_PACKAGE_BASE_URL CB_PACKAGE_DOWNLOAD_NAME CB_PACKAGE_VERSION_NAME
+export CB_PACKAGE_BASE_URL CB_PACKAGE_DOWNLOAD_NAME CB_PACKAGE_VERSION_NAME 

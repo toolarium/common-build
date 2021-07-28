@@ -24,9 +24,13 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-if not defined CB_SBT_VERSION set "CB_SBT_VERSION=1.3.13"
+if not defined CB_SBT_VERSION set "CB_SBT_VERSION=1.5.5"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_SBT_VERSION%"
-set "CB_PACKAGE_BASE_URL=https://piccolo.link"
+set "CB_PACKAGE_BASE_URL=https://github.com/sbt/sbt/releases/download/v%CB_PACKAGE_VERSION%"
 set "CB_PACKAGE_DOWNLOAD_NAME=sbt-%CB_PACKAGE_VERSION%.zip"
 set "CB_PACKAGE_VERSION_NAME=sbt-%CB_PACKAGE_VERSION%"
+
+call %CB_HOME%\bin\cb-deltree "%CB_DEVTOOLS%\sbt"
+call %CB_HOME%\bin\cb-deltree "%CB_DEVTOOLS%\%CB_PACKAGE_VERSION_NAME%"
+set "CB_POST_INSTALL_ACTION=move /y %CB_DEVTOOLS%\sbt %CB_DEVTOOLS%\%CB_PACKAGE_VERSION_NAME% >nul 2>nul"

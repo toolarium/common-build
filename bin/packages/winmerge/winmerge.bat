@@ -2,7 +2,7 @@
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ::
-:: flutter.bat
+:: winmerge.bat
 ::
 :: Copyright by toolarium, all rights reserved.
 ::
@@ -23,14 +23,15 @@
 ::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-
-if not defined CB_FLUTTER_VERSION set "CB_FLUTTER_VERSION=2.2.3"
+if not defined CB_WINMERGE_VERSION set "CB_WINMERGE_VERSION=2.16.14"
 set "CB_PACKAGE_VERSION=%1"
-if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_FLUTTER_VERSION%"
-set "CB_PACKAGE_BASE_URL=https://storage.googleapis.com/flutter_infra_release/releases/stable/windows"
-set "CB_PACKAGE_DOWNLOAD_NAME=flutter_windows_%CB_PACKAGE_VERSION%-stable.zip
-set "CB_PACKAGE_VERSION_NAME=flutter_windows_%CB_PACKAGE_VERSION%-stable"
+if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_WINMERGE_VERSION%"
+set "CB_PACKAGE_BASE_URL=https://github.com/WinMerge/winmerge/releases/download/v%CB_PACKAGE_VERSION%"
+set "CB_PACKAGE_DOWNLOAD_NAME=winmerge-%CB_PACKAGE_VERSION%-x64-exe.zip"
+set "CB_PACKAGE_VERSION_NAME=winmerge-%CB_PACKAGE_VERSION%"
 
-call %CB_HOME%\bin\cb-deltree "%CB_DEVTOOLS%\flutter"
-call %CB_HOME%\bin\cb-deltree "%CB_DEVTOOLS%\flutter-%CB_PACKAGE_VERSION%"
-set "CB_POST_INSTALL_ACTION=move /y %CB_DEVTOOLS%\flutter %CB_DEVTOOLS%\flutter-%CB_PACKAGE_VERSION% >nul 2>nul"
+call %CB_HOME%\bin\cb-deltree "%CB_DEVTOOLS%\WinMerge"
+call %CB_HOME%\bin\cb-deltree "%CB_DEVTOOLS%\%CB_PACKAGE_VERSION_NAME%"
+
+set "CB_POST_INSTALL_ACTION=move /y %CB_DEVTOOLS%\WinMerge %CB_DEVTOOLS%\%CB_PACKAGE_VERSION_NAME% >nul 2>nul ^& %CB_HOME%\bin\cb-shortcut.bat --command %CB_DEVTOOLS%\%CB_PACKAGE_VERSION_NAME%\WinMergeU.exe --icon %CB_DEVTOOLS%\%CB_PACKAGE_VERSION_NAME%\WinMergeU.exe "%USERPROFILE%\desktop\WinMerge.lnk""
+

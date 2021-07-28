@@ -24,11 +24,11 @@
 #########################################################################
 
 
-[ -z "$CB_GROOVY_VERSION" ] && CB_GROOVY_VERSION=3.0.4
+[ -z "$CB_GROOVY_VERSION" ] && CB_GROOVY_VERSION=3.0.8
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_GROOVY_VERSION
-CB_PACKAGE_BASE_URL=https://dl.bintray.com/groovy/maven
-CB_PACKAGE_DOWNLOAD_NAME=apache-groovy-binary-$CB_GROOVY_VERSION.zip
-CB_PACKAGE_VERSION_NAME=apache-groovy-$CB_GROOVY_VERSION
+CB_PACKAGE_BASE_URL=https://groovy.jfrog.io/artifactory/dist-release-local/groovy-zips
+CB_PACKAGE_DOWNLOAD_NAME=apache-groovy-binary-$CB_PACKAGE_VERSION.zip
+CB_PACKAGE_VERSION_NAME=apache-groovy-$CB_PACKAGE_VERSION
 
 export CB_PACKAGE_BASE_URL CB_PACKAGE_DOWNLOAD_NAME CB_PACKAGE_VERSION_NAME

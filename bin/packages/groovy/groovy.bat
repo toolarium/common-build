@@ -24,9 +24,9 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-if not defined CB_GROOVY_VERSION set "CB_GROOVY_VERSION=3.0.4"
+if not defined CB_GROOVY_VERSION set "CB_GROOVY_VERSION=3.0.8"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_GROOVY_VERSION%"
-set "CB_PACKAGE_BASE_URL=https://dl.bintray.com/groovy/maven"
-set "CB_PACKAGE_DOWNLOAD_NAME=apache-groovy-binary-%CB_GROOVY_VERSION%.zip"
-set "CB_PACKAGE_VERSION_NAME=apache-groovy-%CB_GROOVY_VERSION%"
+set "CB_PACKAGE_BASE_URL=https://groovy.jfrog.io/artifactory/dist-release-local/groovy-zips"
+set "CB_PACKAGE_DOWNLOAD_NAME=apache-groovy-binary-%CB_PACKAGE_VERSION%.zip"
+set "CB_PACKAGE_VERSION_NAME=apache-groovy-%CB_PACKAGE_VERSION%"

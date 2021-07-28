@@ -23,7 +23,7 @@
 ::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-if not defined CB_ATOM_VERSION set "CB_ATOM_VERSION=1.50.0"
+if not defined CB_ATOM_VERSION set "CB_ATOM_VERSION=1.58.0"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_ATOM_VERSION%"
 set "CB_PACKAGE_BASE_URL=https://github.com/atom/atom/releases/download/v%CB_PACKAGE_VERSION%/"

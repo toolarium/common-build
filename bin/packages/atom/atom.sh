@@ -24,7 +24,7 @@
 #########################################################################
 
 
-[ -z "$CB_ATOM_VERSION" ] && CB_ATOM_VERSION=1.50.0
+[ -z "$CB_ATOM_VERSION" ] && CB_ATOM_VERSION=1.58.0
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_ATOM_VERSION
 CB_PACKAGE_BASE_URL="https://github.com/atom/atom/releases/download/v%CB_PACKAGE_VERSION%/"

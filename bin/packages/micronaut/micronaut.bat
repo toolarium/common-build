@@ -24,7 +24,7 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-if not defined CB_MICRONAUT_VERSION set "CB_MICRONAUT_VERSION=2.0.0"
+if not defined CB_MICRONAUT_VERSION set "CB_MICRONAUT_VERSION=2.5.9"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_MICRONAUT_VERSION%"
 set "CB_PACKAGE_BASE_URL=https://github.com/micronaut-projects/micronaut-starter/releases/download/v%CB_PACKAGE_VERSION%"

@@ -24,7 +24,7 @@
 #########################################################################
 
 
-[ -z "$CB_SQUIRREL_VERSION" ] && CB_SQUIRREL_VERSION=4.1.0
+[ -z "$CB_SQUIRREL_VERSION" ] && CB_SQUIRREL_VERSION=4.2.0
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_SQUIRREL_VERSION
 #https://sourceforge.net/projects/squirrel-sql/files/1-stable/$CB_PACKAGE_VERSION-plainzip
