@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 
 #########################################################################
 #
-# intellij.sh
+# jre.sh
 #
 # Copyright by toolarium, all rights reserved.
 #
@@ -23,17 +23,5 @@
 #
 #########################################################################
 
-[ -z "$CB_INTELLIJ_VERSION" ] && CB_INTELLIJ_VERSION=2021.2
-CB_PACKAGE_VERSION=$1
-[ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_INTELLIJ_VERSION
-CB_PACKAGE_BASE_URL=https://download-cdn.jetbrains.com/idea
-CB_PACKAGE_VERSION_NAME=ideaIC-$CB_PACKAGE_VERSION
-CB_PACKAGE_DEST_VERSION_NAME=ideaIC-$CB_PACKAGE_VERSION
-
-if [ "$CB_OS" = "mac" ]; then
-	CB_PACKAGE_DOWNLOAD_NAME=ideaIC-$CB_PACKAGE_VERSION.dmg
-else
-	CB_PACKAGE_DOWNLOAD_NAME=ideaIC-$CB_PACKAGE_VERSION.tar.gz
-fi
-
-export CB_PACKAGE_BASE_URL CB_PACKAGE_DOWNLOAD_NAME CB_PACKAGE_VERSION_NAME CB_PACKAGE_DEST_VERSION_NAME=ideaIC-%CB_PACKAGE_VERSION%
+[ -z "$CB_JAVA_IMAGE_TYPE" ] && CB_JAVA_IMAGE_TYPE=jre
+eval ". $CB_SCRIPT_PATH/packages/java/java.sh $1 $2"

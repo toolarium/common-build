@@ -960,7 +960,8 @@ downloadPackage() {
 	CB_PACKAGE_VERSION_NAME=
 	CB_PACKAGE_DOWNLOAD_URL=
 	shift
-
+	
+	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Check $CB_SCRIPT_PATH/packages/$CB_PACKAGE_NAME/$CB_PACKAGE_NAME.sh"
 	if [ -x "$CB_SCRIPT_PATH/packages/$CB_PACKAGE_NAME/$CB_PACKAGE_NAME.sh" ]; then
 		# we expecte:
 		# 1) the CB_PACKAGE_VERSION contains the version which will be installed (optional)
@@ -1149,7 +1150,7 @@ installCb() {
 		fi
 
 		if [ -z "$CB_INSTALL_VERSION" ] && [ -r "$CB_TOOL_VERSION_DEFAULT" ]; then
-			[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Use [%CB_TOOL_VERSION_DEFAULT%]."
+			[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Use [$CB_TOOL_VERSION_DEFAULT]."
 			CB_TOOL_VERSION_DEFAULT_TMPFILE=$(mktemp $CB_TEMP/cb-tool-version-default.XXXXXXXXX)
 			cat $CB_TOOL_VERSION_DEFAULT 2>/dev/null | grep -v "#" | grep "=" > $CB_TOOL_VERSION_DEFAULT_TMPFILE 2>/dev/null
 			while IFS= read -r line; do

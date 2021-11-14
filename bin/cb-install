@@ -46,6 +46,7 @@ CB_RELEASE_URL="https://api.github.com/repos/toolarium/common-build/releases"
 CB_JSON_SCRIPT_URL="https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-json"
 FULLTIMESTAMP="date '+%Y%d%m%H%M%S'"
 USER_FRIENDLY_FULLTIMESTAMP="date '+%d.%m.%Y %H:%M:%S'"
+! [ -n "$USER" ] && USER=root && export USER
 ! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb-$USER"
 ! [ -r "$CB_TEMP" ] && mkdir "$CB_TEMP" >/dev/null 2>&1
 export CB_TEMP
