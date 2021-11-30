@@ -99,7 +99,10 @@ set "credentialFile=%CB_TEMP%\cb-%RANDOM%%RANDOM%.dat"
 echo protocol=%urlProtocol%>"%tempFile%"
 echo host=%urlHost%>>"%tempFile%"
 
-if defined VERIFY_ONLY type %tempFile% | %GIT_CLIENT% credential-manager get > nul 2>nul
+if defined VERIFY_ONLY set "GIT_CREDENTIAL_MANAGER=credential-manager-core"
+if defined VERIFY_ONLY %GIT_CLIENT% %GIT_CREDENTIAL_MANAGER% --version >nul 2>nul
+if defined VERIFY_ONLY if %ERRORLEVEL% neq 0 set "GIT_CREDENTIAL_MANAGER=credential-manager"
+if defined VERIFY_ONLY type %tempFile% | %GIT_CLIENT% %GIT_CREDENTIAL_MANAGER% get > nul 2>nul
 if defined VERIFY_ONLY if %ERRORLEVEL% neq 0 goto END_WITH_ERROR
 if defined VERIFY_ONLY goto END
 
