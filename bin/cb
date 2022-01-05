@@ -758,6 +758,24 @@ commonBuildNode() {
 
 
 #########################################################################
+# verifyConfiguration
+#########################################################################
+verifyConfiguration() {
+	[ -z "${ENABLE_CONFIGURATION}" ] && ENABLE_CONFIGURATION="true"
+	if [ "$ENABLE_CONFIGURATION" = "true" ]; then
+		[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Verify configuration..."
+		
+	    # replace MaxPermSize with MaxMetaspaceSize
+	    GRADLE_PROPERTIES="$CB_WORKING_PATH/gradle.properties"
+		if [ -r "$GRADLE_PROPERTIES" ] && [ $(grep '\-XX:MaxPermSize=' "$GRADLE_PROPERTIES" | wc -l) -gt 0 ]; then
+			echo "${CB_LINEHEADER}Update ${GRADLE_PROPERTIES}..."
+			sed -i 's/\-XX:MaxPermSize=/\-XX:MaxMetaspaceSize=/' "$GRADLE_PROPERTIES"
+		fi
+	fi
+}
+
+
+#########################################################################
 # commonBuild
 #########################################################################
 commonBuild() {
@@ -836,6 +854,10 @@ commonBuild() {
 		echo "${CB_LINEHEADER}Could not find java version in path."
 		endWithError
 	fi
+
+	# verfiy configuration
+	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT verify-configuration $*" 2>/dev/null
+	verifyConfiguration
 
 	# custom setting script
 	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT build-start $*" 2>/dev/null

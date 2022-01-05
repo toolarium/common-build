@@ -440,6 +440,23 @@ goto :eof
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:VERIFY_CONFIGURATION
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+if not defined ENABLE_CONFIGURATION set "ENABLE_CONFIGURATION=true"
+echo %ENABLE_CONFIGURATION% | findstr /I /C:"true" >nul 2>nul
+if %ERRORLEVEL% NEQ 0 goto :eof
+if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Verify configuration...
+
+:: replace MaxPermSize with MaxMetaspaceSize
+set "GRADLE_PROPERTIES=gradle.properties"
+if not exist %GRADLE_PROPERTIES% goto :eof
+findstr /I /C:"-XX:MaxPermSize=" %GRADLE_PROPERTIES% > nul 2>nul
+if %ERRORLEVEL% NEQ 1 (echo %CB_LINEHEADER%Update %GRADLE_PROPERTIES%...
+	powershell -Command "(Get-Content "$Env:GRADLE_PROPERTIES") -replace '-XX:MaxPermSize=', '-XX:MaxMetaspaceSize=' | Out-File -encoding ASCII "$Env:GRADLE_PROPERTIES"")
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :COMMON_BUILD
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 set "cbJavaVersion=" & set "cbJavaMajorVersion=" & set "cbJavaVersionFilter=*" & set "cbJavaVersionAvailable=" & set "CB_JAVA_HOME_RUNTIME="
@@ -501,6 +518,10 @@ if not ."%JAVA_HOME%" == .%CB_JAVA_HOME_RUNTIME% set "JAVA_HOME=%CB_JAVA_HOME_RU
 :: & echo %CB_LINEHEADER%Set JAVA_HOME to %JAVA_HOME%.
 WHERE %JAVAC_EXEC% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Could not find java version in path. & goto END_WITH_ERROR
+
+:: verify configuration
+if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" verify-configuration %1 %2 %3 %4 %5 %6 %7 2>nul
+call :VERIFY_CONFIGURATION
 
 :: decide which build tool to use
 if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" build-start %1 %2 %3 %4 %5 %6 %7 2>nul

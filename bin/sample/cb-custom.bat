@@ -30,6 +30,7 @@
 if %0X==X goto CUSTOM_END
 if .%1==. goto CUSTOM_END
 if .%1==.start shift & goto CUSTOM_START
+if .%1==.verify-configuration shift & goto CUSTOM_VERIFY_CONFIGURATION
 if .%1==.build-start shift & goto CUSTOM_BUILD_START
 if .%1==.build-end shift & goto CUSTOM_BUILD_END
 if .%1==.new-project-start shift & goto CUSTOM_NEW_PROJECT_START
@@ -57,6 +58,13 @@ exit /b 1
 :CUSTOM_START
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ::echo %CB_LINEHEADER%START START %1 %2 %3 %4 %5 %6 %7 %8 %9
+goto CUSTOM_END
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:CUSTOM_VERIFY_CONFIGURATION
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+::echo %CB_LINEHEADER%VERIFY CONFIGURATION %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto CUSTOM_END
 
 

@@ -34,6 +34,15 @@ customStart() {
 
 
 #########################################################################
+# customVerifyConfiguration
+#########################################################################
+customVerifyConfiguration() {
+	#echo "${CB_LINEHEADER}VERIFY CONFIGURATION $*"
+	:
+}
+
+
+#########################################################################
 # customBuildStart
 #########################################################################
 customBuildStart() {
@@ -216,6 +225,7 @@ while [ $# -gt 0 ]
 do
     case "$1" in
 	start)						shift; customStart $*; return 0;;
+	verify-configuration)		shift; customVerifyConfiguration $*; return 0;;
 	build-start)				shift; customBuildStart $*; return 0;;
 	build-end)					shift; customBuildEnd $*; return 0;;
 	new-project-start)			shift; customNewProjectStart $*; return 0;;
