@@ -452,7 +452,8 @@ set "GRADLE_PROPERTIES=gradle.properties"
 if not exist %GRADLE_PROPERTIES% goto :eof
 findstr /I /C:"-XX:MaxPermSize=" %GRADLE_PROPERTIES% > nul 2>nul
 if %ERRORLEVEL% NEQ 1 (echo %CB_LINEHEADER%Update %GRADLE_PROPERTIES%...
-	powershell -Command "(Get-Content "$Env:GRADLE_PROPERTIES") -replace '-XX:MaxPermSize=', '-XX:MaxMetaspaceSize=' | Out-File -encoding ASCII "$Env:GRADLE_PROPERTIES"")
+	powershell -Command "(Get-Content "$Env:GRADLE_PROPERTIES") -replace '-XX:MaxPermSize=', '-XX:MaxMetaspaceSize=' | Out-File -encoding ASCII "$Env:GRADLE_PROPERTIES""
+	set "CB_BUILD_UPDATE=true")
 goto :eof
 
 

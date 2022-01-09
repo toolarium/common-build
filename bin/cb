@@ -770,6 +770,8 @@ verifyConfiguration() {
 		if [ -r "$GRADLE_PROPERTIES" ] && [ $(grep '\-XX:MaxPermSize=' "$GRADLE_PROPERTIES" | wc -l) -gt 0 ]; then
 			echo "${CB_LINEHEADER}Update ${GRADLE_PROPERTIES}..."
 			sed -i 's/\-XX:MaxPermSize=/\-XX:MaxMetaspaceSize=/' "$GRADLE_PROPERTIES"
+			CB_BUILD_UPDATE="true"
+			export CB_BUILD_UPDATE
 		fi
 	fi
 }
