@@ -585,6 +585,7 @@ commonBuildGradle() {
 	[ "$CB_OS" = "cygwin" ] && JAVA_HOME=
 
 	GRADLE_EXEC=gradle
+	[ -r ./gradlew ] && chmod 755 ./gradlew
 	if [ -x gradlew ]; then
 		GRADLE_EXEC=./gradlew
 	else
