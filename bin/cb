@@ -561,9 +561,15 @@ setCBEnv() {
 	fi
 
 	if [ -d "$CB_CURRENT_PATH/java" ]; then
-		CB_JAVA_HOME=$CB_CURRENT_PATH/java &&JAVA_HOME=$CB_JAVA_HOME
+		CB_JAVA_HOME=$CB_CURRENT_PATH/java && JAVA_HOME=$CB_JAVA_HOME
 		[ -z "$(echo $PATH | grep $JAVA_HOME/bin)" ] && PATH="$JAVA_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add java to path ($JAVA_HOME/bin)."
 		export CB_JAVA_HOME JAVA_HOME PATH
+	fi
+
+	if [ -d "$CB_CURRENT_PATH/python" ]; then
+		CB_PYTHON_HOME=$CB_CURRENT_PATH/python && PYTHON_HOME=$CB_PYTHON_HOME
+		[ -z "$(echo $PATH | grep $PYTHON_HOME)" ] && PATH="$PYTHON_HOME:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add python to path ($PYTHON_HOME)."
+		export CB_PYTHON_HOME PYTHON_HOME PATH
 	fi
 
 	# custom setting script
@@ -864,6 +870,13 @@ commonBuild() {
 
 	# custom setting script
 	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT build-start $*" 2>/dev/null
+
+    # support python if available
+	if [ -d "$CB_CURRENT_PATH/python" ]; then
+		CB_PYTHON_HOME=$CB_CURRENT_PATH/python && PYTHON_HOME=$CB_PYTHON_HOME
+		[ -z "$(echo $PATH | grep $PYTHON_HOME)" ] && PATH="$PYTHON_HOME:$PATH"
+		export CB_PYTHON_HOME PYTHON_HOME PATH
+	fi
 
 	# decide which build tool to use
 	if [ -r "$CB_WORKING_PATH/build.gradle" ]; then
@@ -1287,6 +1300,11 @@ installCb() {
 								return
 							else
 								[ "$CB_INSTALL_SILENT" = "false" ] && [ -d "$CB_PACKAGE_DIRECTORY_NAME" ] && echo "${CB_LINEHEADER}Directory $CB_PACKAGE_DIRECTORY_NAME will be updated."
+
+								if [ -n "$CB_PACKAGE_BUILD_CMD" ]; then
+									echo "${CB_LINEHEADER}Build $i (see progress in $CB_LOGFILE) ..."
+									eval "cd $CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME && $CB_PACKAGE_BUILD_CMD" >> "$CB_LOGFILE" 2>&1
+								fi
 								
 								if [ -n "$CB_PACKAGE_PERMISSION_CMD" ]; then
 									eval "cd $CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME && $CB_PACKAGE_PERMISSION_CMD" >> "$CB_LOGFILE"
@@ -1329,8 +1347,8 @@ installCb() {
 						rm -f $CB_TOOL_VERSION_INSTALLED_TMPFILE >/dev/null 2>&1
 
 						[ "$CB_UPDATED" = "false" ] && [ "$CB_ENTRY_FOUND" = "false" ] && CB_SET_DEFAULT=true && echo "$CB_INSTALL_PKG = $CB_INSTALLED_VERSION" >> $CB_TOOL_VERSION_INSTALLED_TMPFILE2
-						[ "$CB_INSTALL_SILENT" = "false" ] && [ "$CB_SET_DEFAULT" = "true" ] && echo "${CB_LINEHEADER}Set default for package $CB_INSTALL_PKG to version $CB_INSTALLED_VERSION"
 						if [ "$CB_SET_DEFAULT" = "true" ]; then
+							[ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Set default for package $CB_INSTALL_PKG to version $CB_INSTALLED_VERSION"
 							mv $CB_TOOL_VERSION_INSTALLED_TMPFILE2 $CB_TOOL_VERSION_INSTALLED >/dev/null 2>&1
 							rm -f "$CB_CURRENT_PATH/$CB_INSTALL_PKG" >/dev/null 2>&1
 							if [ -d "$CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME" ]; then

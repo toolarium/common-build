@@ -344,11 +344,18 @@ echo %PATH% | findstr /C:"%GRADLE_HOME%\bin" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 set "PATH=%GRADLE_HOME%\bin;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add gradle to path (%GRADLE_HOME%\bin)
 
 :SET_ENV_JAVA
-if not exist %CB_CURRENT_PATH%\java goto :SET_ENV_END
+if not exist %CB_CURRENT_PATH%\java goto :SET_ENV_PYTHON
 set "CB_JAVA_HOME=%CB_CURRENT_PATH%\java"
 set "JAVA_HOME=%CB_JAVA_HOME%"
 echo %PATH% | findstr /C:"%JAVA_HOME%\bin" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 set "PATH=%JAVA_HOME%\bin;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add java to path (%JAVA_HOME%\bin)
+
+:SET_ENV_PYTHON
+if not exist %CB_CURRENT_PATH%\python goto :SET_ENV_END
+set "CB_PYTHON_HOME=%CB_CURRENT_PATH%\python"
+set "PYTHON_HOME=%CB_PYTHON_HOME%"
+echo %PATH% | findstr /C:"%PYTHON_HOME%" >nul 2>nul
+if %ERRORLEVEL% NEQ 0 set "PATH=%PYTHON_HOME%;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add python to path (%PYTHON_HOME%)
 
 :SET_ENV_END
 if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" setenv-end %1 %2 %3 %4 %5 %6 %7 2>nul
@@ -464,8 +471,12 @@ set "cbJavaVersion=" & set "cbJavaMajorVersion=" & set "cbJavaVersionFilter=*" &
 set JAVAC_EXEC=javac
 if .%CB_OFFLINE%==.true title %TITLE_NAME% (offline) 
 
-::echo [%CB_PARAMETERS%]
-::for /l %%a in (1,1,31) do if "!CB_PARAMETERS:~-1!"==" " set CB_PARAMETERS=!CB_PARAMETERS:~0,-1!
+:: add python to path if available
+if not defined CB_PYTHON_HOME if exist %CB_CURRENT_PATH%\python set "CB_PYTHON_HOME=%CB_CURRENT_PATH%\python"
+if defined CB_PYTHON_HOME echo %CB_PYTHON_HOME% | findstr /I %CB_DEVTOOLS% >nul 2>nul
+::if defined CB_PYTHON_HOME if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%CB_PYTHON_HOME is not set to a python version in devtools (%CB_DEVTOOLS%): %CB_PYTHON_HOME%. & goto END_WITH_ERROR
+if defined CB_PYTHON_HOME echo %PATH% | findstr /C:"%CB_PYTHON_HOME%" >nul 2>nul
+if defined CB_PYTHON_HOME if %ERRORLEVEL% NEQ 0 set "PATH=%CB_PYTHON_HOME%;%PATH%"
 
 :: current run java switch
 if exist %CB_JAVA_VERSION_FILE% (set /pcbJavaVersion=<%CB_JAVA_VERSION_FILE% & del /f /q "%CB_JAVA_VERSION_FILE%" 2>nul)

@@ -1,9 +1,8 @@
+#!/bin/bash
+
 #########################################################################
-# 
-# toolarium common build - tool version properties
-# 
-# It's a simple key / value configuration file. The key corresponds to 
-# the refrences tool name. The value defines the default version. 
+#
+# python.sh
 #
 # Copyright by toolarium, all rights reserved.
 #
@@ -24,38 +23,14 @@
 #
 #########################################################################
 
-ant = 1.10.12
-btrace = 2.2.0
-eclipse = 2021-09 jee-package
-flutter = 2.5.3
-gaiden = 1.2
-gradle = 7.3
-groovy = 3.0.8
-intellij = 2021.2
-java = 11
-jmeter = 5.4.1
-maven = 3.6.3
-micronaut = 3.1.4
-node = 16.13.0
-python = 3.10.2
-sbt = 1.5.5
-squirrel = 4.3.0
-visualvm = 2.1.1
-npp = 8.1.9.1
-multicommander = 11.4.2831
-docker = 
-scoop = 
-vscode = 1.62.0
 
-# windows version to simplify the setup, they are executables
-git = 2.28.0
-wt =
+[ -z "$CB_PYTHON_VERSION" ] && CB_PYTHON_VERSION=3.9.10
+CB_PACKAGE_VERSION=$1
+[ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_PYTHON_VERSION
+CB_PACKAGE_BASE_URL="https://www.python.org/ftp/python/$CB_PACKAGE_VERSION/"
+CB_PACKAGE_DOWNLOAD_NAME="Python-${CB_PACKAGE_VERSION}.tgz"
+CB_PACKAGE_VERSION_NAME="Python-$CB_PACKAGE_VERSION"
+CB_PACKAGE_BUILD_CMD="./configure && make"
+CB_PACKAGE_DEST_VERSION_NAME="python-$CB_PACKAGE_VERSION"
 
-# proprietary software tools
-postman = 
-insomnia = 
-
-
-#########################################################################
-# EOF
-#########################################################################
+export CB_PACKAGE_BASE_URL CB_PACKAGE_DOWNLOAD_NAME CB_PACKAGE_VERSION_NAME CB_PACKAGE_BUILD_CMD CB_PACKAGE_DEST_VERSION_NAME
