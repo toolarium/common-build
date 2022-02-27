@@ -25,7 +25,7 @@
 
 
 set eclipseFilter=
-if not defined CB_ECLIPSE_VERSION set "CB_ECLIPSE_VERSION=2021-06 jee-package"
+if not defined CB_ECLIPSE_VERSION set "CB_ECLIPSE_VERSION=2021-12 jee-package"
 set "CB_PACKAGE_VERSION=%1"
 set "CB_ECLIPSE_PACKAGE_NAME=%2"
 if .%CB_PACKAGE_VERSION% == . FOR /F "tokens=1,2 delims= " %%i in ("%CB_ECLIPSE_VERSION%") do ( set "CB_PACKAGE_VERSION=%%i" )
@@ -90,7 +90,7 @@ if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Found mirror id: %MIRROR_ID%
 :: find proper line
 findstr /R /C:"META HTTP-EQUIV=" /C:CONTENT= /C:URL= %CB_ECLIPSE_JSON_REDIRECT_INFO% | findstr/n ^^ | findstr ^^1: >%CB_ECLIPSE_JSON_INFO%
 set "CB_PACKAGE_DOWNLOAD_URL="
-for /f "tokens=1,2,3,4,5,6,7,8,9,10 delims==" %%A in ('type %CB_ECLIPSE_JSON_INFO%') do (echo "%%J" > %TMPFILE%)
+for /f "tokens=1,2,3,4,5,6,7,8,9,10,11 delims==" %%A in ('type %CB_ECLIPSE_JSON_INFO%') do (echo "%%K" > %TMPFILE%)
 for /f "tokens=1 delims=>" %%N in ('type %TMPFILE%') do (set "CB_PACKAGE_DOWNLOAD_URL=%%N")
 del "%CB_ECLIPSE_JSON_INFO%" >nul 2>nul
 del "%TMPFILE%" >nul 2>nul
