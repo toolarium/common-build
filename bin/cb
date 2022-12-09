@@ -31,6 +31,7 @@ PN_FULL="$0"
 #REL_PROG_PATH="${0%/*}"
 ABS_PROG_PATH=$(cd -- "`dirname "$0" 2>/dev/null`" && pwd)
 
+! [ -n "$CB_CUSTOM_CONFIG_FILENAME" ] && CB_CUSTOM_CONFIG_FILENAME=".cb-custom-config"
 CB_SCRIPT_PATH=$(dirname "$0" 2>/dev/null)
 CB_WORKING_PATH=$PWD
 CB_INSTALL_SILENT="false"
@@ -58,6 +59,7 @@ CB_MACHINE="$(uname -m | tr '[:upper:]' '[:lower:]')"
 ! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb-$USER"
 ! [ -r "$CB_TEMP" ] && mkdir "$CB_TEMP" >/dev/null 2>&1
 export CB_TEMP
+! [ -n "$GIT_CLIENT" ] && GIT_CLIENT=git
 
 
 #########################################################################
@@ -271,10 +273,47 @@ checkInternetConnection() {
 #########################################################################
 executeCustomConfig() {
 	CB_CONFIG_HOME="$OS_HOME/.common-build"
-	[ -r "$CB_CONFIG_HOME/conf/.cb-custom-config" ] && CB_CUSTOM_CONFIG=$(cat $CB_CONFIG_HOME/conf/.cb-custom-config | grep -v "#" | grep -v "^$" |  tr -d '\r' | head -1)
-	[ -z "$CB_CUSTOM_CONFIG" ] && return
-	#! [ -n "$CB_CUSTOM_CONFIG" ] && echo "${CB_LINEHEADER}Ignore empty custom config, see $CB_CONFIG_HOME/conf/.cb-custom-config"
+	! [ -r "$CB_CONFIG_HOME/conf/$CB_CUSTOM_CONFIG_FILENAME" ] && return
+
+	CB_GIT_PROJECT_URL=""
+	if [ -n "$(existBinary $GIT_CLIENT)" ]; then
+		CB_GIT_PROJECT_URL=$($GIT_CLIENT config --local --get remote.origin.url 2>/dev/null)
+		[ "$CB_VERBOSE" = "true" ] && [ -z "$CB_GIT_PROJECT_URL" ] && echo "${CB_LINEHEADER}No git remote url found"
+		[ "$CB_VERBOSE" = "true" ] && [ -n "$CB_GIT_PROJECT_URL" ] && echo "${CB_LINEHEADER}Git remote url found: $CB_GIT_PROJECT_URL"
+	else
+		[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}No git installation found: $GIT_CLIENT"
+	fi
+
+	CB_CUSTOM_CONFIG_LENTGH=0
+	if [ -r "$CB_CONFIG_HOME/conf/$CB_CUSTOM_CONFIG_FILENAME" ]; then
+		CB_CUSTOM_CONFIG_CONTENT=$(cat $CB_CONFIG_HOME/conf/$CB_CUSTOM_CONFIG_FILENAME | grep -v "^#" | grep -v "^=" | grep -v "^$" |  tr -d '\r')
+		while read -r line; do
+			key=$(echo "$line" | awk -F= '{print $1}'); key="$(echo "$key" | awk '{print $1}')"
+			value=$(echo "$line" | awk -F= '{print $2}'); value="$(echo "$value" | awk '{print $1}')"
+			
+			if [ -n "$key" ]; then
+				if ! [ -n "$value" ]; then
+					[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Found custom config entry [$key] with no pattern."
+					[ $CB_CUSTOM_CONFIG_LENTGH -le 0 ] && CB_CUSTOM_CONFIG="$key"
+					[ "$CB_VERBOSE" = "true" ] && [ $CB_CUSTOM_CONFIG_LENTGH -le 0 ] && echo "${CB_LINEHEADER}Choose custom config entry [$key] with no pattern."
+				else
+					[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Found custom config entry [$key] with pattern [$value] by remote url ($CB_GIT_PROJECT_URL)."
+					if [ -n "$CB_GIT_PROJECT_URL" ] && [ -n "$(echo $CB_GIT_PROJECT_URL | grep $value 2>/dev/null)" ]; then
+						valueLength=$(echo $value| awk '{print length}')
+						if [ $valueLength -gt $CB_CUSTOM_CONFIG_LENTGH ]; then 
+							[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Choose custom config entry [$key] with pattern [$value], length $valueLength"
+							CB_CUSTOM_CONFIG="$key"
+							CB_CUSTOM_CONFIG_LENTGH=$valueLength
+						fi
+					fi
+				fi
+			fi
+		done < <( echo "$CB_CUSTOM_CONFIG_CONTENT" )
+	fi
+
+	! [ -n "$CB_CUSTOM_CONFIG" ] && echo "${CB_LINEHEADER}Ignore empty custom config, see $CB_CONFIG_HOME/conf/$CB_CUSTOM_CONFIG_FILENAME"
 	! [ -n "$CB_CUSTOM_CONFIG" ] && return
+	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Select custom config entry [$CB_CUSTOM_CONFIG]."
 	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Verify custom config [$CB_CUSTOM_CONFIG]."
 	! [ -d "$CB_CONFIG_HOME" ] && mkdir "$CB_CONFIG_HOME"
 
@@ -418,7 +457,7 @@ printUsage() {
 	echo "                      The project is checkout in .common-buik/conf/[domain-unique"
 	echo "                      -name] inside the home folder (Windows %USERPROFILE%, others"
 	echo "                      \$HOME. Alternatively, instead of the environment variable,"	 
-	echo "                      a file .common-build/conf/.cb-custom-config containing the"
+	echo "                      a file .common-build/conf/$CB_CUSTOM_CONFIG_FILENAME containing the"
 	echo "                      git url can be used."
 	echo ""
 	echo " CB_PACKAGE_URL       To support software packages outside the common build, you "
@@ -477,6 +516,8 @@ exploreProject()
 	[ "$CB_OS" = "windows" ] && fileExplorer=$(existBinary explorer.exe true)
 	[ "$CB_OS" = "cygwin" ] && fileExplorer=$(existBinary explorer.exe true)
 	[ "$CB_OS" = "mac" ] && fileExplorer=$(existBinary open)
+	exploreDirectory="$1"	
+	[ -z "$exploreDirectory" ] && exploreDirectory="."
 
 	if [ "$CB_OS" = "linux" ]; then
 		fileExplorer=$(existBinary xdg-open)
@@ -494,9 +535,8 @@ exploreProject()
 
 	if [ -n "$fileExplorer" ]; then
 		if [ -x "$fileExplorer" ]; then
-			exploreDirectory="$CB_WORKING_PATH"
-			[ "$CB_OS" = "cygwin" ] && exploreDirectory="$(cygpath --windows $CB_WORKING_PATH)"
-			[[ $(grep microsoft /proc/version) ]] && exploreDirectory=$(cmd.exe /c 2>&1 | grep wsl | sed s"/\"//g")
+			[ "$CB_OS" = "cygwin" ] && exploreDirectory="$(cygpath --windows $exploreDirectory)"
+			#[[ $(grep microsoft /proc/version) ]] && exploreDirectory=$(cmd.exe /c 2>&1 | grep wsl | sed s"/\"//g")
 			$fileExplorer "$exploreDirectory" >/dev/null 2>&1 &
 		else
 			echo "$CB_LINE"
@@ -1378,6 +1418,8 @@ installCb() {
 #########################################################################
 # main
 #########################################################################
+doExecuteCustomSettings=true
+
 if [ $# -gt 0 ]; then
 	[ "$1" = "-h" ] && readVersion && printUsage && exit 0
 	[ "$1" = "--help" ] && readVersion && printUsage && exit 0
@@ -1386,16 +1428,17 @@ if [ $# -gt 0 ]; then
 	[ "$1" = "-exp" ] && shift && exploreProject $1 && exit 0
 	[ "$1" = "--explore" ] && shift && exploreProject $1 && exit 0
 	[ "$1" = "--packages" ] && shift && readVersion && printPackages $1 && exit 0
-	[ "$1" = "--force" ] && shift && CB_INSTALL_OVERWRITE_DIST="true"
+	[ "$1" = "--setenv" ] && doExecuteCustomSettings=false
+	[ "$1" = "--install" ] && doExecuteCustomSettings=false
 fi
-#	[ "$1" = "--install" ] && shift installCb "$@"; exit 0
-#	[ "$1" = "--setenv" ] && CB_EXECUTE_BUILD=false; setCBEnv "$@"; unset errorCode && exit 0
 
-checkInternetConnection
-if ! executeCustomConfig; then
-	endWithError
+if [ "$doExecuteCustomSettings" == "true" ]; then
+	checkInternetConnection
+	if ! executeCustomConfig; then
+		endWithError
+	fi
+	executeCustomSettings
 fi
-executeCustomSettings
 
 CB_PARAMETERS=""
 CB_EXECUTE_BUILD=true

@@ -22,6 +22,7 @@
 #########################################################################
 
 
+! [ -n "$GIT_CLIENT" ] && GIT_CLIENT=git
 
 #########################################################################
 # updateError
@@ -60,6 +61,15 @@ updateError() {
 		echo ""
 	fi
 }
+trap ctrl_c INT
+
+
+#########################################################################
+# lock
+#########################################################################
+ctrl_c () {
+	eval "$CB_HOME/bin/include/lock-unlock.sh" --unlock "$LOCKFILE"
+}
 
 
 #########################################################################
@@ -82,7 +92,7 @@ if ! eval "$CB_HOME/bin/include/lock-unlock.sh" "$LOCKFILE" 60; then
 fi
 setLockFile=true
 
-if ! eval "git --version > /dev/null 2>&1"; then
+if ! eval "$GIT_CLIENT --version > /dev/null 2>&1"; then
 	echo "$CB_LINE"
 	echo "${CB_LINEHEADER}Missing package git, please install it before you continue."
 	echo "$CB_LINE"
@@ -113,7 +123,7 @@ rm -rf "$UPDATE_CB_CUSTOM_PATH" >/dev/null 2>&1
 [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Check and update custom config from repository [$commonGradleBuildHomeGitUrl]."
 GIT_CB_CUSTOM_PATH="$UPDATE_CB_CUSTOM_PATH"
 [ "$CB_OS" = "cygwin" ] && GIT_CB_CUSTOM_PATH=$(cygpath.exe -w $GIT_CB_CUSTOM_PATH)
-if git clone -q "$commonGradleBuildHomeGitUrl" "$GIT_CB_CUSTOM_PATH"; then
+if $GIT_CLIENT clone -q "$commonGradleBuildHomeGitUrl" "$GIT_CB_CUSTOM_PATH"; then
 	commonGradleBuildHomeUpdated=true
 else
 	updateError

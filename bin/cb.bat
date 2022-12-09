@@ -34,12 +34,14 @@ set "PN_FULL=%CB_SCRIPT_PATH%%PN%"
 set "CB_WORKING_PATH=%CD%"
 set "CB_INSTALL_SILENT=false"
 set CB_CUSTOM_SETTING_SCRIPT=
+if not defined CB_CUSTOM_CONFIG_FILENAME set "CB_CUSTOM_CONFIG_FILENAME=.cb-custom-config"
 set "CB_VERBOSE=false"
 if .%1==.--verbose shift & set "CB_VERBOSE=true"
 set errorCode=0
 if not defined TEMP set "TEMP=%TMP%"
 if not defined CB_TEMP set "CB_TEMP=%TEMP%\cb"
 if not exist %CB_TEMP% mkdir "%CB_TEMP%" >nul 2>nul
+if not defined GIT_CLIENT set "GIT_CLIENT=git"
 
 where powershell >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Please install powershell. & goto END_WITH_ERROR
@@ -118,8 +120,36 @@ if .%1==.--setenv shift & goto SET_ENV
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 if defined CB_CUSTOM_CONFIG if not ".%CB_CUSTOM_CONFIG%"=="." goto CUSTOM_CONFIG_END
 set "CB_CONFIG_HOME=%USERPROFILE%\.common-build"
-if exist "%CB_CONFIG_HOME%\conf\.cb-custom-config" set /p CB_CUSTOM_CONFIG=<"%CB_CONFIG_HOME%\conf\.cb-custom-config"
-::if ".%CB_CUSTOM_CONFIG%"=="." echo %CB_LINEHEADER%Ignore empty custom config, see %CB_CONFIG_HOME%\conf\.cb-custom-config
+if not exist "%CB_CONFIG_HOME%\conf\%CB_CUSTOM_CONFIG_FILENAME%" goto CUSTOM_CONFIG_END
+set "TMPFILE=%CB_TEMP%\cb-git-%RANDOM%%RANDOM%.tmp"
+if not exist %CB_WORKING_PATH%\.git goto SET_GIT_PROJECT_END
+where %GIT_CLIENT% >nul 2>nul
+if %ERRORLEVEL% NEQ 0 if .%CB_VERBOSE% == .true (echo %CB_LINEHEADER%No git installation found: %GIT_CLIENT% & goto SET_GIT_PROJECT_END) else (goto SET_GIT_PROJECT_END)
+%GIT_CLIENT% config --local --get remote.origin.url > "%TMPFILE%" 2>nul 
+if %ERRORLEVEL% NEQ 0 if .%CB_VERBOSE% == .true (echo %CB_LINEHEADER%No git installation found & goto SET_GIT_PROJECT_END) else (goto SET_GIT_PROJECT_END)
+set /p CB_GIT_PROJECT_URL=<"%TMPFILE%"
+if ".%CB_GIT_PROJECT_URL%"=="." if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%No git remote url found.
+if not ".%CB_GIT_PROJECT_URL%"=="." if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Git remote url found: %CB_GIT_PROJECT_URL%
+:SET_GIT_PROJECT_END
+if exist %TMPFILE% del /f /q "%TMPFILE%" 2>nul
+set CB_CUSTOM_CONFIG_LENTGH=0
+for /f "tokens=1,* delims=^=" %%i in ('type "%CB_CONFIG_HOME%\conf\%CB_CUSTOM_CONFIG_FILENAME%" ^| findstr /V "^#" ^| findstr /V "^=" ^| findstr /V "^$"') do (
+	set CB_CUSTOM_CONFIG_MATCH=0
+	set "istr=%%i" & set "istr=!istr: =!" & call :STRLEN istr iLength
+	set jstr=%%j & set "jstr=!jstr: =!" & call :STRLEN jstr jLength
+	if .%CB_VERBOSE% == .true if !iLength! GTR 0 if !jLength! EQU 0 echo %CB_LINEHEADER%Found custom config entry [!istr!] with no pattern
+	if .%CB_VERBOSE% == .true if !iLength! GTR 0 if !jLength! EQU 0 if !CB_CUSTOM_CONFIG_LENTGH! LEQ 0 echo %CB_LINEHEADER%Choose custom config entry [!istr!] with no pattern
+	if !iLength! GTR 0 if !jLength! EQU 0 if !CB_CUSTOM_CONFIG_LENTGH! LEQ 0 set "CB_CUSTOM_CONFIG=!istr!"
+	if !iLength! GTR 0 if !jLength! GTR 0 if not ".%CB_GIT_PROJECT_URL%"=="." echo %CB_GIT_PROJECT_URL% | findstr /C:"!jstr!" >nul 2>nul	
+	if !iLength! GTR 0 if !jLength! GTR 0 if not ".%CB_GIT_PROJECT_URL%"=="." if !ERRORLEVEL! EQU 0 set CB_CUSTOM_CONFIG_MATCH=1
+	if .%CB_VERBOSE% == .true if !CB_CUSTOM_CONFIG_MATCH! EQU 1 echo %CB_LINEHEADER%Found custom config entry [!istr!] with pattern [!jstr!] by remote url [%CB_GIT_PROJECT_URL%]
+	if .%CB_VERBOSE% == .true if !CB_CUSTOM_CONFIG_MATCH! EQU 1 if !jLength! GEQ !CB_CUSTOM_CONFIG_LENTGH! echo %CB_LINEHEADER%Choose custom config entry [!istr!] with pattern [!jstr!], length: !jLength!
+	if !CB_CUSTOM_CONFIG_MATCH! EQU 1 if !jLength! GEQ !CB_CUSTOM_CONFIG_LENTGH! (set "CB_CUSTOM_CONFIG=!istr!" & set CB_CUSTOM_CONFIG_LENTGH=!jLength!)
+	set CB_CUSTOM_CONFIG_LENTGH=!CB_CUSTOM_CONFIG_LENTGH!
+)
+
+if ".%CB_CUSTOM_CONFIG%"=="." echo %CB_LINEHEADER%Ignore empty custom config, see %CB_CONFIG_HOME%\conf\%CB_CUSTOM_CONFIG_FILENAME% & goto CUSTOM_CONFIG_END
+if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Select custom config entry [%CB_CUSTOM_CONFIG%]
 if not ".%CB_CUSTOM_CONFIG%"=="." call :CB_CUSTOM_CONFIG_CHECK
 if %errorCode% NEQ 0 goto END_WITH_ERROR
 :CUSTOM_CONFIG_END
@@ -219,7 +249,7 @@ echo                       of the project (as default daily check, can be config
 echo                       The project is checkout in .common-buik/conf/[domain-unique
 echo                       -name] inside the home folder (Windows %USERPROFILE%, others
 echo                       $HOME. Alternatively, instead of the environment variable, 
-echo                       a file .common-build\conf\.cb-custom-config containing the
+echo                       a file .common-build\conf\%CB_CUSTOM_CONFIG_FILENAME% containing the
 echo                       git url can be used."
 echo.
 echo  CB_PACKAGE_URL       To support software packages outside the common build, you 
@@ -957,6 +987,22 @@ goto :eof
 set "timestampFormat=yyyy-MM-dd HH:mm:ss.fff"
 if not .%2==. set "timestampFormat=%2"
 for /f "tokens=1-2" %%a in ('powershell get-date -format "{%timestampFormat%}"') do ( set "%1=%%a %%b" )
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:STRLEN
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+set "s=#!%~1!"
+set "len=0"
+for %%N in (4096 2048 1024 512 256 128 64 32 16 8 4 2 1) do (
+  if "!s:~%%N,1!" neq "" (
+    set /a "len+=%%N"
+    set "s=!s:~%%N!"
+  )
+)
+
+if "%~2" neq "" (set %~2=%len%) else echo %len%
 goto :eof
 
 
