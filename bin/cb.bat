@@ -984,9 +984,10 @@ goto :eof
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :GET_TIMESTAMP
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-set "timestampFormat=yyyy-MM-dd HH:mm:ss.fff"
-if not .%2==. set "timestampFormat=%2"
-for /f "tokens=1-2" %%a in ('powershell get-date -format "{%timestampFormat%}"') do ( set "%1=%%a %%b" )
+::set "timestampFormat=yyyy-MM-dd HH:mm:ss.fff"
+::if not .%2==. set "timestampFormat=%2"
+::for /f "tokens=1-2" %%a in ('powershell get-date -format "{%timestampFormat%}"') do ( set "%1=%%a %%b" )
+set "%1=%DATE% %TIME%"
 goto :eof
 
 
