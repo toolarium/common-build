@@ -38,7 +38,7 @@ for /f "USEBACKQ TOKENS=2 DELIMS==" %%A in (`wmic process where ^(Name^="WMIC.ex
 :LOCK
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 call :PARSE_LOCK_FILE %1 %2 %3
-if %lockProcessId%==%processId% call :DELETE_LOCKFILE %lockFile% & set lockDifference=%curentLockTimestamp%
+if [%lockProcessId%] equ [%processId%] call :DELETE_LOCKFILE %lockFile% & set lockDifference=%curentLockTimestamp%
 if %lockDifference% LEQ %lockTimeout% if .%CB_INSTALL_SILENT%==.false echo %CB_LINEHEADER%Another process is already doing the update, pid:%lockProcessId%.
 if %lockDifference% LEQ %lockTimeout% goto END_WITH_ERROR
 echo %curentLockTimestamp%=%processId%>"%lockFile%"
