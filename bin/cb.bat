@@ -983,11 +983,49 @@ goto :eof
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :GET_TIMESTAMP
+::"yyyy-MM-ddTHH\\:mm\\:ss.fff+0000"
+::"yyyyMMdd"
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-::set "timestampFormat=yyyy-MM-dd HH:mm:ss.fff"
-::if not .%2==. set "timestampFormat=%2"
+set "timestampFormat=yyyy-MM-dd HH:mm:ss.fff"
+if not .%2==. set "timestampFormat=%2"
 ::for /f "tokens=1-2" %%a in ('powershell get-date -format "{%timestampFormat%}"') do ( set "%1=%%a %%b" )
-set "%1=%DATE% %TIME%"
+set "dateSeparator=" & set "timeSeparator=" & set "currentTime=" & set "timestampSeparator=" & set "mtimeSeparator=" & set "currentTimestamp="
+echo %timestampFormat% | findstr/C:"." > nul
+if %ERRORLEVEL% EQU 0 set "dateSeparator=."
+echo %timestampFormat% | findstr/C:"-" > nul
+if %ERRORLEVEL% EQU 0 set "dateSeparator=-"
+echo %timestampFormat% | findstr/C:"/" > nul
+if %ERRORLEVEL% EQU 0 set "dateSeparator=/"
+echo %timestampFormat% | findstr/C:":" > nul
+if %ERRORLEVEL% EQU 0 (set "timeSeparator=:" & set "mtimeSeparator=.")
+
+set t=2&if "%date%z" LSS "A" set t=1
+for /f "skip=1 tokens=2-4 delims=(-)" %%A in ('echo/^|date') do (
+  for /f "tokens=%t%-4 delims=.-/ " %%J in ('date/t') do (
+    set "%%A=%%J" & set "%%B=%%K" & set "%%C=%%L")
+)
+set "currentDate=%yy%%dateSeparator%%mm%%dateSeparator%%dd%"
+::echo [%currentDate%]
+
+for /f "tokens=1-3 delims=1234567890 " %%a in ("%time%") do set "delims=%%a%%b%%c"
+for /f "tokens=1-4 delims=%delims%" %%G in ("%time%") do (set "hh=%%G" & set "min=%%H" & set "ss=%%I" & set "ms=%%J")
+set "hh=%hh: =%" & if 1%hh% LSS 20 Set "hh=0%_hh%"
+echo %timestampFormat% | findstr/C:"H" > nul
+if %ERRORLEVEL% EQU 0 (set "currentTime=%hh%")
+echo %timestampFormat% | findstr/C:"m" > nul
+if %ERRORLEVEL% EQU 0 (set "currentTime=%currentTime%%timeSeparator%%min%")
+echo %timestampFormat% | findstr/C:"s" > nul
+if %ERRORLEVEL% EQU 0 (set "currentTime=%currentTime%%timeSeparator%%ss%")
+echo %timestampFormat% | findstr/C:"f" > nul
+if %ERRORLEVEL% EQU 0 (if not .%ms%==. set "currentTime=%currentTime%%mtimeSeparator%%ms%")
+::echo [%currentTime%]
+
+echo %timestampFormat% | findstr/C:"T" > nul
+if %ERRORLEVEL% EQU 0 set "timestampSeparator=T"
+echo %timestampFormat% | findstr/C:" " > nul
+if %ERRORLEVEL% EQU 0 set "timestampSeparator= "
+set "currentTimestamp=%currentDate%%timestampSeparator%%currentTime%"
+set "%1=%currentTimestamp%"
 goto :eof
 
 
