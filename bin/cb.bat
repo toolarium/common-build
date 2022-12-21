@@ -1009,7 +1009,8 @@ set "currentDate=%yy%%dateSeparator%%mm%%dateSeparator%%dd%"
 
 for /f "tokens=1-3 delims=1234567890 " %%a in ("%time%") do set "delims=%%a%%b%%c"
 for /f "tokens=1-4 delims=%delims%" %%G in ("%time%") do (set "hh=%%G" & set "min=%%H" & set "ss=%%I" & set "ms=%%J")
-set "hh=%hh: =%" & if 1%hh% LSS 20 Set "hh=0%hh%"
+set "hh=%hh: =%"
+if 1%hh% LSS 20 Set "hh=0%hh%"
 echo %timestampFormat% | findstr/C:"H" > nul
 if %ERRORLEVEL% EQU 0 (set "currentTime=%hh%")
 echo %timestampFormat% | findstr/C:"m" > nul
