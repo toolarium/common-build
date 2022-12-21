@@ -998,7 +998,7 @@ echo %timestampFormat% | findstr/C:"/" > nul
 if %ERRORLEVEL% EQU 0 set "dateSeparator=/"
 echo %timestampFormat% | findstr/C:":" > nul
 if %ERRORLEVEL% EQU 0 (set "timeSeparator=:" & set "mtimeSeparator=.")
-echo %timestampFormat% | findstr/C:"\:" > nul
+echo %timestampFormat% | findstr/C:"\\:" > nul
 if %ERRORLEVEL% EQU 0 set "timeSeparator=\:"
 
 set t=2&if "%date%z" LSS "A" set t=1
