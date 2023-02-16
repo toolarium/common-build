@@ -333,7 +333,7 @@ executeCustomConfig() {
 		UPDATE_OFFLINE="true"
 	fi
 
-	CB_CUSTOM_CONFIG_PATH="$CB_CONFIG_HOME/conf/$urlHost@$urlPort_$urlPath"
+	CB_CUSTOM_CONFIG_PATH="$CB_CONFIG_HOME/conf/$urlHost@${urlPort}_${urlPath}"
 	! [ -d "$CB_CUSTOM_CONFIG_PATH" ] && mkdir -p $CB_CUSTOM_CONFIG_PATH
 		
 	# set the common gradle build home path to checkout to proper destination
