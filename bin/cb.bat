@@ -407,11 +407,13 @@ if not exist "%CB_CONFIG_HOME%" mkdir "%CB_CONFIG_HOME%"
 set "UPDATE_OFFLINE=%CB_OFFLINE%"
 
 :: prepare home directory name from domain name
-for /f "tokens=1,2,3,* delims=/" %%i in ("%CB_CUSTOM_CONFIG%") do (set "urlProtocol=%%i" & set "urlHost=%%j" & set "urlPath=%%k")
+for /f "tokens=1,2,* delims=/" %%i in ("%CB_CUSTOM_CONFIG%") do (set "urlProtocol=%%i" & set "urlHost=%%j" & set "urlPath=%%k")
 for /f "tokens=1,* delims=:" %%i in ("%urlHost%") do (set "baseUrlHost=%%i" & set "urlPort=%%j")
 if .%urlPort%==. if .%urlProtocol%==.https: set "urlPort=443"
 if .%urlPort%==. if .%urlProtocol%==.http: set "urlPort=80"
-set "CB_CUSTOM_CONFIG_PATH=%CB_CONFIG_HOME%\conf\%baseUrlHost%@%urlPort%"
+set "urlPath=%urlPath:/=_%"
+for /f "tokens=1,* delims=." %%i in ("%urlPath%") do (set "urlPath=%%i")
+set "CB_CUSTOM_CONFIG_PATH=%CB_CONFIG_HOME%\conf\%baseUrlHost%@%urlPort%_%urlPath%"
 if not exist "%CB_CUSTOM_CONFIG_PATH%" mkdir "%CB_CUSTOM_CONFIG_PATH%"
 ping %baseUrlHost% -n 1 -w 1000 >nul 2>nul
 if errorlevel 1 echo %CB_LINEHEADER%Can not reach host [%urlHost%] for custom config update [%CB_CUSTOM_CONFIG%]! & set "UPDATE_OFFLINE=true" 
