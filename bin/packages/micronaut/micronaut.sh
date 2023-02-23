@@ -24,7 +24,7 @@
 #########################################################################
 
 
-[ -z "$CB_MICRONAUT_VERSION" ] && CB_MICRONAUT_VERSION=2.5.9
+[ -z "$CB_MICRONAUT_VERSION" ] && CB_MICRONAUT_VERSION=3.8.5
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_MICRONAUT_VERSION
 CB_PACKAGE_BASE_URL="https://github.com/micronaut-projects/micronaut-starter/releases/download/v$CB_PACKAGE_VERSION"

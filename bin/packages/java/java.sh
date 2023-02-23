@@ -23,7 +23,7 @@
 #
 #########################################################################
 
-[ -z "$CB_JAVA_VERSION" ] && CB_JAVA_VERSION=11
+[ -z "$CB_JAVA_VERSION" ] && CB_JAVA_VERSION=17
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_JAVA_VERSION
 # 8,9,10,11,12,13

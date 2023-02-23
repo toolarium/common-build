@@ -24,7 +24,7 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-if not defined CB_SBT_VERSION set "CB_SBT_VERSION=1.5.5"
+if not defined CB_SBT_VERSION set "CB_SBT_VERSION=1.8.2"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_SBT_VERSION%"
 set "CB_PACKAGE_BASE_URL=https://github.com/sbt/sbt/releases/download/v%CB_PACKAGE_VERSION%"

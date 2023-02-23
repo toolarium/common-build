@@ -24,7 +24,7 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-if not defined CB_PYTHON_VERSION set "CB_PYTHON_VERSION=3.9.10"
+if not defined CB_PYTHON_VERSION set "CB_PYTHON_VERSION=3.11.2"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_PYTHON_VERSION%"
 set "CB_PACKAGE_DOWNLOAD_URL=https://www.python.org/ftp/python/%CB_PACKAGE_VERSION%/python-%CB_PACKAGE_VERSION%-embed-amd%CB_PROCESSOR_ARCHITECTURE_NUMBER%.zip"

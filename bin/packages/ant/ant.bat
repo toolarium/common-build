@@ -24,7 +24,7 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-if not defined CB_ANT_VERSION set "CB_ANT_VERSION=1.10.11"
+if not defined CB_ANT_VERSION set "CB_ANT_VERSION=1.10.13"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_ANT_VERSION%"
 set "CB_PACKAGE_BASE_URL=https://downloads.apache.org/ant/binaries"

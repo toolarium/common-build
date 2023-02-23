@@ -24,7 +24,7 @@
 #########################################################################
 
 
-[ -z "$CB_JMETER_VERSION" ] && CB_JMETER_VERSION=5.4.1
+[ -z "$CB_JMETER_VERSION" ] && CB_JMETER_VERSION=5.5
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_JMETER_VERSION
 CB_PACKAGE_BASE_URL="https://downloads.apache.org/jmeter/binaries"

@@ -24,7 +24,7 @@
 #########################################################################
 
 
-[ -z "$CB_GAIDEN_VERSION" ] && CB_GAIDEN_VERSION=1.2
+[ -z "$CB_GAIDEN_VERSION" ] && CB_GAIDEN_VERSION=1.3
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_GAIDEN_VERSION
 CB_PACKAGE_BASE_URL="https://github.com/kobo/gaiden/releases/download/v$CB_PACKAGE_VERSION"

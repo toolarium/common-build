@@ -24,7 +24,7 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-if not defined CB_BTRACE_VERSION set "CB_BTRACE_VERSION=2.2.0"
+if not defined CB_BTRACE_VERSION set "CB_BTRACE_VERSION=2.2.3"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_BTRACE_VERSION%"
 set "CB_PACKAGE_BASE_URL=https://github.com/btraceio/btrace/releases/download/v%CB_PACKAGE_VERSION%"

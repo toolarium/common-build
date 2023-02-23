@@ -24,7 +24,7 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-if not defined CB_SQUIRREL_VERSION set "CB_SQUIRREL_VERSION=4.2.0"
+if not defined CB_SQUIRREL_VERSION set "CB_SQUIRREL_VERSION=4.5.1"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_SQUIRREL_VERSION%"
 ::https://sourceforge.net/projects/squirrel-sql/files/1-stable/%CB_PACKAGE_VERSION%-plainzip

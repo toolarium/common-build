@@ -24,7 +24,7 @@
 #########################################################################
 
 
-[ -z "$CB_BTRACE_VERSION" ] && CB_BTRACE_VERSION=2.2.0
+[ -z "$CB_BTRACE_VERSION" ] && CB_BTRACE_VERSION=2.2.3
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_BTRACE_VERSION
 CB_PACKAGE_BASE_URL="https://github.com/btraceio/btrace/releases/download/v$CB_PACKAGE_VERSION"

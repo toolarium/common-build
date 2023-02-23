@@ -23,8 +23,7 @@
 ::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-
-if not defined CB_GRADLE_VERSION set "CB_MULTICOMMANDER_VERSION=11.2.2795"
+if not defined CB_GRADLE_VERSION set "CB_MULTICOMMANDER_VERSION=12.8.0.2929"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_MULTICOMMANDER_VERSION%"
 set "CB_PACKAGE_DOWNLOAD_URL=http://multicommander.com/files/updates/MultiCommander_x%CB_PROCESSOR_ARCHITECTURE_NUMBER%_Portable_(%CB_PACKAGE_VERSION%).zip"

@@ -24,7 +24,7 @@
 #########################################################################
 
 
-[ -z "$CB_VSCODE_VERSION" ] && CB_VSCODE_VERSION=1.58.0
+[ -z "$CB_VSCODE_VERSION" ] && CB_VSCODE_VERSION=1.75.1
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_VSCODE_VERSION
 
