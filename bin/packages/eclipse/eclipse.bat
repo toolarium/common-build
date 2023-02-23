@@ -65,6 +65,9 @@ set CB_PACKAGE_DEST_VERSION_NAME=eclipse-%CB_PACKAGE_VERSION_NAME%
 ::echo %CB_PACKAGE_DOWNLOAD_NAME%
 ::echo %CB_PACKAGE_DOWNLOAD_URL%
 
+:: there is no mirror-id and redirect anymore
+goto DOWNLOAD_ECLIPSE_END
+
 del "%CB_ECLIPSE_JSON_INFO%" >nul 2>nul
 move %TMPFILE% %CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME%.json >nul 2>nul
 
