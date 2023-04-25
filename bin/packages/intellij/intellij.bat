@@ -23,7 +23,7 @@
 ::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-if not defined CB_INTELLIJ_VERSION set "CB_INTELLIJ_VERSION=2022.3"
+if not defined CB_INTELLIJ_VERSION set "CB_INTELLIJ_VERSION=2023.1"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_INTELLIJ_VERSION%"
 set "CB_PACKAGE_BASE_URL=https://download-cdn.jetbrains.com/idea"
