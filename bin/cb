@@ -1231,7 +1231,7 @@ installCb() {
 		if [ -z "$CB_INSTALL_VERSION" ] && [ -r "$CB_TOOL_VERSION_DEFAULT" ]; then
 			[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Use [$CB_TOOL_VERSION_DEFAULT]."
 			CB_TOOL_VERSION_DEFAULT_TMPFILE=$(mktemp $CB_TEMP/cb-tool-version-default.XXXXXXXXX)
-			cat $CB_TOOL_VERSION_DEFAULT 2>/dev/null | grep -v "#" | grep "=" > $CB_TOOL_VERSION_DEFAULT_TMPFILE 2>/dev/null
+			cat $CB_TOOL_VERSION_DEFAULT 2>/dev/null | grep -v "#" | tr -d '\r' | grep "=" > $CB_TOOL_VERSION_DEFAULT_TMPFILE 2>/dev/null
 			while IFS= read -r line; do
 				key="${line%=*}" && key="$(echo $key 2>/dev/null| sed 's/ //g' 2>/dev/null)"								
 				if [ "$key" = "$CB_INSTALL_PKG" ]; then
