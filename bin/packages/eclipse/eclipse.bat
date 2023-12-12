@@ -53,8 +53,11 @@ powershell -command "$json = (Get-Content "%TMPFILE%" -Raw) | ConvertFrom-Json; 
 set /p CB_ECLIPSE_RELEASE_VERSION= < "%CB_ECLIPSE_JSON_INFO%"
 powershell -command "$json = (Get-Content "%TMPFILE%" -Raw) | ConvertFrom-Json; $json.packages.$Env:CB_ECLIPSE_PACKAGE_NAME.files.windows.$Env:CB_PROCESSOR_ARCHITECTURE_NUMBER.url" > "%CB_ECLIPSE_JSON_INFO%"
 set /p CB_PACKAGE_DOWNLOAD_URL= < "%CB_ECLIPSE_JSON_INFO%"
-
 set "CB_PACKAGE_DOWNLOAD_NAME=%CB_PACKAGE_DOWNLOAD_URL%"
+
+:: change 2023/12/12 add r=1
+set "CB_PACKAGE_DOWNLOAD_URL=%CB_PACKAGE_DOWNLOAD_URL%&r=1"
+
 :PREPARE_PACKAGE_NAME
 for /f "tokens=1 delims=/" %%G in ("%CB_PACKAGE_DOWNLOAD_NAME%") do (set "CB_PACKAGE_DOWNLOAD_NAME=%CB_PACKAGE_DOWNLOAD_NAME:*/=%")
 echo %CB_PACKAGE_DOWNLOAD_NAME% | findstr /C:"/" >NUL && (goto :PREPARE_PACKAGE_NAME) 
