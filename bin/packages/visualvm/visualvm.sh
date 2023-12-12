@@ -24,7 +24,7 @@
 #########################################################################
 
 
-[ -z "$CB_VISUAVM_VERSION" ] && CB_VISUAVM_VERSION=2.1.5
+[ -z "$CB_VISUAVM_VERSION" ] && CB_VISUAVM_VERSION=2.1.7
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_VISUAVM_VERSION
 CB_PACKAGE_BASE_URL="https://github.com/visualvm/visualvm.src/releases/download/$CB_PACKAGE_VERSION"

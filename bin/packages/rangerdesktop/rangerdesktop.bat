@@ -2,7 +2,7 @@
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ::
-:: vscode.bat
+:: rangerdesktop.bat
 ::
 :: Copyright by toolarium, all rights reserved.
 ::
@@ -23,9 +23,16 @@
 ::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-if not defined CB_VSCODE_VERSION set "CB_VSCODE_VERSION=1.85.0"
+if not defined CB_RANGER_VERSION set "CB_RANGER_VERSION=1.11.1"
 set "CB_PACKAGE_VERSION=%1"
-if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_VSCODE_VERSION%"
-set "CB_PACKAGE_DOWNLOAD_URL=https://update.code.visualstudio.com/%CB_PACKAGE_VERSION%/win32-x64-user/stable"
-set "CB_PACKAGE_DOWNLOAD_NAME=VSCodeUserSetup-x64-%CB_PACKAGE_VERSION%.exe"
+if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_RANGER_VERSION%"
+set "CB_PACKAGE_BASE_URL=https://github.com/rancher-sandbox/rancher-desktop/releases/download/v%CB_PACKAGE_VERSION%/"
+set "CB_PACKAGE_DOWNLOAD_NAME=Rancher.Desktop.Setup.%CB_PACKAGE_VERSION%.msi"
+set "CB_PACKAGE_VERSION_NAME=Rancher.Desktop.Setup.%CB_PACKAGE_VERSION%"
 set "CB_PACKAGE_NO_DEFAULT=true"
+
+call %CB_HOME%\bin\cb-deltree "%CB_DEVTOOLS%\ranger"
+call %CB_HOME%\bin\cb-deltree "%CB_DEVTOOLS%\ranger-%CB_PACKAGE_VERSION%"
+set "CB_POST_INSTALL_ACTION=move /y %CB_DEVTOOLS%\ranger %CB_DEVTOOLS%\ranger-%CB_PACKAGE_VERSION% >nul 2>nul"
+::if .%CB_INSTALL_OVERWRITE_DIST%==.false if exist "%ProgramFiles%"\Docker\Docker\resources\bin\docker.exe set "CB_PACKAGE_ALREADY_EXIST=true"
+::set "CB_POST_INSTALL_ACTION=copy "c:\ProgramData\Microsoft\Windows\Start Menu\Docker Desktop.lnk" "%USERPROFILE%\desktop\" >nul 2>nul"

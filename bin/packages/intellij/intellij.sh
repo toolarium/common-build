@@ -23,7 +23,7 @@
 #
 #########################################################################
 
-[ -z "$CB_INTELLIJ_VERSION" ] && CB_INTELLIJ_VERSION="2023.1"
+[ -z "$CB_INTELLIJ_VERSION" ] && CB_INTELLIJ_VERSION="2023.3"
 CB_PACKAGE_VERSION="$1"
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION="$CB_INTELLIJ_VERSION"
 CB_PACKAGE_BASE_URL="https://download-cdn.jetbrains.com/idea"

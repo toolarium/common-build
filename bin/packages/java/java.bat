@@ -24,7 +24,7 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-if not defined CB_JAVA_VERSION set "CB_JAVA_VERSION=17"
+if not defined CB_JAVA_VERSION set "CB_JAVA_VERSION=21"
 set "CB_PACKAGE_VERSION=%1"
 if not defined CB_PACKAGE_VERSION set "CB_PACKAGE_VERSION=%CB_JAVA_VERSION%"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_JAVA_VERSION%"

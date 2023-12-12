@@ -24,7 +24,7 @@
 #########################################################################
 
 
-[ -z "$CB_GROOVY_VERSION" ] && CB_GROOVY_VERSION=4.0.9
+[ -z "$CB_GROOVY_VERSION" ] && CB_GROOVY_VERSION=4.0.16
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_GROOVY_VERSION
 CB_PACKAGE_BASE_URL=https://groovy.jfrog.io/artifactory/dist-release-local/groovy-zips

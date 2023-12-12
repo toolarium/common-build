@@ -24,7 +24,7 @@
 #########################################################################
 
 
-[ -z "$CB_PYTHON_VERSION" ] && CB_PYTHON_VERSION=3.11.2
+[ -z "$CB_PYTHON_VERSION" ] && CB_PYTHON_VERSION=3.12.1
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_PYTHON_VERSION
 CB_PACKAGE_BASE_URL="https://www.python.org/ftp/python/$CB_PACKAGE_VERSION/"

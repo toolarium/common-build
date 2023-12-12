@@ -23,7 +23,7 @@
 ::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-if not defined CB_WINMERGE_VERSION set "CB_WINMERGE_VERSION=2.16.28"
+if not defined CB_WINMERGE_VERSION set "CB_WINMERGE_VERSION=2.16.36"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_WINMERGE_VERSION%"
 set "CB_PACKAGE_BASE_URL=https://github.com/WinMerge/winmerge/releases/download/v%CB_PACKAGE_VERSION%"

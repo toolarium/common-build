@@ -24,7 +24,7 @@
 #########################################################################
 
 
-[ -z "$CB_ANT_VERSION" ] && CB_ANT_VERSION=1.10.13
+[ -z "$CB_ANT_VERSION" ] && CB_ANT_VERSION=1.10.14
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_ANT_VERSION
 CB_PACKAGE_BASE_URL=https://downloads.apache.org/ant/binaries

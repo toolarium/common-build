@@ -24,7 +24,7 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-if not defined CB_GROOVY_VERSION set "CB_GROOVY_VERSION=4.0.9"
+if not defined CB_GROOVY_VERSION set "CB_GROOVY_VERSION=4.0.16"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_GROOVY_VERSION%"
 set "CB_PACKAGE_BASE_URL=https://groovy.jfrog.io/artifactory/dist-release-local/groovy-zips"
