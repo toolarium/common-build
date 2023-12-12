@@ -84,5 +84,11 @@ CB_PACKAGE_DOWNLOAD_URL=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-js
 CB_PACKAGE_VERSION=$(grep "semver" "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-json --value --name version.semver)
 CB_PACKAGE_VERSION_HASH=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-json --value --name package.checksum)
 
-mv "$CB_JAVA_JSON_INFO" "$CB_DEV_REPOSITORY/${CB_PACKAGE_DOWNLOAD_NAME}.json" >/dev/null 2>&1
-export CB_PACKAGE_BASE_URL CB_PACKAGE_DOWNLOAD_NAME CB_PACKAGE_VERSION_NAME
+if ! [ -n "$CB_PACKAGE_DOWNLOAD_NAME" ]; then 
+	rm "$CB_JAVA_JSON_INFO" >/dev/null 2>&1
+	echo "${CB_LINEHEADER}Could not found $CB_JAVA_IMAGE_TYPE $CB_JAVA_FEATURE_VERSION version" | tee -a "$CB_LOGFILE"
+	exit 1
+else
+	mv "$CB_JAVA_JSON_INFO" "$CB_DEV_REPOSITORY/${CB_PACKAGE_DOWNLOAD_NAME}.json" >/dev/null 2>&1
+	export CB_PACKAGE_BASE_URL CB_PACKAGE_DOWNLOAD_NAME CB_PACKAGE_VERSION_NAME
+fi

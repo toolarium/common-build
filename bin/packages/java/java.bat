@@ -96,6 +96,9 @@ powershell -command "$json = (Get-Content "%TMPFILE%" -Raw) | ConvertFrom-Json; 
 set /p CB_PACKAGE_VERSION_HASH= < "%CB_JAVA_JSON_INFO%"
 
 del "%CB_JAVA_JSON_INFO%" >nul 2>nul
-move %TMPFILE% %CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME%.json >nul 2>nul
 
+if ".%CB_PACKAGE_DOWNLOAD_NAME%"=="." echo %CB_LINEHEADER%Could not found %CB_JAVA_IMAGE_TYPE% %CB_JAVA_FEATURE_VERSION% version & echo %CB_LINEHEADER%Could not found %CB_JAVA_IMAGE_TYPE% %CB_JAVA_FEATURE_VERSION% version>> "%CB_LOGFILE%"
+if ".%CB_PACKAGE_DOWNLOAD_NAME%"=="." exit 1
+
+move %TMPFILE% %CB_DEV_REPOSITORY%\%CB_PACKAGE_DOWNLOAD_NAME%.json >nul 2>nul
 :DOWNLOAD_JAVA_END
