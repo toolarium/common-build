@@ -24,7 +24,7 @@
 #########################################################################
 
 
-[ -z "$CB_GRADLE_VERSION" ] && CB_GRADLE_VERSION=8.1.1
+[ -z "$CB_GRADLE_VERSION" ] && CB_GRADLE_VERSION=8.5
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_GRADLE_VERSION
 CB_PACKAGE_BASE_URL=https://services.gradle.org/distributions
