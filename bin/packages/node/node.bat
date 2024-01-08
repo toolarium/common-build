@@ -24,7 +24,7 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-if not defined CB_NODE_VERSION set "CB_NODE_VERSION=18.14.2"
+if not defined CB_NODE_VERSION set "CB_NODE_VERSION=20.10.0"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_NODE_VERSION%"
 set "CB_PACKAGE_BASE_URL=https://nodejs.org/dist/v%CB_PACKAGE_VERSION%/"

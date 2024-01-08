@@ -24,7 +24,7 @@
 #########################################################################
 
 
-[ -z "$CB_NODE_VERSION" ] && CB_NODE_VERSION=18.14.2
+[ -z "$CB_NODE_VERSION" ] && CB_NODE_VERSION=20.10.0
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_NODE_VERSION
 CB_PACKAGE_BASE_URL=https://nodejs.org/dist/v$CB_PACKAGE_VERSION
