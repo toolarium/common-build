@@ -175,7 +175,7 @@ fi
 [ -z "$CB_INSTALL_USER_COMMIT" ] && CB_INSTALL_USER_COMMIT=true
 [ -z "$CB_USER" ] && CB_USER=$USER
 [ -z "$CB_PACKAGE_PASSWORD" ] && CB_PACKAGE_PASSWORD=""
-[ -z "$CB_DEVTOOLS_JAVA_PREFIX" ] && CB_DEVTOOLS_JAVA_PREFIX="*jdk*"
+[ -z "$CB_DEVTOOLS_JAVA_PREFIX" ] && CB_DEVTOOLS_JAVA_PREFIX="*jdk-"
 [ -z "$CB_INSTALL_OVERWRITE" ] && CB_INSTALL_OVERWRITE=false
 
 CB_INSTALL_OVERWRITE_DIST=$CB_INSTALL_OVERWRITE
@@ -360,6 +360,7 @@ executeCustomConfig() {
 		# if we have a timestamp wihtin same day then its fine
 		CB_CUSTOM_CONFIG_VERSION=$(cat "$CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp")
 		CB_CUSTOM_CONFIG_VERSION=$(echo ${CB_CUSTOM_CONFIG_VERSION% *} | awk '{print $1}')
+		return
 	else					
 		[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Timestamp $CB_CUSTOM_CONFIG_PATH/$DATESTAMP.tsp do not exist."
 		if ! [ -n "$(existBinary git)" ]; then
@@ -867,7 +868,7 @@ commonBuild() {
 		fi
 
 		[ -z "$CB_DEVTOOLS_JAVA_PREFIX" ] && CB_DEVTOOLS_JAVA_PREFIX="*"
-		cbInstalledJavaVersion=$(find "$CB_DEVTOOLS" -maxdepth 1 -type d -name "$CB_DEVTOOLS_JAVA_PREFIX$cbJavaVersionFilter" -prune -exec ls -d {} \; 2>/dev/null | tail -1 2>/dev/null | xargs -l basename 2>/dev/null)
+		cbInstalledJavaVersion=$(find "$CB_DEVTOOLS" -maxdepth 1 -type d -name "$CB_DEVTOOLS_JAVA_PREFIX$cbJavaVersionFilter*" -prune -exec ls -d {} \; 2>/dev/null | tail -1 2>/dev/null | xargs -l basename 2>/dev/null)
 
 		if [ -z "$cbInstalledJavaVersion" ]; then
 			if [ -n "$cbJavaVersion" ]; then

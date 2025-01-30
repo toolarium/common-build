@@ -56,7 +56,7 @@ if not defined CB_PACKAGE_URL (set "CB_PACKAGE_URL=")
 if not defined CB_INSTALL_USER_COMMIT (set "CB_INSTALL_USER_COMMIT=true")
 if not defined CB_USER (set "CB_USER=%USERNAME%")
 if not defined CB_PACKAGE_PASSWORD (set "CB_PACKAGE_PASSWORD=")
-if not defined CB_DEVTOOLS_JAVA_PREFIX (set "CB_DEVTOOLS_JAVA_PREFIX=*jdk*")
+if not defined CB_DEVTOOLS_JAVA_PREFIX (set "CB_DEVTOOLS_JAVA_PREFIX=*jdk-")
 if not defined CB_INSTALL_OVERWRITE (set "CB_INSTALL_OVERWRITE=false")
 
 set CB_INSTALL_OVERWRITE_DIST=%CB_INSTALL_OVERWRITE%
@@ -536,7 +536,7 @@ set /a "cbJavaMajorVersion=%cbJavaVersion%" 2>nul
 if not .%cbJavaMajorVersion% == .%cbJavaVersion% echo %CB_LINEHEADER%Invalid java version paramter %cbJavaVersion% (only major version can be referenced, e.g. 11, 12...) & goto END_WITH_ERROR
 set "TMPFILE=%CB_TEMP%\cb-java-%RANDOM%%RANDOM%.tmp"
 if not defined CB_DEVTOOLS_JAVA_PREFIX set "CB_DEVTOOLS_JAVA_PREFIX=*"
-if defined cbJavaVersion dir %CB_DEVTOOLS%\%CB_DEVTOOLS_JAVA_PREFIX%%cbJavaVersionFilter% /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
+if defined cbJavaVersion dir %CB_DEVTOOLS%\%CB_DEVTOOLS_JAVA_PREFIX%%cbJavaVersionFilter%* /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%TMPFILE%"
 if defined cbJavaVersion for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install java %cbJavaVersion%
 ::if not defined cbJavaVersion call %PN_FULL% --silent --install java 
 if not defined cbJavaVersion for %%R in ("%TMPFILE%") do if %%~zR lss 1 call %PN_FULL% --silent --install java 
