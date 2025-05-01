@@ -2,7 +2,7 @@
 
 #########################################################################
 #
-# cb-clean
+# cb-clean-files
 #
 # Copyright by toolarium, all rights reserved.
 #
@@ -60,10 +60,10 @@ printUsage() {
 	echo ""
 	echo "Examples:"
 	echo " Delete cb temp files:"
-	echo " cb-clean"
+	echo " cb-clean-files"
 	echo ""
 	echo " Delete gradle worrker files:"
-	echo " cb-clean --path /tmp --pattern gradle-worker*"
+	echo " cb-clean-files --path /tmp --pattern gradle-worker*"
 }
 
 

@@ -2,7 +2,7 @@
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ::
-:: cb-clean.bat
+:: cb-clean-files.bat
 ::
 :: Copyright by toolarium, all rights reserved.
 ::
@@ -43,7 +43,6 @@ if .%1==.--help goto HELP
 if .%1==.--path shift & set "CLEAN_PATH=%2"
 if .%1==.--pattern shift & set "CLEAN_PATTERN=%2"
 if .%1==.--days shift & set "CLEAN_DAYS=%2"
-if .%1==.--file-only shift & set "CLEAN_DAYS=%2"
 shift
 goto CHECK_PARAMETER
 
@@ -75,10 +74,10 @@ echo  --days days          The number of days back to delete, default 1
 echo.
 echo Examples:
 echo  Delete cb temp files:
-echo  cb-clean
+echo  cb-clean-files
 echo.
 echo  Delete gradle worrker files:
-echo  cb-clean --path %%TEMP%% --pattern gradle-worker^*
+echo  cb-clean-files --path %%TEMP%% --pattern gradle-worker^*
 echo.
 goto END
 
