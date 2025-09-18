@@ -307,7 +307,7 @@ goto MAIN_ACTION_END
 :DEFAULT_MAIN_ACTION
 :: common gradle build support
 mkdir %projectName% 2>nul
-echo apply from: "https://git.io/JfDQT" > %projectName%\build.gradle
+echo apply from: "https://raw.githubusercontent.com/toolarium/common-gradle-build/master/gradle/common.gradle" > %projectName%\build.gradle
 set "projectStartParameter=--no-daemon"
 cd %projectName% >nul 2>nul
 ::echo call %PN_FULL% %projectStartParameter% "-PprojectType=%projectType%" "-PprojectRootPackageName=%projectRootPackageName%" "-PprojectGroupId=%projectGroupId%" "-PprojectComponentId=%projectComponentId%" "-PprojectDescription="%projectDescription% ""

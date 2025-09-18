@@ -522,7 +522,7 @@ else
 		fi
 	else
 		mkdir -p "$projectName" 2>/dev/null
-		echo "apply from: \"https://git.io/JfDQT\"" > "$projectName/build.gradle"
+		echo "apply from: \"https://raw.githubusercontent.com/toolarium/common-gradle-build/master/gradle/common.gradle\"" > "$projectName/build.gradle"
 		projectStartParameter="--no-daemon"	
 
 		if ! eval "cd $projectName && $PN_FULL $projectStartParameter -PprojectType=$projectType -PprojectRootPackageName=$projectRootPackageName -PprojectGroupId=$projectGroupId -PprojectComponentId=$projectComponentId -PprojectDescription='$projectDescription'"; then
