@@ -266,7 +266,7 @@ FOR /F "tokens=1,* delims=," %%i in ("%installPackages%") do ( echo %CB_LINEHEAD
 call %PN_FULL% --setenv --silent
 
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Set projectName:%projectName% projectRootPackageName:%projectRootPackageName% projectGroupId:%projectGroupId% projectComponentId:%projectComponentId% projectDescription:"%projectDescription%" projectTypeConfiguration:"%projectTypeConfiguration%" projectTypeConfigurationParameter:"%projectTypeConfigurationParameter%"
-echo.
+echo/
 echo %CB_LINE%
 :PROJECT_WIZARD_INIT_END
 if exist %projectName% echo %CB_LINEHEADER%Project %projectName% already exist, abort. & goto PROJECT_WIZARD_ERROR_END
