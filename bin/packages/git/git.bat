@@ -24,7 +24,7 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-if not defined CB_GIT_VERSION set "CB_GIT_VERSION=2.39.2"
+if not defined CB_GIT_VERSION set "CB_GIT_VERSION=2.52.0"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_GIT_VERSION%"
 set "CB_PACKAGE_BASE_URL=https://github.com/git-for-windows/git/releases/download/v%CB_PACKAGE_VERSION%.windows.1"

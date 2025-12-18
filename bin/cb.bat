@@ -342,8 +342,8 @@ if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" setenv-s
 if not exist %CB_CURRENT_PATH%\git goto :SET_ENV_NODE
 set "CB_GIT_HOME=%CB_CURRENT_PATH%\git"
 set "GIT_HOME=%CB_GIT_HOME%"
-echo %PATH% | findstr /C:"%GIT_HOME%" >nul 2>nul
-if %ERRORLEVEL% NEQ 0 set "PATH=%GIT_HOME%;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add git to path (%GIT_HOME%)
+echo %PATH% | findstr /C:"%GIT_HOME%\bin" >nul 2>nul
+if %ERRORLEVEL% NEQ 0 set "PATH=%GIT_HOME%\bin;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add git to path (%GIT_HOME%)
 
 :SET_ENV_NODE
 if not exist %CB_CURRENT_PATH%\node goto :SET_ENV_ANT
@@ -381,11 +381,18 @@ echo %PATH% | findstr /C:"%JAVA_HOME%\bin" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 set "PATH=%JAVA_HOME%\bin;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add java to path (%JAVA_HOME%\bin)
 
 :SET_ENV_PYTHON
-if not exist %CB_CURRENT_PATH%\python goto :SET_ENV_END
+if not exist %CB_CURRENT_PATH%\python goto :SET_ENV_TRIVY
 set "CB_PYTHON_HOME=%CB_CURRENT_PATH%\python"
 set "PYTHON_HOME=%CB_PYTHON_HOME%"
 echo %PATH% | findstr /C:"%PYTHON_HOME%" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 set "PATH=%PYTHON_HOME%;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add python to path (%PYTHON_HOME%)
+
+:SET_ENV_TRIVY
+if not exist %CB_CURRENT_PATH%\trivy goto :SET_ENV_END
+set "CB_TRIVY_HOME=%CB_CURRENT_PATH%\trivy"
+set "TRIVY_HOME=%CB_TRIVY_HOME%"
+echo %PATH% | findstr /C:"%TRIVY_HOME%" >nul 2>nul
+if %ERRORLEVEL% NEQ 0 set "PATH=%TRIVY_HOME%;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add trivy to path (%TRIVY_HOME%)
 
 :SET_ENV_END
 if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" setenv-end %1 %2 %3 %4 %5 %6 %7 2>nul
@@ -1055,8 +1062,8 @@ goto :eof
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CB_CLEAN
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-%CB_HOME%\bin\cb-clean	
-%CB_HOME%\bin\cb-clean --pattern gradle-worker-*
+%CB_HOME%\bin\cb-cleanup	
+%CB_HOME%\bin\cb-cleanup --pattern gradle-worker-*
 goto :eof
 
 
