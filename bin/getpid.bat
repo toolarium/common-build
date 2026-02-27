@@ -24,7 +24,6 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 set T=%TEMP%\%RANDOM%%RANDOM%.pid
-::wmic process where (Name="WMIC.exe" AND CommandLine LIKE "%%%TIME%%%") get ParentProcessId /value | find "ParentProcessId" >%T%
 powershell -command "(Get-WmiObject Win32_Process -Filter \"ProcessId=$PID\").ParentProcessId" > %T% 
 set /p CURRENT_PID=<%T% 
 del %T%

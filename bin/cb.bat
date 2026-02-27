@@ -713,7 +713,7 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :INSTALL_CB
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value') do set "dt=%%a"
+for /f "delims=" %%a in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMddHHmmss"') do set dt=%%a
 set "YY=%dt:~2,2%" & set "YYYY=%dt:~0,4%" & set "MM=%dt:~4,2%" & set "DD=%dt:~6,2%"
 set "HH=%dt:~8,2%" & set "Min=%dt:~10,2%" & set "Sec=%dt:~12,2%"
 set "DATESTAMP=%YYYY%%MM%%DD%"
@@ -792,7 +792,7 @@ if not ".%CB_CUSTOM_RUNTIME_CONFIG_PATH%"=="." if exist "%CB_CUSTOM_RUNTIME_CONF
 if not ".%CB_CUSTOM_RUNTIME_CONFIG_PATH%"=="." if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\conf\tool-version-default.properties" goto READ_TOOL_VERSION_DEFAULT
 if .%CB_OFFLINE% == .true goto READ_TOOL_VERSION_DEFAULT
 :: read ones a day the newest tool version
-for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value') do set "dt=%%a"
+for /f "delims=" %%a in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMddHHmmss"') do set dt=%%a
 set "YYYY=%dt:~0,4%" & set "MM=%dt:~4,2%" & set "DD=%dt:~6,2%" & set "DATETIMESTAMP=%YYYY%%MM%%DD%"
 set "CB_TOOL_VERSION_DEFAULT_CHECK=%CB_TOOL_VERSION_DEFAULT%.lastCheck"
 if not exist %CB_TOOL_VERSION_DEFAULT_CHECK% goto GET_TOOL_VERSION_DEFAULT

@@ -31,10 +31,10 @@ call :GET_TIMESTAMP CB_START_TIMESTAMP
 set CB_PROCESSOR_ARCHITECTURE_NUMBER=64
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:32=%" set CB_PROCESSOR_ARCHITECTURE_NUMBER=32
 if not "%PROCESSOR_ARCHITECTURE%"=="%PROCESSOR_ARCHITECTURE:64=%" set CB_PROCESSOR_ARCHITECTURE_NUMBER=64
-for /F %%i in ('wmic OS Get CSName ^| findstr /V CSName ^| findstr /v "^$"') do (set "hostname=%%i")
-for /F %%i in ('wmic OS Get BuildNumber ^| findstr /V BuildNumber ^| findstr /v "^$"') do (set "buildNumber=%%i")
-for /F %%i in ('wmic OS Get Caption ^| findstr /V Caption ^| findstr /v "^$"') do (set "windowsVersion=%%i")
 
+for /F %i in ('powershell -NoLogo -NoProfile -Command "(Get-CimInstance Win32_OperatingSystem).CSName"') do (set "hostname=%%i")
+for /F %i in ('powershell -NoLogo -NoProfile -Command "(Get-CimInstance Win32_OperatingSystem).BuildNumber"') do (set "buildNumber=%%i")
+for /F %i in ('powershell -NoLogo -NoProfile -Command "(Get-CimInstance Win32_OperatingSystem).Caption"') do (set "windowsVersion=%%i")
 call :PROTOCOL_HEADER "Protocol common build installation (%windowsVersion% %buildNumber%, x%CB_PROCESSOR_ARCHITECTURE_NUMBER%), %CB_START_TIMESTAMP%"
 call :PROTOCOL_HEADER "Analyse common build..."
 call :PROTOCOL call cb --version
