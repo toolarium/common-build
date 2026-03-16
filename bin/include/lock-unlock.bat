@@ -29,7 +29,7 @@ if not defined CB_LINEHEADER set "CB_LINEHEADER=.: "
 if not defined CB_INSTALL_SILENT set "CB_INSTALL_SILENT=false"
 if [%1] equ [--unlock] shift & goto UNLOCK
 if [%1] equ [--lock] shift
-call %CB_HOME%\bin\getpid.bat > null
+call %CB_HOME%\bin\getpid.bat >nul 2>nul
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :LOCK
