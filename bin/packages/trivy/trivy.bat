@@ -24,7 +24,7 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-if not defined CB_TRIVY_VERSION set "CB_TRIVY_VERSION=0.68.2"
+if not defined CB_TRIVY_VERSION set "CB_TRIVY_VERSION=0.69.2"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_TRIVY_VERSION%"
 set "CB_PACKAGE_DOWNLOAD_URL=https://github.com/aquasecurity/trivy/releases/download/v%CB_PACKAGE_VERSION%/trivy_%CB_PACKAGE_VERSION%_windows-%CB_PROCESSOR_ARCHITECTURE_NUMBER%bit.zip"
