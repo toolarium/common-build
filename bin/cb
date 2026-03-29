@@ -614,6 +614,12 @@ setCBEnv() {
 		export CB_PYTHON_HOME PYTHON_HOME PATH
 	fi
 
+	if [ -d "$CB_CURRENT_PATH/trivy" ]; then
+		CB_TRIVY_HOME=$CB_CURRENT_PATH/trivy && TRIVY_HOME=$CB_TRIVY_HOME
+		[ -z "$(echo $PATH | grep $TRIVY_HOME)" ] && PATH="$TRIVY_HOME:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add trivy to path ($TRIVY_HOME)."
+		export CB_TRIVY_HOME TRIVY_HOME PATH
+	fi
+
 	# custom setting script
 	[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT setenv-end $*" 2>/dev/null
 

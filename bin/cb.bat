@@ -112,7 +112,7 @@ if .%1==.-exp shift & goto PROJECT_EXPLORE
 if .%1==.--explore shift & goto PROJECT_EXPLORE
 if .%1==.--packages shift & goto PACKAGES
 if .%1==.--install shift & goto INSTALL_CB
-if .%1==.--setenv shift & goto SET_ENV
+::if .%1==.--setenv shift & goto SET_ENV
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -516,6 +516,12 @@ if defined CB_PYTHON_HOME echo %CB_PYTHON_HOME% | findstr /I %CB_DEVTOOLS% >nul 
 ::if defined CB_PYTHON_HOME if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%CB_PYTHON_HOME is not set to a python version in devtools (%CB_DEVTOOLS%): %CB_PYTHON_HOME%. & goto END_WITH_ERROR
 if defined CB_PYTHON_HOME echo %PATH% | findstr /C:"%CB_PYTHON_HOME%" >nul 2>nul
 if defined CB_PYTHON_HOME if %ERRORLEVEL% NEQ 0 set "PATH=%CB_PYTHON_HOME%;%PATH%"
+
+:: add trivy to path if available
+if not defined CB_TRIVY_HOME if exist %CB_CURRENT_PATH%\trivy set "CB_TRIVY_HOME=%CB_CURRENT_PATH%\trivy"
+if defined CB_TRIVY_HOME set "TRIVY_HOME=%CB_TRIVY_HOME%"
+if defined CB_TRIVY_HOME echo %PATH% | findstr /C:"%CB_TRIVY_HOME%" >nul 2>nul
+if defined CB_TRIVY_HOME if %ERRORLEVEL% NEQ 0 set "PATH=%CB_TRIVY_HOME%;%PATH%"
 
 :: current run java switch
 if exist %CB_JAVA_VERSION_FILE% (set /pcbJavaVersion=<%CB_JAVA_VERSION_FILE% & del /f /q "%CB_JAVA_VERSION_FILE%" 2>nul)
