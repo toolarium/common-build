@@ -95,15 +95,19 @@ if %ERRORLEVEL% EQU 9009 (SET "PATH=%PATH%;%SystemRoot%\System32\")
 call %CB_SCRIPT_PATH%include\read-version %CB_SCRIPT_PATH%\..\VERSION
 set CB_VERSION=%version.number%
 
-:: check connection
-set "CB_OFFLINE="
-ping 8.8.8.8 -n 1 -w 1000 >nul 2>nul
-if errorlevel 1 set "CB_OFFLINE=true"
-
 :: parameters without hooks
 if .%1==.--verbose shift & set "CB_VERBOSE=true"
 if .%1==.--force shift & set "CB_INSTALL_OVERWRITE_DIST=true"
 if .%1==.--verbose shift & set "CB_VERBOSE=true"
+
+:: check connection (skip for --setenv to avoid expensive network calls)
+set "CB_OFFLINE="
+set "CB_SETENV_ONLY="
+if .%1==.--setenv set "CB_SETENV_ONLY=true"
+if ".%CB_SETENV_ONLY%"==".true" goto :CB_SKIP_CONNECTION_CHECK
+ping 8.8.8.8 -n 1 -w 1000 >nul 2>nul
+if errorlevel 1 set "CB_OFFLINE=true"
+:CB_SKIP_CONNECTION_CHECK
 if .%1==.-h goto HELP
 if .%1==.--help goto HELP
 if .%1==.-v goto VERSION
@@ -112,7 +116,6 @@ if .%1==.-exp shift & goto PROJECT_EXPLORE
 if .%1==.--explore shift & goto PROJECT_EXPLORE
 if .%1==.--packages shift & goto PACKAGES
 if .%1==.--install shift & goto INSTALL_CB
-::if .%1==.--setenv shift & goto SET_ENV
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -422,8 +425,10 @@ set "urlPath=%urlPath:/=_%"
 for /f "tokens=1,* delims=." %%i in ("%urlPath%") do (set "urlPath=%%i")
 set "CB_CUSTOM_CONFIG_PATH=%CB_CONFIG_HOME%\conf\%baseUrlHost%@%urlPort%_%urlPath%"
 if not exist "%CB_CUSTOM_CONFIG_PATH%" mkdir "%CB_CUSTOM_CONFIG_PATH%"
+if ".%CB_SETENV_ONLY%"==".true" goto :CB_CUSTOM_CONFIG_SKIP_PING
 ping %baseUrlHost% -n 1 -w 1000 >nul 2>nul
-if errorlevel 1 echo %CB_LINEHEADER%Can not reach host [%urlHost%] for custom config update [%CB_CUSTOM_CONFIG%]! & set "UPDATE_OFFLINE=true" 
+if errorlevel 1 echo %CB_LINEHEADER%Can not reach host [%urlHost%] for custom config update [%CB_CUSTOM_CONFIG%]! & set "UPDATE_OFFLINE=true"
+:CB_CUSTOM_CONFIG_SKIP_PING
 set "urlProtocol=" & set "urlHost=" & set "urlPath=" & set "urlPort=" & set "baseUrlHost="
 
 :: set the common gradle build home path to checkout to proper destination
@@ -439,13 +444,21 @@ if .%CB_INSTALL_OVERWRITE_DIST% == .true (del /f /q "%CB_CUSTOM_CONFIG_PATH%\*.t
 call :GET_TIMESTAMP LAST_CHECK_TSP "yyyy-MM-ddTHH\\:mm\\:ss.fff+0000"
 call :GET_TIMESTAMP DATESTAMP "yyyyMMdd"
 set DATESTAMP=%DATESTAMP: =%
+:: for --setenv, read any available cached timestamp without modifying
+if ".%CB_SETENV_ONLY%"==".true" if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set /p CB_CUSTOM_CONFIG_VERSION=<"%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp"
+if ".%CB_SETENV_ONLY%"==".true" if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" for /f %%i in ('dir %CB_CUSTOM_CONFIG_PATH%\*.tsp /O-D/b 2^>nul') do if not defined CB_CUSTOM_CONFIG_VERSION set /p CB_CUSTOM_CONFIG_VERSION=<"%CB_CUSTOM_CONFIG_PATH%\%%i"
+if ".%CB_SETENV_ONLY%"==".true" if not ".%CB_CUSTOM_CONFIG_VERSION%"=="." set CB_CUSTOM_CONFIG_VERSION=%CB_CUSTOM_CONFIG_VERSION: =%
+if ".%CB_SETENV_ONLY%"==".true" if not ".%CB_CUSTOM_CONFIG_VERSION%"=="." set "CB_CUSTOM_RUNTIME_CONFIG_PATH=%CB_CUSTOM_CONFIG_PATH%\%CB_CUSTOM_CONFIG_VERSION%"
+if ".%CB_SETENV_ONLY%"==".true" if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat" set "CB_CUSTOM_SETTING=%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat"
+if ".%CB_SETENV_ONLY%"==".true" if exist "%CB_CUSTOM_RUNTIME_CONFIG_PATH%\bin\cb-custom.bat" set "CB_CUSTOM_SETTING_SCRIPT=%CB_CUSTOM_SETTING%"
+if ".%CB_SETENV_ONLY%"==".true" goto :eof
 if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%UPDATE_OFFLINE%==.true dir %CB_CUSTOM_CONFIG_PATH%\*.tsp /O-D/b 2>nul | findstr/n ^^ | findstr ^^1:> "%CB_CUSTOM_CONFIG_PATH%\offline"
-if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%UPDATE_OFFLINE%==.true set /pLAST_DATESTAMP_NAME=<"%CB_CUSTOM_CONFIG_PATH%\offline" 
+if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%UPDATE_OFFLINE%==.true set /pLAST_DATESTAMP_NAME=<"%CB_CUSTOM_CONFIG_PATH%\offline"
 if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%UPDATE_OFFLINE%==.true set "LAST_DATESTAMP_NAME=%LAST_DATESTAMP_NAME:~2%"
 if not exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" if .%UPDATE_OFFLINE%==.true move "%CB_CUSTOM_CONFIG_PATH%\%LAST_DATESTAMP_NAME%" "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" >nul 2>nul
 if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set /p CB_CUSTOM_CONFIG_VERSION=<"%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp"
-if exist "%CB_CUSTOM_CONFIG_PATH%\offline" if ".%CB_CUSTOM_CONFIG_VERSION%" == "." (del "%CB_CUSTOM_CONFIG_PATH%\offline" 
-	set "errorCode=1" 
+if exist "%CB_CUSTOM_CONFIG_PATH%\offline" if ".%CB_CUSTOM_CONFIG_VERSION%" == "." (del "%CB_CUSTOM_CONFIG_PATH%\offline"
+	set "errorCode=1"
 	echo %CB_LINEHEADER%Could not find nor update custom config, please repeat as soon as you are online!.
 	goto :eof)
 if exist "%CB_CUSTOM_CONFIG_PATH%\offline" del "%CB_CUSTOM_CONFIG_PATH%\offline" & echo %CB_LINEHEADER%Offline, keep current version [%CB_CUSTOM_CONFIG_VERSION%].
