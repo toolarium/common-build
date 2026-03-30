@@ -6,11 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.0.14] - 2026-03-30
-### Performance
+### Changed
 - Significantly improved `cb --setenv` / `cb.bat --setenv` performance by skipping all network operations (internet ping, host connection check, git fetch/clone) and using only cached custom config data. This makes `. cb --setenv` suitable for shell initialization without noticeable delay.
+- Added quick check in `update-cb-custom-home.sh` and `.bat` that compares the `VERSION` file against the remote before performing a full clone. If VERSION is unchanged, the update is skipped entirely, avoiding the expensive `git clone` on every daily check.
 
 ### Fixed
 - `cb --verbose --setenv` and `cb --force --setenv` now correctly apply the fast `--setenv` path on both Linux/Mac and Windows. Previously, prefixed arguments like `--verbose` or `--force` prevented the `--setenv` optimization from being detected.
+- Fixed `update-cb-custom-home` quick check to use `git -C` with the correct repository path instead of relying on the current working directory.
+- Fixed `update-cb-custom-home` quick check to gracefully skip on first-ever run when no local clone exists yet.
+- Fixed `update-cb-custom-home.bat` quick check early exit to properly export `CB_CUSTOM_CONFIG_VERSION` to the caller instead of exporting an empty value.
+- Fixed `update-cb-custom-home` quick check to gracefully skip when no upstream tracking branch is configured (`@{u}` not set).
 
 ## [1.0.12] - 2026-03-29
 ### Fixed
@@ -190,7 +195,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed lock-unlock mechanism for consistent concurrent access behavior.
 
 ## [0.9.31] - 2022-12-12
-### Performance
+### Changed
 - Improved `cb.bat` performance for Windows path handling.
 
 ## [0.9.30] - 2022-12-09
@@ -200,7 +205,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Updated Gradle from 7.3 to 7.3.1, Node from 16.13.0 to 16.13.2.
-
+### Changed
 ### Fixed
 - Fixed Docker URL in package configuration.
 

@@ -109,11 +109,28 @@ if ! eval "$CB_HOME/bin/include/cb-credential.sh \"$commonGradleBuildHomeGitUrl\
 	updateError
 	eval "$CB_HOME/bin/include/lock-unlock.sh" --unlock "$LOCKFILE"
 	exit 1
-fi 
+fi
 
 credentialCheck=true
 commonGradleBuildHomeUpdated=false
 [ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Valid access to [$commonGradleBuildHomeGitUrl]."
+
+# quick check: compare VERSION file against remote to skip clone if unchanged
+EXISTING_REPO=$(find "$CB_CUSTOM_CONFIG_PATH" -maxdepth 2 -name ".git" -type d 2>/dev/null | head -1)
+if [ -n "$EXISTING_REPO" ]; then
+	EXISTING_REPO=$(dirname "$EXISTING_REPO")
+	$GIT_CLIENT -C "$EXISTING_REPO" fetch origin > /dev/null 2>&1
+	if ! $GIT_CLIENT -C "$EXISTING_REPO" rev-parse @{u} > /dev/null 2>&1; then
+		[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}No upstream tracking branch, skip quick check."
+	elif $GIT_CLIENT -C "$EXISTING_REPO" diff --quiet HEAD @{u} -- VERSION; then
+		eval ". \"$CB_HOME/bin/include/read-version.sh\" ${EXISTING_REPO}/VERSION false"
+		CB_CUSTOM_CONFIG_VERSION="$versionNumber"
+		eval "$CB_HOME/bin/include/lock-unlock.sh" --unlock "$LOCKFILE"
+		return 0
+	else
+		[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Version: $($GIT_CLIENT -C "$EXISTING_REPO" show HEAD:VERSION) -> remote: $($GIT_CLIENT -C "$EXISTING_REPO" show @{u}:VERSION)"
+	fi
+fi
 
 # create temp path
 UPDATE_CB_CUSTOM_PATH="$CB_CUSTOM_CONFIG_PATH/unknown"
@@ -123,7 +140,7 @@ rm -rf "$UPDATE_CB_CUSTOM_PATH" >/dev/null 2>&1
 [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Check and update custom config from repository [$commonGradleBuildHomeGitUrl]."
 GIT_CB_CUSTOM_PATH="$UPDATE_CB_CUSTOM_PATH"
 [ "$CB_OS" = "cygwin" ] && GIT_CB_CUSTOM_PATH=$(cygpath.exe -w $GIT_CB_CUSTOM_PATH)
-if $GIT_CLIENT clone -q "$commonGradleBuildHomeGitUrl" "$GIT_CB_CUSTOM_PATH"; then
+if $GIT_CLIENT clone -q --depth 1 "$commonGradleBuildHomeGitUrl" "$GIT_CB_CUSTOM_PATH"; then
 	commonGradleBuildHomeUpdated=true
 else
 	updateError

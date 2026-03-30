@@ -60,6 +60,25 @@ set "credentialCheck=true"
 set "commonGradleBuildHomeUpdated=false"
 if .%CB_VERBOSE%==.true echo %CB_LINEHEADER%Valid access to [%commonGradleBuildHomeGitUrl%].
 
+:: quick check: compare VERSION file against remote to skip clone if unchanged
+set "EXISTING_REPO="
+for /d %%d in ("%CB_CUSTOM_CONFIG_PATH%\*") do if exist "%%d\.git" if not defined EXISTING_REPO set "EXISTING_REPO=%%d"
+if not defined EXISTING_REPO goto :QUICK_CHECK_END
+%GIT_CLIENT% -C "%EXISTING_REPO%" fetch origin > nul 2>&1
+%GIT_CLIENT% -C "%EXISTING_REPO%" rev-parse @{u} > nul 2>&1
+set "HAS_UPSTREAM=%ERRORLEVEL%"
+if %HAS_UPSTREAM% NEQ 0 if .%CB_VERBOSE%==.true echo %CB_LINEHEADER%No upstream tracking branch, skip quick check.
+if %HAS_UPSTREAM% NEQ 0 goto :QUICK_CHECK_END
+%GIT_CLIENT% -C "%EXISTING_REPO%" diff --quiet HEAD @{u} -- VERSION
+set "VERSION_CHANGED=%ERRORLEVEL%"
+if %VERSION_CHANGED% EQU 0 call %CB_HOME%\bin\include\read-version "%EXISTING_REPO%\VERSION" false
+if %VERSION_CHANGED% EQU 0 set "CB_CUSTOM_CONFIG_VERSION=%version.number%"
+if %VERSION_CHANGED% EQU 0 call "%CB_HOME%\bin\include\lock-unlock.bat" --unlock "%LOCKFILE%" & endlocal & ( set CB_CUSTOM_CONFIG_VERSION=%CB_CUSTOM_CONFIG_VERSION% ) & exit /b 0
+if .%CB_VERBOSE%==.true for /f %%i in ('%GIT_CLIENT% -C "%EXISTING_REPO%" show HEAD:VERSION') do set "LOCAL=%%i"
+if .%CB_VERBOSE%==.true for /f %%i in ('%GIT_CLIENT% -C "%EXISTING_REPO%" show @{u}:VERSION') do set "REMOTE=%%i"
+if .%CB_VERBOSE%==.true echo %CB_LINEHEADER%Version: %LOCAL% -^> remote: %REMOTE%
+:QUICK_CHECK_END
+
 :: create temp path
 set "UPDATE_CB_CUSTOM_PATH=%CB_CUSTOM_CONFIG_PATH%\unknown"
 mkdir "%UPDATE_CB_CUSTOM_PATH%" >nul 2>nul
@@ -69,7 +88,7 @@ mkdir "%UPDATE_CB_CUSTOM_PATH%" >nul 2>nul
 
 if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Check and update custom config from repository [%commonGradleBuildHomeGitUrl%].
 ::%GIT_CLIENT% clone -q %commonGradleBuildHomeGitUrl% "%UPDATE_CB_CUSTOM_PATH%"
-%GIT_CLIENT% clone -q %commonGradleBuildHomeGitUrl% "%UPDATE_CB_CUSTOM_PATH%"
+%GIT_CLIENT% clone -q --depth 1 %commonGradleBuildHomeGitUrl% "%UPDATE_CB_CUSTOM_PATH%"
 if %ERRORLEVEL% EQU 0 set "commonGradleBuildHomeUpdated=true" 
 
 if .%commonGradleBuildHomeUpdated%==.false call %CB_HOME%\bin\cb-deltree "%UPDATE_CB_CUSTOM_PATH%"

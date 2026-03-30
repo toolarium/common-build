@@ -19,12 +19,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set permissions
-        run: chmod -R +x bin/
-
       - name: Install common-build
         run: |
-          bash bin/cb-install
-          CB_HOME=$(ls -d $HOME/devtools/toolarium-common-build-* | head -1)
+          chmod -R +x bin/
+          CB_HOME=$GITHUB_WORKSPACE
+          mkdir -p "$CB_HOME/current"
           echo "CB_HOME=$CB_HOME" >> $GITHUB_ENV
           echo "$CB_HOME/bin" >> $GITHUB_PATH
 
@@ -101,13 +100,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set permissions
-        run: chmod -R +x bin/
-
       - name: Install common-build
         run: |
-          bash bin/cb-install
-          CB_HOME=$(ls -d $HOME/devtools/toolarium-common-build-* | head -1)
+          chmod -R +x bin/
+          CB_HOME=$GITHUB_WORKSPACE
+          mkdir -p "$CB_HOME/current"
           echo "CB_HOME=$CB_HOME" >> $GITHUB_ENV
           echo "CB_DEVTOOLS=$(dirname $CB_HOME)" >> $GITHUB_ENV
           echo "$CB_HOME/bin" >> $GITHUB_PATH
@@ -153,13 +150,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set permissions
-        run: chmod -R +x bin/
-
       - name: Install common-build
         run: |
-          bash bin/cb-install
-          CB_HOME=$(ls -d $HOME/devtools/toolarium-common-build-* | head -1)
+          chmod -R +x bin/
+          CB_HOME=$GITHUB_WORKSPACE
+          mkdir -p "$CB_HOME/current"
           echo "CB_HOME=$CB_HOME" >> $GITHUB_ENV
           echo "CB_DEVTOOLS=$(dirname $CB_HOME)" >> $GITHUB_ENV
           echo "$CB_HOME/bin" >> $GITHUB_PATH
@@ -187,12 +182,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set permissions
-        run: chmod -R +x bin/
-
       - name: Install common-build
         run: |
-          bash bin/cb-install
-          CB_HOME=$(ls -d $HOME/devtools/toolarium-common-build-* | head -1)
+          chmod -R +x bin/
+          CB_HOME=$GITHUB_WORKSPACE
+          mkdir -p "$CB_HOME/current"
           echo "CB_HOME=$CB_HOME" >> $GITHUB_ENV
           echo "$CB_HOME/bin" >> $GITHUB_PATH
 
@@ -224,13 +218,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set permissions
-        run: chmod -R +x bin/
-
       - name: Install common-build
         run: |
-          bash bin/cb-install
-          CB_HOME=$(ls -d $HOME/devtools/toolarium-common-build-* | head -1)
+          chmod -R +x bin/
+          CB_HOME=$GITHUB_WORKSPACE
+          mkdir -p "$CB_HOME/current"
           echo "CB_HOME=$CB_HOME" >> $GITHUB_ENV
           echo "CB_DEVTOOLS=$(dirname $CB_HOME)" >> $GITHUB_ENV
           echo "$CB_HOME/bin" >> $GITHUB_PATH
@@ -362,7 +354,7 @@ jobs:
         run: |
           mkdir %TEMP%\test-projects
           cd %TEMP%\test-projects
-          call cb --new 1 my-test-project my.rootpackage.name my my "The test project."
+          call cb --new 1 my-test-project my.rootpackage.name my my my-test-project
           if not exist "%TEMP%\test-projects\my-test-project" exit /b 1
 
   #######################################################################
@@ -556,11 +548,10 @@ jobs:
           call cb --setenv | findstr /C:"Add java to path"
           call cb --setenv | findstr /C:"Add gradle to path"
 
-      - name: Create and build a Gradle project
+      - name: Create a new Gradle project
         shell: cmd
         run: |
           mkdir %TEMP%\test-projects
           cd %TEMP%\test-projects
-          call cb --new 1 my-test-project my.rootpackage.name my my "The test project."
-          cd %TEMP%\test-projects\my-test-project
-          call cb
+          call cb --new 1 my-test-project my.rootpackage.name my my my-test-project
+          if not exist "%TEMP%\test-projects\my-test-project" exit /b 1
