@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>common-build</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; line-height: 1.6; max-width: 960px; margin: 0 auto; padding: 2rem; color: #24292e; }
+  h1 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+  h2 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; margin-top: 1.5em; }
+  h3 { margin-top: 1.2em; }
+  code { background: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-size: 85%; }
+  pre { background: #f6f8fa; padding: 1em; border-radius: 6px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #dfe2e5; padding: 6px 13px; text-align: left; }
+  th { background: #f6f8fa; font-weight: 600; }
+  tr:nth-child(even) { background: #f6f8fa; }
+  a { color: #0366d6; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .header { display: flex; align-items: flex-start; justify-content: space-between; }
+  .header img { margin-left: 1em; }
+  .badge img { vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<div class="header">
+<div>
+<h1>common-build</h1>
+<p class="badge"><a href="https://opensource.org/licenses/GPL-3.0"><img src="https://img.shields.io/github/license/toolarium/common-build" alt="License"></a></p>
+</div>
+<img height="110" src="docs/logo/common-build-icon.png" alt="common-build logo">
+</div>
+
+<p>The common-build project has the goal to simplify the development environment setup. It works for the main environment such as Linux, Windows and Mac.
+It can be used as a &quot;transparent&quot; wrapper of the most common build tools such as Gradle, Maven or Ant.</p>
+
+<p>It simplifies additional the installation of tools e.g. java versions. All software will be installed in a so called &quot;devtools&quot; directory. All settings you can overwrite
+by corresponding environment variables.</p>
+
+<h2>Installing common-build</h2>
+
+<h3>Using script to install the latest release</h3>
+
+<p><strong>Windows</strong></p>
+
+<p>Install the latest windows cli to <code>c:\devtools</code> and add this directory to User PATH environment variable.</p>
+
+<pre><code>powershell -Command "iwr https://git.io/JJenc -OutFile ${env:TEMP}/cb-install.bat" &amp; %TEMP%\cb-install.bat</code></pre>
+
+<p>or with full link</p>
+
+<pre><code>powershell -Command "iwr https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install.bat -OutFile ${env:TEMP}/cb-install.bat" &amp; %TEMP%\cb-install.bat</code></pre>
+
+<p>The common-build supports also cygwin. Please just use the Linux installation.
+Currently only Windows 10 is properly tested.</p>
+
+<p><strong>Linux</strong></p>
+
+<p>Install the latest linux cli to <code>$HOME/devtools</code></p>
+
+<pre><code>curl -fsSL https://git.io/JJezw | /bin/bash</code></pre>
+
+<p>or with full link</p>
+
+<pre><code>curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash</code></pre>
+
+<p>Currently it's tested on debian, ubuntu, centos and fedora.</p>
+
+<p><strong>MacOS</strong> (please support me for testing)</p>
+
+<p>Install the latest mac cli to <code>$HOME/devtools</code></p>
+
+<pre><code>curl -fsSL https://git.io/JJezw | /bin/bash</code></pre>
+
+<p>or with full link</p>
+
+<pre><code>curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash</code></pre>
+
+<p>Currently it's not final tested.</p>
+
+<h2>Usage</h2>
+
+<pre><code>cb [OPTION] [build-arguments...]</code></pre>
+
+<p>When called without options (or with build arguments only), <code>cb</code> sets up the required tools and executes the project build (Gradle, Maven, or Ant) found in the current directory.</p>
+
+<h2>Options</h2>
+
+<table>
+<thead>
+<tr><th>Option</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>-h</code>, <code>--help</code></td><td>Show the help message.</td></tr>
+<tr><td><code>-v</code>, <code>--version</code></td><td>Print version information and installed tool versions.</td></tr>
+<tr><td><code>--new</code></td><td>Create a new project via an interactive wizard. Settings can be prefilled, e.g. <code>--new 1 my-project my.root.pkg my my</code>.</td></tr>
+<tr><td><code>--java [version]</code></td><td>Override the Java version for this run, e.g. <code>--java 17</code>.</td></tr>
+<tr><td><code>--install [pkg] [version]</code></td><td>Install a software package. Uses the default version from <code>tool-version-default.properties</code> unless a version is specified. Add <code>-d</code> or <code>--default</code> to mark the installed version as the default.</td></tr>
+<tr><td><code>--packages</code></td><td>List all supported packages.</td></tr>
+<tr><td><code>--setenv</code></td><td>Set all internal environment variables (adds installed tools to <code>PATH</code>).</td></tr>
+<tr><td><code>--update</code></td><td>Update the custom config. Can be combined with <code>--force</code>.</td></tr>
+<tr><td><code>-exp</code>, <code>--explore</code></td><td>Open the file explorer at the current path.</td></tr>
+<tr><td><code>--silent</code></td><td>Suppress console output from common-build.</td></tr>
+<tr><td><code>--force</code></td><td>Force a fresh installation (re-download and re-extract).</td></tr>
+<tr><td><code>--offline</code></td><td>Use offline mode (normally auto-detected).</td></tr>
+<tr><td><code>--verbose</code></td><td>Enable verbose output.</td></tr>
+<tr><td><code>--default</code></td><td>Mark an installed package version as the default.</td></tr>
+</tbody>
+</table>
+
+<h2>Supported Packages</h2>
+
+<p>The following packages can be installed via <code>cb --install &lt;package&gt;</code>:</p>
+
+<table>
+<thead>
+<tr><th>Package</th><th>Default Version</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>ant</td><td>1.10.15</td><td>Apache Ant build tool</td></tr>
+<tr><td>btrace</td><td>2.2.6</td><td>BTrace dynamic tracing tool</td></tr>
+<tr><td>eclipse</td><td>2026-03</td><td>Eclipse IDE (JEE package)</td></tr>
+<tr><td>flutter</td><td>3.41.6</td><td>Flutter SDK</td></tr>
+<tr><td>gaiden</td><td>1.3</td><td>Gaiden documentation tool</td></tr>
+<tr><td>gradle</td><td>8.13</td><td>Gradle build tool</td></tr>
+<tr><td>groovy</td><td>4.0.31</td><td>Apache Groovy</td></tr>
+<tr><td>intellij</td><td>2025.2.6.1</td><td>IntelliJ IDEA</td></tr>
+<tr><td>java</td><td>21</td><td>Java JDK</td></tr>
+<tr><td>jmeter</td><td>5.6.3</td><td>Apache JMeter</td></tr>
+<tr><td>maven</td><td>3.9.14</td><td>Apache Maven</td></tr>
+<tr><td>micronaut</td><td>4.10.10</td><td>Micronaut framework CLI</td></tr>
+<tr><td>node</td><td>24.14.1</td><td>Node.js</td></tr>
+<tr><td>python</td><td>3.13.12</td><td>Python</td></tr>
+<tr><td>rust</td><td></td><td>Rust toolchain</td></tr>
+<tr><td>sbt</td><td>1.12.8</td><td>Scala Build Tool</td></tr>
+<tr><td>trivy</td><td>0.69.3</td><td>Trivy security scanner</td></tr>
+<tr><td>visualvm</td><td>2.2.1</td><td>VisualVM profiler</td></tr>
+<tr><td>vscode</td><td>1.113.0</td><td>Visual Studio Code</td></tr>
+</tbody>
+</table>
+
+<p>Windows-only packages: <code>git</code>, <code>npp</code> (Notepad++), <code>multicommander</code>, <code>winmerge</code>, <code>wt</code> (Windows Terminal), <code>scoop</code>, <code>docker</code>, <code>postman</code>, <code>insomnia</code>, <code>squirrel</code>, <code>rangerdesktop</code>.</p>
+
+<h2>Examples</h2>
+
+<p>Run a build:</p>
+<pre><code>cb</code></pre>
+
+<p>Run a build with a specific Java version:</p>
+<pre><code>cb --java 17</code></pre>
+
+<p>Install a package:</p>
+<pre><code>cb --install gradle</code></pre>
+
+<p>Install a specific version and set it as default:</p>
+<pre><code>cb --install gradle 8.12 --default</code></pre>
+
+<p>Set up environment (add tools to PATH):</p>
+<pre><code># In .bashrc / .zshrc:
+export PATH="${PATH}:$(cb --setenv | sed 's/^.*(//;s/).*//g' | xargs | sed 's/ /:/g')"</code></pre>
+
+<p>List available packages:</p>
+<pre><code>cb --packages</code></pre>
+
+<p>Create a new project:</p>
+<pre><code>cb --new</code></pre>
+
+<h2>Environment Variables</h2>
+
+<table>
+<thead>
+<tr><th>Variable</th><th>Description</th><th>Default</th></tr>
+</thead>
+<tbody>
+<tr><td><code>CB_DEVTOOLS</code></td><td>Root directory for all dev tools.</td><td><code>$HOME/devtools</code> (Linux/macOS), <code>c:\devtools</code> (Windows)</td></tr>
+<tr><td><code>CB_HOME</code></td><td>Common-build installation directory.</td><td><code>$CB_DEVTOOLS/toolarium-common-build-v&lt;version&gt;</code></td></tr>
+<tr><td><code>CB_CUSTOM_CONFIG</code></td><td>Git URL to a custom config project for full customization.</td><td></td></tr>
+<tr><td><code>CB_CUSTOM_SETTING</code></td><td>Path to a custom hook script called during all operations. See <code>$CB_HOME/bin/sample/cb-custom-sample.sh</code>.</td><td></td></tr>
+<tr><td><code>CB_PACKAGE_URL</code></td><td>URL to a directory of additional package zip files.</td><td></td></tr>
+<tr><td><code>CB_PACKAGE_USER</code></td><td>Username for accessing <code>CB_PACKAGE_URL</code>.</td><td></td></tr>
+<tr><td><code>CB_PACKAGE_PASSWORD</code></td><td>Password for <code>CB_PACKAGE_URL</code>. Set to <code>ask</code> for interactive prompt.</td><td></td></tr>
+</tbody>
+</table>
+
+<h2>Special Files</h2>
+
+<table>
+<thead>
+<tr><th>File</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>.java-version</code></td><td>Place in a project root to pin a specific Java version (e.g. <code>11</code>).</td></tr>
+<tr><td><code>conf/tool-version-default.properties</code></td><td>Default versions for all tools.</td></tr>
+<tr><td><code>conf/tool-version-installed.properties</code></td><td>Tracks currently installed tool versions.</td></tr>
+</tbody>
+</table>
+
+<h2>Customization</h2>
+
+<h3>Custom Hook Script</h3>
+
+<p>Set <code>CB_CUSTOM_SETTING</code> to point to a shell script that will be called at various lifecycle hooks: <code>start</code>, <code>build-start</code>, <code>build-end</code>, <code>install-start</code>, <code>install-end</code>, <code>setenv-start</code>, <code>setenv-end</code>, <code>error-end</code>, and more. See <code>$CB_HOME/bin/sample/cb-custom-sample.sh</code> for a template.</p>
+
+<h3>Custom Config Project</h3>
+
+<p>For organization-wide customization, create a Custom Config Home project (<code>cb --new</code>, select the config template). Publish it as a git repository and set <code>CB_CUSTOM_CONFIG</code> to the git URL. Common-build checks for updates daily and applies the configuration automatically.</p>
+
+<p>Alternatively, add the git URL to the file <code>$HOME/.common-build/conf/custom-config.properties</code>.</p>
+
+<hr>
+<p><small>GNU General Public License v3.0 &mdash; see <a href="http://www.gnu.org/licenses/">LICENSE</a> for details.</small></p>
+
+</body>
+</html>

@@ -23,7 +23,7 @@
 #
 #########################################################################
 
-[ -z "$CB_TRIVY_VERSION" ] && CB_TRIVY_VERSION=0.69.2
+[ -z "$CB_TRIVY_VERSION" ] && CB_TRIVY_VERSION=0.69.3
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_TRIVY_VERSION
 CB_PACKAGE_BASE_URL="https://github.com/aquasecurity/trivy/releases/download/v$CB_PACKAGE_VERSION"

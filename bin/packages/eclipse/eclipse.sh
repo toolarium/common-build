@@ -24,7 +24,7 @@
 #########################################################################
 
 eclipseFilter=
-[ -z "$CB_ECLIPSE_VERSION" ] && CB_ECLIPSE_VERSION="2023-12 jee-package"
+[ -z "$CB_ECLIPSE_VERSION" ] && CB_ECLIPSE_VERSION="2026-03 jee-package"
 #[ -z "$CB_ECLIPSE_RELEASE_VERSION" ] && CB_ECLIPSE_RELEASE_VERSION="r"
 CB_PACKAGE_VERSION="$1"
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION="${CB_ECLIPSE_VERSION% *}"

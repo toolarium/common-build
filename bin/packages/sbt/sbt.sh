@@ -24,7 +24,7 @@
 #########################################################################
 
 
-[ -z "$CB_SBT_VERSION" ] && CB_SBT_VERSION=1.9.7
+[ -z "$CB_SBT_VERSION" ] && CB_SBT_VERSION=1.12.8
 CB_PACKAGE_VERSION=$1
 [ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION=$CB_SBT_VERSION
 CB_PACKAGE_BASE_URL="https://github.com/sbt/sbt/releases/download/v$CB_PACKAGE_VERSION"

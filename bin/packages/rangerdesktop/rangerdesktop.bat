@@ -23,7 +23,7 @@
 ::
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-if not defined CB_RANGER_VERSION set "CB_RANGER_VERSION=1.11.1"
+if not defined CB_RANGER_VERSION set "CB_RANGER_VERSION=1.22.0"
 set "CB_PACKAGE_VERSION=%1"
 if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_RANGER_VERSION%"
 set "CB_PACKAGE_BASE_URL=https://github.com/rancher-sandbox/rancher-desktop/releases/download/v%CB_PACKAGE_VERSION%/"
