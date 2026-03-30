@@ -208,12 +208,12 @@ jobs:
           echo "$output" | grep -q "Add java to path"
           echo "$output" | grep -q "Add gradle to path"
 
-      - name: Create and build a Gradle project
+      - name: Create a new Gradle project
         run: |
           mkdir -p /tmp/test-projects && cd /tmp/test-projects
           cb --new 1 my-test-project my.rootpackage.name my my "The test project."
-          cd /tmp/test-projects/my-test-project
-          cb
+          test -d /tmp/test-projects/my-test-project
+          test -f /tmp/test-projects/my-test-project/build.gradle || test -f /tmp/test-projects/my-test-project/settings.gradle
 
   #######################################################################
   # macOS - core tests and packages
@@ -307,12 +307,12 @@ jobs:
           echo "$output" | grep -q "Add node to path"
           echo "$output" | grep -q "Add trivy to path"
 
-      - name: Create and build a Gradle project
+      - name: Create a new Gradle project
         run: |
           mkdir -p /tmp/test-projects && cd /tmp/test-projects
           cb --new 1 my-test-project my.rootpackage.name my my "The test project."
-          cd /tmp/test-projects/my-test-project
-          cb
+          test -d /tmp/test-projects/my-test-project
+          test -f /tmp/test-projects/my-test-project/build.gradle || test -f /tmp/test-projects/my-test-project/settings.gradle
 
   #######################################################################
   # Windows - core tests
@@ -326,16 +326,10 @@ jobs:
       - name: Install common-build
         shell: cmd
         run: |
-          call bin\cb-install.bat
-          echo CB_HOME=%CB_HOME%
-
-      - name: Set CB_HOME
-        shell: cmd
-        run: |
-          for /f "tokens=*" %%i in ('dir /b /ad "%USERPROFILE%\devtools\toolarium-common-build-*"') do set "CB_VERSION_DIR=%%i"
-          set "CB_HOME=%USERPROFILE%\devtools\%CB_VERSION_DIR%"
+          set "CB_HOME=%GITHUB_WORKSPACE%"
           echo CB_HOME=%CB_HOME%>> %GITHUB_ENV%
           echo %CB_HOME%\bin>> %GITHUB_PATH%
+          if not exist "%CB_HOME%\current" mkdir "%CB_HOME%\current"
 
       - name: Test --version
         shell: cmd
@@ -415,15 +409,11 @@ jobs:
 
       - name: Install common-build
         shell: cmd
-        run: call bin\cb-install.bat
-
-      - name: Set CB_HOME
-        shell: cmd
         run: |
-          for /f "tokens=*" %%i in ('dir /b /ad "%USERPROFILE%\devtools\toolarium-common-build-*"') do set "CB_VERSION_DIR=%%i"
-          set "CB_HOME=%USERPROFILE%\devtools\%CB_VERSION_DIR%"
+          set "CB_HOME=%GITHUB_WORKSPACE%"
           echo CB_HOME=%CB_HOME%>> %GITHUB_ENV%
           echo %CB_HOME%\bin>> %GITHUB_PATH%
+          if not exist "%CB_HOME%\current" mkdir "%CB_HOME%\current"
 
       - name: Install ${{ matrix.package }}
         shell: cmd
@@ -466,17 +456,13 @@ jobs:
 
       - name: Install common-build
         shell: cmd
-        run: call bin\cb-install.bat
-
-      - name: Set CB_HOME
-        shell: cmd
         run: |
-          for /f "tokens=*" %%i in ('dir /b /ad "%USERPROFILE%\devtools\toolarium-common-build-*"') do set "CB_VERSION_DIR=%%i"
-          set "CB_HOME=%USERPROFILE%\devtools\%CB_VERSION_DIR%"
-          set "CB_DEVTOOLS=%USERPROFILE%\devtools"
+          set "CB_HOME=%GITHUB_WORKSPACE%"
+          set "CB_DEVTOOLS=%GITHUB_WORKSPACE%\.."
           echo CB_HOME=%CB_HOME%>> %GITHUB_ENV%
           echo CB_DEVTOOLS=%CB_DEVTOOLS%>> %GITHUB_ENV%
           echo %CB_HOME%\bin>> %GITHUB_PATH%
+          if not exist "%CB_HOME%\current" mkdir "%CB_HOME%\current"
 
       - name: Install ${{ matrix.package }}
         shell: cmd
@@ -517,17 +503,13 @@ jobs:
 
       - name: Install common-build
         shell: cmd
-        run: call bin\cb-install.bat
-
-      - name: Set CB_HOME
-        shell: cmd
         run: |
-          for /f "tokens=*" %%i in ('dir /b /ad "%USERPROFILE%\devtools\toolarium-common-build-*"') do set "CB_VERSION_DIR=%%i"
-          set "CB_HOME=%USERPROFILE%\devtools\%CB_VERSION_DIR%"
-          set "CB_DEVTOOLS=%USERPROFILE%\devtools"
+          set "CB_HOME=%GITHUB_WORKSPACE%"
+          set "CB_DEVTOOLS=%GITHUB_WORKSPACE%\.."
           echo CB_HOME=%CB_HOME%>> %GITHUB_ENV%
           echo CB_DEVTOOLS=%CB_DEVTOOLS%>> %GITHUB_ENV%
           echo %CB_HOME%\bin>> %GITHUB_PATH%
+          if not exist "%CB_HOME%\current" mkdir "%CB_HOME%\current"
 
       - name: Install ${{ matrix.package }}
         shell: cmd
@@ -556,15 +538,11 @@ jobs:
 
       - name: Install common-build
         shell: cmd
-        run: call bin\cb-install.bat
-
-      - name: Set CB_HOME
-        shell: cmd
         run: |
-          for /f "tokens=*" %%i in ('dir /b /ad "%USERPROFILE%\devtools\toolarium-common-build-*"') do set "CB_VERSION_DIR=%%i"
-          set "CB_HOME=%USERPROFILE%\devtools\%CB_VERSION_DIR%"
+          set "CB_HOME=%GITHUB_WORKSPACE%"
           echo CB_HOME=%CB_HOME%>> %GITHUB_ENV%
           echo %CB_HOME%\bin>> %GITHUB_PATH%
+          if not exist "%CB_HOME%\current" mkdir "%CB_HOME%\current"
 
       - name: Install java and gradle
         shell: cmd

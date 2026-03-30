@@ -123,7 +123,7 @@ existBinary() {
 
 	if [ "$CB_HAS_WHEREIS" = "true" ]; then
 		if [ "$CB_OS" = "mac" ]; then
-			result=$(whereis "$1" 2>/dev/null)
+			result=$(whereis "$1" 2>/dev/null | awk '{print $2}')
 		else
 			result=$(whereis -b "$1" 2>/dev/null | awk '{print $2}')
 		fi
