@@ -24,36 +24,30 @@ jobs:
       - name: Install common-build
         run: |
           bash bin/cb-install
-          . ~/.bashrc
+          CB_HOME=$(ls -d $HOME/devtools/toolarium-common-build-* | head -1)
           echo "CB_HOME=$CB_HOME" >> $GITHUB_ENV
           echo "$CB_HOME/bin" >> $GITHUB_PATH
 
       - name: Test --version
         run: |
-          . ~/.bashrc
           cb --version
           cb --version | grep -q "toolarium common build"
 
       - name: Test --help
         run: |
-          . ~/.bashrc
           cb --help
           cb --help | grep -q "usage:"
 
       - name: Test --packages
         run: |
-          . ~/.bashrc
           cb --packages
           cb --packages | grep -q "Available packages"
 
       - name: Test --setenv
-        run: |
-          . ~/.bashrc
-          cb --setenv
+        run: cb --setenv
 
       - name: Test --setenv --silent
         run: |
-          . ~/.bashrc
           output=$(cb --setenv --silent 2>&1)
           if [ -n "$output" ]; then
             echo "WARN: --setenv --silent produced output: $output"
@@ -61,7 +55,6 @@ jobs:
 
       - name: Create a new project (Gradle)
         run: |
-          . ~/.bashrc
           mkdir -p /tmp/test-projects && cd /tmp/test-projects
           cb --new 1 my-test-project my.rootpackage.name my my "The test project."
           test -f /tmp/test-projects/my-test-project/build.gradle || test -f /tmp/test-projects/my-test-project/settings.gradle
@@ -114,19 +107,17 @@ jobs:
       - name: Install common-build
         run: |
           bash bin/cb-install
-          . ~/.bashrc
+          CB_HOME=$(ls -d $HOME/devtools/toolarium-common-build-* | head -1)
           echo "CB_HOME=$CB_HOME" >> $GITHUB_ENV
           echo "CB_DEVTOOLS=$(dirname $CB_HOME)" >> $GITHUB_ENV
           echo "$CB_HOME/bin" >> $GITHUB_PATH
 
       - name: Install ${{ matrix.package }}
         run: |
-          . ~/.bashrc
           cb --install ${{ matrix.package }} --default
 
       - name: Verify ${{ matrix.package }} installed
         run: |
-          . ~/.bashrc
           if [ "${{ matrix.verify_current }}" = "true" ]; then
             echo "Checking $CB_HOME/current/${{ matrix.package }}..."
             test -d "$CB_HOME/current/${{ matrix.package }}" || test -L "$CB_HOME/current/${{ matrix.package }}"
@@ -136,7 +127,6 @@ jobs:
       - name: Verify ${{ matrix.package }} in --setenv
         if: matrix.verify_current
         run: |
-          . ~/.bashrc
           cb --setenv | grep -qi "${{ matrix.package }}"
 
   #######################################################################
@@ -169,19 +159,17 @@ jobs:
       - name: Install common-build
         run: |
           bash bin/cb-install
-          . ~/.bashrc
+          CB_HOME=$(ls -d $HOME/devtools/toolarium-common-build-* | head -1)
           echo "CB_HOME=$CB_HOME" >> $GITHUB_ENV
           echo "CB_DEVTOOLS=$(dirname $CB_HOME)" >> $GITHUB_ENV
           echo "$CB_HOME/bin" >> $GITHUB_PATH
 
       - name: Install ${{ matrix.package }}
         run: |
-          . ~/.bashrc
           cb --install ${{ matrix.package }}
 
       - name: Verify ${{ matrix.package }} installed
         run: |
-          . ~/.bashrc
           echo "Checking for ${{ matrix.verify_dir }}* in $CB_DEVTOOLS..."
           ls -d $CB_DEVTOOLS/${{ matrix.verify_dir }}* 2>/dev/null
           test -n "$(ls -d $CB_DEVTOOLS/${{ matrix.verify_dir }}* 2>/dev/null)" || \
@@ -204,19 +192,17 @@ jobs:
       - name: Install common-build
         run: |
           bash bin/cb-install
-          . ~/.bashrc
+          CB_HOME=$(ls -d $HOME/devtools/toolarium-common-build-* | head -1)
           echo "CB_HOME=$CB_HOME" >> $GITHUB_ENV
           echo "$CB_HOME/bin" >> $GITHUB_PATH
 
       - name: Install java and gradle
         run: |
-          . ~/.bashrc
           cb --install java --default
           cb --install gradle --default
 
       - name: Verify tools via --setenv
         run: |
-          . ~/.bashrc
           output=$(cb --setenv 2>&1)
           echo "$output"
           echo "$output" | grep -q "Add java to path"
@@ -224,7 +210,6 @@ jobs:
 
       - name: Create and build a Gradle project
         run: |
-          . ~/.bashrc
           mkdir -p /tmp/test-projects && cd /tmp/test-projects
           cb --new 1 my-test-project my.rootpackage.name my my "The test project."
           cd /tmp/test-projects/my-test-project
@@ -245,89 +230,75 @@ jobs:
       - name: Install common-build
         run: |
           bash bin/cb-install
-          . ~/.bashrc
+          CB_HOME=$(ls -d $HOME/devtools/toolarium-common-build-* | head -1)
           echo "CB_HOME=$CB_HOME" >> $GITHUB_ENV
           echo "CB_DEVTOOLS=$(dirname $CB_HOME)" >> $GITHUB_ENV
           echo "$CB_HOME/bin" >> $GITHUB_PATH
 
       - name: Test --version
         run: |
-          . ~/.bashrc
           cb --version
           cb --version | grep -q "toolarium common build"
 
       - name: Test --help
         run: |
-          . ~/.bashrc
           cb --help | grep -q "usage:"
 
       - name: Test --packages
         run: |
-          . ~/.bashrc
           cb --packages | grep -q "Available packages"
 
       - name: Test --setenv
         run: |
-          . ~/.bashrc
           cb --setenv
 
       - name: Install java
         run: |
-          . ~/.bashrc
           cb --install java --default
           test -d "$CB_HOME/current/java" || test -L "$CB_HOME/current/java"
 
       - name: Install gradle
         run: |
-          . ~/.bashrc
           cb --install gradle --default
           test -d "$CB_HOME/current/gradle" || test -L "$CB_HOME/current/gradle"
 
       - name: Install maven
         run: |
-          . ~/.bashrc
           cb --install maven --default
           test -d "$CB_HOME/current/maven" || test -L "$CB_HOME/current/maven"
 
       - name: Install node
         run: |
-          . ~/.bashrc
           cb --install node --default
           test -d "$CB_HOME/current/node" || test -L "$CB_HOME/current/node"
 
       - name: Install ant
         run: |
-          . ~/.bashrc
           cb --install ant --default
           test -d "$CB_HOME/current/ant" || test -L "$CB_HOME/current/ant"
 
       - name: Install groovy
         run: |
-          . ~/.bashrc
           cb --install groovy --default
           test -d "$CB_HOME/current/groovy" || test -L "$CB_HOME/current/groovy"
 
       - name: Install trivy
         run: |
-          . ~/.bashrc
           cb --install trivy --default
           test -d "$CB_HOME/current/trivy" || test -L "$CB_HOME/current/trivy"
 
       - name: Install micronaut
         run: |
-          . ~/.bashrc
           cb --install micronaut --default
           test -d "$CB_HOME/current/micronaut" || test -L "$CB_HOME/current/micronaut"
 
       - name: Install sbt
         run: |
-          . ~/.bashrc
           cb --install sbt --default
           test -d "$CB_HOME/current/sbt" || test -L "$CB_HOME/current/sbt"
 
       - name: Verify --setenv adds installed tools
         run: |
-          . ~/.bashrc
           output=$(cb --setenv 2>&1)
           echo "$output"
           echo "$output" | grep -q "Add java to path"
@@ -338,7 +309,6 @@ jobs:
 
       - name: Create and build a Gradle project
         run: |
-          . ~/.bashrc
           mkdir -p /tmp/test-projects && cd /tmp/test-projects
           cb --new 1 my-test-project my.rootpackage.name my my "The test project."
           cd /tmp/test-projects/my-test-project
