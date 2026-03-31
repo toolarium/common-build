@@ -3,61 +3,46 @@
 
 <img align="right" height="110" src="docs/logo/common-build-icon.png">
 
-The common-build project has the goal to simplify the development environment setup. It works for the main environment such as Linux, Windows and Mac.
-It can be used as a "transparent" wrapper of the most common build tools such as Gradle, Maven or Ant.
+The common-build project simplifies the development environment setup across Linux, MacOS and Windows.
+It acts as a transparent wrapper for common build tools such as Gradle, Maven or Ant, and manages the installation of developer tools like Java, Node, Python, Trivy and many more. All software is installed into a local "devtools" directory, and all settings can be overridden via environment variables.
 
-It simplifies additional the installation of tools e.g. java versions. All software will be installed in a so called "devtools" directory. All settings you can overwrite
-by corresponding environment variables.
+Key features:
 
+- **Tool management** — Install, update and switch between versions of developer tools with a single command (`cb --install`). Use `cb --setenv` to add all managed tools to your PATH.
+- **Build execution** — Run project builds transparently through Gradle, Maven or Ant without manual setup.
+- **[Project wizard](docs/project-wizard.md)** — Scaffold new projects interactively with `cb --new`, supporting multiple project types (Java, Node/React/Vue/Nuxt, Kubernetes, OpenAPI, and more).
+- **[Organization config](docs/organization-config.md)** — Centralize tool versions, project templates, naming conventions and lifecycle hooks in a Git repository for consistent corporate-wide developer environments.
+- **Self-update** — Keep common-build itself up to date with `cb --install cb`.
 
 
 ## Installing common-build
 
 ### Using script to install the latest release
 
+**Linux / MacOS**
+
+Install the latest cli to `$HOME/devtools`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash
+```
+
+Alternatively, download [`cb-install`](https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install) manually and run it with `/bin/bash cb-install`.
+
+Tested on debian, ubuntu, centos and fedora. MacOS is not yet fully tested.
+
 **Windows**
 
-Install the latest windows cli to `c:\devtools` and add this directory to User PATH environment variable.
+Install the latest cli to `c:\devtools` and add this directory to the User PATH environment variable:
 
-```powershell
-powershell -Command "iwr https://git.io/JJenc -OutFile ${env:TEMP}/cb-install.bat" & %TEMP%\cb-install.bat
-```
-or with full link
 ```powershell
 powershell -Command "iwr https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install.bat -OutFile ${env:TEMP}/cb-install.bat" & %TEMP%\cb-install.bat
 ```
-The common-build supports also cygwin. Please just use the Linux installation.
+
+Alternatively, download [`cb-install.bat`](https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install.bat) manually and run it.
+
+The common-build also supports cygwin — use the Linux installation for that.
 Currently only Windows 10 is properly tested.
-
-
-**Linux**
-
-Install the latest linux cli to `$HOME/devtools`
-
-```bash
-curl -fsSL https://git.io/JJezw | /bin/bash
-```
-
-or with full link
-```bash
-curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash
-```
-Currenlty it's tested on debian, ubuntu, centos and fedora.
-
-**MacOS** (please support me for testing)
-
-Install the latest mac cli to `$HOME/devtools`
-
-```bash
-curl -fsSL https://git.io/JJezw | /bin/bash
-```
-
-or with full link
-```bash
-curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash
-```
-
-Currently it's not final tested.
 
 
 ## Usage
@@ -79,7 +64,7 @@ When called without options (or with build arguments only), `cb` sets up the req
 | `--java [version]` | Override the Java version for this run, e.g. `--java 17`. |
 | `--install [pkg] [version]` | Install a software package. Uses the default version from `tool-version-default.properties` unless a version is specified. Add `-d` or `--default` to mark the installed version as the default. |
 | `--packages` | List all supported packages. |
-| `--setenv` | Set all internal environment variables (adds installed tools to `PATH`). |
+| `--setenv` | Set all internal environment variables (adds installed tools to `PATH`). This is the recommended way to make all managed tools available on the command line. It adds tools like git, node, java, maven, gradle, python, trivy, ant and others to the current `PATH`. |
 | `--update` | Update the custom config. Can be combined with `--force`. |
 | `-exp`, `--explore` | Open the file explorer at the current path. |
 | `--silent` | Suppress console output from common-build. |
@@ -95,27 +80,32 @@ The following packages can be installed via `cb --install <package>`:
 
 | Package | Default Version | Description |
 |---|---|---|
-| ant | 1.10.15 | Apache Ant build tool |
-| btrace | 2.2.6 | BTrace dynamic tracing tool |
-| eclipse | 2026-03 | Eclipse IDE (JEE package) |
-| flutter | 3.41.5 | Flutter SDK |
-| gaiden | 1.3 | Gaiden documentation tool |
-| gradle | 8.13 | Gradle build tool |
-| groovy | 4.0.31 | Apache Groovy |
-| intellij | 2025.2.6.1 | IntelliJ IDEA |
-| java | 21 | Java JDK |
-| jmeter | 5.6.3 | Apache JMeter |
-| maven | 3.9.14 | Apache Maven |
-| micronaut | 4.10.18 | Micronaut framework CLI |
-| node | 24.14.1 | Node.js |
-| python | 3.13.12 | Python |
-| rust | | Rust toolchain |
-| sbt | 1.12.8 | Scala Build Tool |
-| trivy | 0.69.3 | Trivy security scanner |
-| visualvm | 2.2.1 | VisualVM profiler |
-| vscode | 1.113.0 | Visual Studio Code |
+| [ant](https://ant.apache.org/) | 1.10.15 | Apache Ant build tool |
+| [btrace](https://github.com/btraceio/btrace) | 2.2.6 | BTrace dynamic tracing tool |
+| [docker](https://www.docker.com/) | | Docker |
+| [eclipse](https://www.eclipse.org/) | 2026-03 | Eclipse IDE (JEE package) |
+| [flutter](https://flutter.dev/) | 3.41.5 | Flutter SDK |
+| [gaiden](https://github.com/kobo/gaiden) | 1.3 | Gaiden documentation tool |
+| [gradle](https://gradle.org/) | 8.13 | Gradle build tool |
+| [groovy](https://groovy-lang.org/) | 4.0.31 | Apache Groovy |
+| [insomnia](https://insomnia.rest/) | | Insomnia API client |
+| [intellij](https://www.jetbrains.com/idea/) | 2025.2.6.1 | IntelliJ IDEA |
+| [java](https://adoptium.net/) | 21 | Java JDK |
+| [jmeter](https://jmeter.apache.org/) | 5.6.3 | Apache JMeter |
+| [maven](https://maven.apache.org/) | 3.9.14 | Apache Maven |
+| [micronaut](https://micronaut.io/) | 4.10.18 | Micronaut framework CLI |
+| [mucommander](https://www.mucommander.com/) | 1.6.0-1 | muCommander file manager |
+| [node](https://nodejs.org/) | 24.14.1 | Node.js |
+| [postman](https://www.postman.com/) | | Postman API client |
+| [python](https://www.python.org/) | 3.13.12 | Python |
+| [rust](https://www.rust-lang.org/) | | Rust toolchain |
+| [sbt](https://www.scala-sbt.org/) | 1.12.8 | Scala Build Tool |
+| [squirrel](https://squirrel-sql.sourceforge.io/) | 5.1.0 | SQuirreL SQL Client |
+| [trivy](https://trivy.dev/) | 0.69.3 | Trivy security scanner |
+| [visualvm](https://visualvm.github.io/) | 2.2.1 | VisualVM profiler |
+| [vscode](https://code.visualstudio.com/) | 1.113.0 | Visual Studio Code |
 
-Windows-only packages: `git`, `npp` (Notepad++), `multicommander`, `winmerge`, `wt` (Windows Terminal), `scoop`, `docker`, `postman`, `insomnia`, `squirrel`, `rangerdesktop`.
+Windows-only packages: [`git`](https://git-scm.com/), [`npp`](https://notepad-plus-plus.org/) (Notepad++), [`multicommander`](https://multicommander.com/), [`winmerge`](https://winmerge.org/), [`wt`](https://github.com/microsoft/terminal) (Windows Terminal), [`scoop`](https://scoop.sh/), [`rangerdesktop`](https://rancherdesktop.io/).
 
 
 ## Examples
@@ -140,11 +130,19 @@ Install a specific version and set it as default:
 cb --install gradle 8.12 --default
 ```
 
-Set up environment (add tools to PATH):
-```bash
-# In .bashrc / .zshrc:
-export PATH="${PATH}:$(cb --setenv | sed 's/^.*(//;s/).*//g' | xargs | sed 's/ /:/g')"
+Set up environment (recommended — add all managed tools to PATH):
+```batch
+:: Windows:
+cb --setenv
 ```
+```bash
+# Linux/Mac:
+. cb --setenv
+# or
+source cb --setenv
+```
+
+This makes tools like java, gradle, maven, node, python, git, trivy, ant, etc. directly available on the command line.
 
 List available packages:
 ```bash
@@ -154,6 +152,11 @@ cb --packages
 Create a new project:
 ```bash
 cb --new
+```
+
+Update common-build itself to the latest version:
+```bash
+cb --install cb
 ```
 
 
@@ -170,6 +173,50 @@ cb --new
 | `CB_PACKAGE_PASSWORD` | Password for `CB_PACKAGE_URL`. Set to `ask` for interactive prompt. | |
 
 
+## Tool Version Defaults
+
+The file `conf/tool-version-default.properties` defines the default version for every managed tool. When you run `cb --install <package>` without specifying a version, the version from this file is used. It is a simple `key = value` format:
+
+```properties
+java = 21
+gradle = 8.13
+node = 24.14.1
+```
+
+You can override a tool version per-run (e.g. `cb --java 17`) or install a specific version and mark it as the new default with `cb --install gradle 8.12 --default`. Installed versions are tracked in `conf/tool-version-installed.properties`.
+
+
+## Product Types
+
+A **product type** is an organizational grouping that pre-fills wizard defaults when creating new projects. Products are defined in `conf/product-types.properties` (see `conf/product-types-sample.properties` for a template).
+
+Each product maps a name to a set of key:value pairs separated by `|`:
+
+```properties
+My product = projectComponentId:myc|projectGroupId:myg|projectRootPackageName:myc.rootpackage.name
+```
+
+When a user selects a product during `cb --new`, the configured values are automatically applied as defaults for the project wizard fields (component ID, group ID, root package name, etc.). This avoids repetitive input when creating multiple projects under the same product umbrella.
+
+Product types are optional. If no `product-types.properties` file exists, the wizard skips the product selection step.
+
+
+## Project Types
+
+A **project type** is a template that defines what kind of project to scaffold and which wizard fields to prompt. Project types are defined in `conf/project-types.properties`.
+
+Each entry maps a type ID to a description and a list of configuration sections:
+
+```properties
+java-application = Simple java application|projectName|projectRootPackageName|projectGroupId|projectComponentId|projectDescription
+vuejs = Vue|projectName=-ui|projectComponentId|projectDescription|install=node|initAction=npx --yes @vue/cli create --default @@projectName@@ >@@logFile@@
+```
+
+Available project types include: `java-application`, `java-library`, `config`, `script`, `openapi`, `quarkus`, `vuejs`, `nuxtjs`, `react`, `kubernetes-product`, `documentation`, `container`, and `organization-config`.
+
+For full details on how project types work and how to configure them, see the [Project Wizard documentation](docs/project-wizard.md).
+
+
 ## Special Files
 
 | File | Description |
@@ -177,6 +224,8 @@ cb --new
 | `.java-version` | Place in a project root to pin a specific Java version (e.g. `11`). |
 | `conf/tool-version-default.properties` | Default versions for all tools. |
 | `conf/tool-version-installed.properties` | Tracks currently installed tool versions. |
+| `conf/project-types.properties` | Project type definitions for `cb --new`. |
+| `conf/product-types.properties` | Product type definitions (optional). |
 
 
 ## Customization
@@ -187,7 +236,9 @@ Set `CB_CUSTOM_SETTING` to point to a shell script that will be called at variou
 
 ### Custom Config Project
 
-For organization-wide customization, create a Custom Config Home project (`cb --new`, select the config template). Publish it as a git repository and set `CB_CUSTOM_CONFIG` to the git URL. Common-build checks for updates daily and applies the configuration automatically.
+For organization-wide customization, create a Custom Config Home project (`cb --new`, select the organization-config template). Publish it as a git repository and set `CB_CUSTOM_CONFIG` to the git URL. Common-build checks for updates daily and applies the configuration automatically.
 
-Alternatively, add the git URL to the file `$HOME/.common-build/conf/custom-config.properties`.
+Alternatively, add the git URL to the file `$HOME/.common-build/conf/.cb-custom-config`.
+
+For full details on setting up an organization config with custom tool versions, project types, product types, lifecycle hooks, and concrete examples, see the [Organization Config documentation](docs/organization-config.md).
 

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Significantly improved `cb --setenv` / `cb.bat --setenv` performance by skipping all network operations (internet ping, host connection check, git fetch/clone) and using only cached custom config data. This makes `. cb --setenv` suitable for shell initialization without noticeable delay.
 - Added quick check in `update-cb-custom-home.sh` and `.bat` that compares the `VERSION` file against the remote before performing a full clone. If VERSION is unchanged, the update is skipped entirely, avoiding the expensive `git clone` on every daily check.
+- Rewrote README with improved introduction, key features overview, and links to new documentation pages.
+- New documentation: [Project Wizard](docs/project-wizard.md) with full syntax reference for `project-types.properties`, `product-types.properties`, parameter substitution tokens, and all available project types.
+- New documentation: [Organization Config](docs/organization-config.md) covering custom config setup, `.cb-custom-config` file, lifecycle hooks, concrete hook script examples for both Linux/Mac and Windows, and environment variables.
 
 ### Fixed
 - `cb --verbose --setenv` and `cb --force --setenv` now correctly apply the fast `--setenv` path on both Linux/Mac and Windows. Previously, prefixed arguments like `--verbose` or `--force` prevented the `--setenv` optimization from being detected.

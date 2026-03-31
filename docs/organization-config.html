@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Organization Config - common-build</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; line-height: 1.6; max-width: 960px; margin: 0 auto; padding: 2rem; color: #24292e; }
+  h1 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+  h2 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; margin-top: 1.5em; }
+  h3 { margin-top: 1.2em; }
+  h4 { margin-top: 1em; }
+  code { background: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-size: 85%; }
+  pre { background: #f6f8fa; padding: 1em; border-radius: 6px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #dfe2e5; padding: 6px 13px; text-align: left; }
+  th { background: #f6f8fa; font-weight: 600; }
+  tr:nth-child(even) { background: #f6f8fa; }
+  a { color: #0366d6; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  ol { padding-left: 1.5em; }
+  ul { padding-left: 1.5em; }
+  .back-link { margin-bottom: 1em; }
+</style>
+</head>
+<body>
+
+<p class="back-link"><a href="../README.html">&larr; Back to README</a></p>
+
+<h1>Common Organization Config</h1>
+
+<p>In a corporate environment, organizations often need to enforce consistent tool versions, project structures, naming conventions, and custom validation rules across all development teams. The <strong>Common Organization Config</strong> feature allows you to centralize these settings in a Git repository that common-build automatically clones and applies.</p>
+
+<h2>Overview</h2>
+
+<p>A custom config project is a Git repository containing organization-specific configuration files and lifecycle hook scripts. Once configured, common-build:</p>
+
+<ol>
+<li>Clones the repository automatically on first use</li>
+<li>Checks for updates daily</li>
+<li>Applies the configuration (tool versions, project types, product types, hooks) to all <code>cb</code> operations</li>
+</ol>
+
+<h2>Setting Up</h2>
+
+<h3>Step 1: Create the Config Project</h3>
+
+<p>Use the built-in wizard to scaffold the project:</p>
+
+<pre><code>cb --new
+# Select: organization-config
+# Enter: project name (e.g. "myorg"), group ID, description
+# Result: myorg-config/ directory created</code></pre>
+
+<h3>Step 2: Add Your Configuration</h3>
+
+<p>Populate the project with your organization's settings (see <a href="#project-structure">Project Structure</a> below).</p>
+
+<h3>Step 3: Publish to Git</h3>
+
+<pre><code>cd myorg-config
+git init
+git add .
+git commit -m "Initial organization config"
+git remote add origin https://github.com/myorg/myorg-config.git
+git push -u origin master</code></pre>
+
+<h3>Step 4: Configure Developers</h3>
+
+<p>Each developer points common-build to the config repository using one of two methods.</p>
+
+<p><strong>Option A: Environment Variable</strong></p>
+
+<pre><code># Linux/Mac &mdash; add to .bashrc or .zshrc:
+export CB_CUSTOM_CONFIG="https://github.com/myorg/myorg-config.git"
+
+# Windows &mdash; set as User environment variable:
+set CB_CUSTOM_CONFIG=https://github.com/myorg/myorg-config.git</code></pre>
+
+<p><strong>Option B: Configuration File</strong></p>
+
+<p>Create <code>$HOME/.common-build/conf/.cb-custom-config</code> (Linux/Mac) or <code>%USERPROFILE%\.common-build\conf\.cb-custom-config</code> (Windows):</p>
+
+<pre><code>myorg-config=github.com/myorg</code></pre>
+
+<p>The file supports multiple entries for different organizations:</p>
+
+<pre><code># Default config (used when no pattern matches)
+default-config
+
+# Pattern-based selection (matched against Git remote URL)
+myorg-config=github.com/myorg
+partner-config=gitlab.com/partner-org
+internal-config=gitlab.internal.mycompany.com</code></pre>
+
+<p>When a developer runs <code>cb</code> inside a project, common-build reads the Git remote URL of the current repository and selects the config entry with the longest matching pattern. If no pattern matches (or the project has no remote), the entry without a pattern is used as the default.</p>
+
+<h2 id="project-structure">Project Structure</h2>
+
+<pre><code>myorg-config/
+├── VERSION
+├── bin/
+│   ├── cb-custom.bat
+│   └── cb-custom.sh
+└── conf/
+    ├── tool-version-default.properties
+    ├── project-types.properties
+    ├── product-types.properties
+    └── project-types-&lt;productname&gt;.properties</code></pre>
+
+<p>All files are optional. Only include what you need to customize.</p>
+
+<h3><code>VERSION</code></h3>
+
+<p>A plain text file containing the version number (e.g. <code>1.0.0</code>). Common-build uses this to detect updates &mdash; when the remote VERSION changes, the config is re-cloned.</p>
+
+<pre><code>1.0.0</code></pre>
+
+<h3><code>conf/tool-version-default.properties</code></h3>
+
+<p>Overrides the default tool versions for your organization. Only list tools you want to override:</p>
+
+<pre><code>java = 17
+gradle = 8.13
+node = 22.0.0</code></pre>
+
+<h3><code>conf/project-types.properties</code></h3>
+
+<p>Replaces the default project types shown in <code>cb --new</code>. Define only the types relevant to your organization:</p>
+
+<pre><code>backend-service = Backend REST Service|projectName=-service|projectRootPackageName|projectGroupId|projectComponentId|projectDescription
+frontend-app = Frontend Application|projectName=-ui|projectComponentId|projectDescription|install=node|initAction=npx --yes create-react-app @@projectName@@
+shared-library = Shared Java Library|projectName=-lib|projectRootPackageName|projectGroupId|projectComponentId|projectDescription
+config = Organization Config|projectName=-config|projectGroupId|projectDescription</code></pre>
+
+<p>See the <a href="project-wizard.html">Project Wizard documentation</a> for the full syntax reference.</p>
+
+<h3><code>conf/product-types.properties</code></h3>
+
+<p>Defines product groupings that pre-fill wizard fields:</p>
+
+<pre><code>Platform = projectComponentId:platform|projectGroupId:com.myorg.platform|projectRootPackageName:com.myorg.platform
+Mobile App = projectComponentId:mobile|projectGroupId:com.myorg.mobile|projectRootPackageName:com.myorg.mobile</code></pre>
+
+<h3><code>conf/project-types-&lt;productname&gt;.properties</code></h3>
+
+<p>Product-specific project types. When a developer selects &quot;Platform&quot; as the product, common-build looks for <code>project-types-Platform.properties</code> and uses those types instead of the default <code>project-types.properties</code>:</p>
+
+<pre><code># project-types-Platform.properties
+platform-service = Platform Microservice|projectName=-service|projectRootPackageName|projectGroupId|projectComponentId|projectDescription
+platform-library = Platform Shared Library|projectName=-lib|projectRootPackageName|projectGroupId|projectComponentId|projectDescription</code></pre>
+
+<h2>Configuration Resolution Priority</h2>
+
+<p>When common-build looks for configuration files, it checks these locations in order (first found wins):</p>
+
+<table>
+<thead>
+<tr><th>Priority</th><th>Location</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td><code>$CB_CUSTOM_RUNTIME_CONFIG_PATH/conf/</code></td><td>Organization custom config</td></tr>
+<tr><td>2</td><td><code>~/.gradle/common-gradle-build/&lt;version&gt;/gradle/conf/</code></td><td>Local common-gradle-build</td></tr>
+<tr><td>3</td><td><code>$CB_HOME/conf/</code></td><td>Built-in defaults</td></tr>
+</tbody>
+</table>
+
+<p>This means your organization config always takes precedence over the built-in defaults.</p>
+
+<h2>Lifecycle Hooks</h2>
+
+<p>Hook scripts allow your organization to run custom logic at every stage of the common-build lifecycle. Place your hooks in:</p>
+
+<ul>
+<li><code>bin/cb-custom.sh</code> &mdash; Linux/Mac</li>
+<li><code>bin/cb-custom.bat</code> &mdash; Windows</li>
+</ul>
+
+<h3>Available Hooks</h3>
+
+<table>
+<thead>
+<tr><th>Hook</th><th>When Called</th><th>Use Case</th></tr>
+</thead>
+<tbody>
+<tr><td><code>start</code></td><td>Early initialization</td><td>Set global variables, display banners</td></tr>
+<tr><td><code>verify-configuration</code></td><td>Before build, after Java setup</td><td>Validate project configuration</td></tr>
+<tr><td><code>build-start</code></td><td>Before build execution</td><td>Pre-build checks, notifications</td></tr>
+<tr><td><code>build-end</code></td><td>After successful build</td><td>Post-build actions, metrics</td></tr>
+<tr><td><code>new-project-start</code></td><td>Before project wizard</td><td>Set custom project types dynamically</td></tr>
+<tr><td><code>new-project-validate-name</code></td><td>User enters project name</td><td>Enforce naming conventions</td></tr>
+<tr><td><code>new-project-validate-rootpackagename</code></td><td>User enters package name</td><td>Enforce package naming rules</td></tr>
+<tr><td><code>new-project-validate-groupid</code></td><td>User enters group ID</td><td>Enforce group ID standards</td></tr>
+<tr><td><code>new-project-validate-componentid</code></td><td>User enters component ID</td><td>Enforce component ID rules</td></tr>
+<tr><td><code>new-project-validate-description</code></td><td>User enters description</td><td>Validate description format</td></tr>
+<tr><td><code>new-project-end</code></td><td>After wizard completes</td><td>Post-creation setup, Git init</td></tr>
+<tr><td><code>install-start</code></td><td>Before package installation</td><td>Pre-install checks</td></tr>
+<tr><td><code>install-end</code></td><td>After package installation</td><td>Post-install configuration</td></tr>
+<tr><td><code>download-package-start</code></td><td>Before downloading a package</td><td>URL rewriting, proxy setup</td></tr>
+<tr><td><code>download-package-end</code></td><td>After downloading a package</td><td>Checksum verification</td></tr>
+<tr><td><code>extract-package-start</code></td><td>Before extracting a package</td><td>Pre-extract checks</td></tr>
+<tr><td><code>extract-package-end</code></td><td>After extracting a package</td><td>Post-extract configuration</td></tr>
+<tr><td><code>setenv-start</code></td><td>Before setting environment</td><td>Pre-environment setup</td></tr>
+<tr><td><code>setenv-end</code></td><td>After setting environment</td><td>Additional PATH entries</td></tr>
+<tr><td><code>custom-config-update-end</code></td><td>After config repository is updated</td><td>Notify about config changes</td></tr>
+<tr><td><code>error-end</code></td><td>When a critical error occurs</td><td>Error reporting, alerting</td></tr>
+</tbody>
+</table>
+
+<h3>Validation Hooks</h3>
+
+<p>The <code>new-project-validate-*</code> hooks must return an exit code:</p>
+<ul>
+<li><strong>0</strong> &mdash; validation passed</li>
+<li><strong>1</strong> &mdash; validation failed (wizard re-prompts the user)</li>
+</ul>
+
+<h3>Hook Script Examples</h3>
+
+<h4>Linux/Mac (<code>bin/cb-custom.sh</code>)</h4>
+
+<pre><code>#!/bin/bash
+
+# Enforce that all project names start with the organization prefix
+customNewProjectValidateName() {
+    local projectName="$1"
+    if [[ ! "$projectName" =~ ^myorg- ]]; then
+        echo "ERROR: Project name must start with 'myorg-' (got: $projectName)"
+        exit 1
+    fi
+    exit 0
+}
+
+# Enforce Java package naming convention
+customNewProjectValidateRootPackageName() {
+    local packageName="$1"
+    if [[ ! "$packageName" =~ ^com\.myorg\. ]]; then
+        echo "ERROR: Package name must start with 'com.myorg.' (got: $packageName)"
+        exit 1
+    fi
+    exit 0
+}
+
+# Pin corporate Java version on build start
+customBuildStart() {
+    echo "Using corporate Java version: $CB_JAVA_VERSION"
+}
+
+# Initialize Git repository after project creation
+customNewProjectEnd() {
+    echo "Initializing Git repository..."
+    cd "$1" 2&gt;/dev/null
+    git init -q
+    git add .
+    git commit -q -m "Initial project setup"
+}
+
+# Log errors to a central location
+customErrorEnd() {
+    echo "ERROR: $*" &gt;&gt; "$HOME/.common-build/error.log"
+}
+
+# Hook dispatcher &mdash; routes lifecycle events to functions
+while [ $# -gt 0 ]; do
+    case "$1" in
+        start)                                shift; return 0;;
+        verify-configuration)                 shift; return 0;;
+        build-start)                          shift; customBuildStart "$@"; return 0;;
+        build-end)                            shift; return 0;;
+        new-project-start)                    shift; return 0;;
+        new-project-validate-name)            shift; customNewProjectValidateName "$@"; return 0;;
+        new-project-validate-rootpackagename) shift; customNewProjectValidateRootPackageName "$@"; return 0;;
+        new-project-validate-groupid)         shift; return 0;;
+        new-project-validate-componentid)     shift; return 0;;
+        new-project-validate-description)     shift; return 0;;
+        new-project-end)                      shift; customNewProjectEnd "$@"; return 0;;
+        install-start)                        shift; return 0;;
+        install-end)                          shift; return 0;;
+        download-package-start)               shift; return 0;;
+        download-package-end)                 shift; return 0;;
+        extract-package-start)                shift; return 0;;
+        extract-package-end)                  shift; return 0;;
+        setenv-start)                         shift; return 0;;
+        setenv-end)                           shift; return 0;;
+        custom-config-update-end)             shift; return 0;;
+        error-end)                            shift; customErrorEnd "$@"; return 0;;
+        *)                                    return 1;;
+    esac
+    shift
+done</code></pre>
+
+<h4>Windows (<code>bin/cb-custom.bat</code>)</h4>
+
+<pre><code>@ECHO OFF
+
+:: Hook dispatcher
+if .%1==. goto CUSTOM_END
+if .%1==.start shift &amp; goto CUSTOM_END
+if .%1==.verify-configuration shift &amp; goto CUSTOM_END
+if .%1==.build-start shift &amp; goto CUSTOM_BUILD_START
+if .%1==.build-end shift &amp; goto CUSTOM_END
+if .%1==.new-project-start shift &amp; goto CUSTOM_END
+if .%1==.new-project-validate-name shift &amp; goto CUSTOM_NEW_PROJECT_VALIDATE_NAME
+if .%1==.new-project-validate-rootpackagename shift &amp; goto CUSTOM_NEW_PROJECT_VALIDATE_ROOTPACKAGENAME
+if .%1==.new-project-validate-groupid shift &amp; goto CUSTOM_END
+if .%1==.new-project-validate-componentid shift &amp; goto CUSTOM_END
+if .%1==.new-project-validate-description shift &amp; goto CUSTOM_END
+if .%1==.new-project-end shift &amp; goto CUSTOM_END
+if .%1==.install-start shift &amp; goto CUSTOM_END
+if .%1==.install-end shift &amp; goto CUSTOM_END
+if .%1==.download-package-start shift &amp; goto CUSTOM_END
+if .%1==.download-package-end shift &amp; goto CUSTOM_END
+if .%1==.extract-package-start shift &amp; goto CUSTOM_END
+if .%1==.extract-package-end shift &amp; goto CUSTOM_END
+if .%1==.setenv-start shift &amp; goto CUSTOM_END
+if .%1==.setenv-end shift &amp; goto CUSTOM_END
+if .%1==.custom-config-update-end shift &amp; goto CUSTOM_END
+if .%1==.error-end shift &amp; goto CUSTOM_ERROR_END
+exit /b 1
+
+:CUSTOM_BUILD_START
+echo %CB_LINEHEADER%Using corporate Java version: %CB_JAVA_VERSION%
+goto CUSTOM_END
+
+:CUSTOM_NEW_PROJECT_VALIDATE_NAME
+:: Enforce project name starts with "myorg-"
+echo %1 | findstr /B "myorg-" &gt;nul
+if errorlevel 1 (
+    echo ERROR: Project name must start with "myorg-" ^(got: %1^)
+    exit /b 1
+)
+exit /b 0
+
+:CUSTOM_NEW_PROJECT_VALIDATE_ROOTPACKAGENAME
+:: Enforce package name starts with "com.myorg."
+echo %1 | findstr /B "com.myorg." &gt;nul
+if errorlevel 1 (
+    echo ERROR: Package name must start with "com.myorg." ^(got: %1^)
+    exit /b 1
+)
+exit /b 0
+
+:CUSTOM_ERROR_END
+echo ERROR: %1 %2 %3 %4 %5 %6 %7 %8 %9 &gt;&gt; "%USERPROFILE%\.common-build\error.log"
+goto CUSTOM_END
+
+:CUSTOM_END</code></pre>
+
+<h2>Using CB_CUSTOM_SETTING Standalone</h2>
+
+<p>If you don't need the full custom config project (Git repository, versioning, auto-updates) but still want lifecycle hooks, you can point <code>CB_CUSTOM_SETTING</code> directly to a hook script:</p>
+
+<pre><code># Linux/Mac
+export CB_CUSTOM_SETTING="$HOME/my-cb-hooks.sh"
+
+# Windows
+set CB_CUSTOM_SETTING=%USERPROFILE%\my-cb-hooks.bat</code></pre>
+
+<p>The script receives the same lifecycle events as <code>bin/cb-custom.sh</code> in a custom config project. See <code>$CB_HOME/bin/sample/cb-custom-sample.sh</code> and <code>$CB_HOME/bin/sample/cb-custom-sample.bat</code> for complete templates.</p>
+
+<h2>Environment Variables</h2>
+
+<p>The following variables are available inside hook scripts:</p>
+
+<table>
+<thead>
+<tr><th>Variable</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>CB_HOME</code></td><td>Common-build installation directory</td></tr>
+<tr><td><code>CB_DEVTOOLS</code></td><td>Root directory for all dev tools</td></tr>
+<tr><td><code>CB_BIN</code></td><td>Common-build bin directory</td></tr>
+<tr><td><code>CB_LINEHEADER</code></td><td>Formatted line header for consistent output</td></tr>
+<tr><td><code>CB_LINE</code></td><td>Separator line for formatted output</td></tr>
+<tr><td><code>CB_JAVA_VERSION</code></td><td>Currently active Java version</td></tr>
+<tr><td><code>CB_CUSTOM_CONFIG</code></td><td>Git URL of the custom config</td></tr>
+<tr><td><code>CB_CUSTOM_CONFIG_VERSION</code></td><td>Current version of the custom config</td></tr>
+<tr><td><code>CB_CUSTOM_RUNTIME_CONFIG_PATH</code></td><td>Full path to the active custom config version</td></tr>
+<tr><td><code>CB_CUSTOM_PROJECT_CONFIGFILE</code></td><td>Path to dynamically generated project types (set in <code>new-project-start</code>)</td></tr>
+</tbody>
+</table>
+
+<h2>Update Mechanism</h2>
+
+<p>Common-build checks for config updates once per day:</p>
+
+<ol>
+<li>On first <code>cb</code> run of the day, it fetches the remote <code>VERSION</code> file</li>
+<li>If the version has changed, it clones the new version alongside the old one</li>
+<li>The new version becomes active immediately</li>
+<li>Old versions are preserved (allowing rollback by changing VERSION)</li>
+</ol>
+
+<p>To force an immediate update:</p>
+
+<pre><code>cb --update</code></pre>
+
+<p>To force a re-download:</p>
+
+<pre><code>cb --update --force</code></pre>
+
+<hr>
+<p><small><a href="../README.html">&larr; Back to README</a></small></p>
+
+</body>
+</html>

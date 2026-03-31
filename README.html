@@ -33,52 +33,42 @@
 <img height="110" src="docs/logo/common-build-icon.png" alt="common-build logo">
 </div>
 
-<p>The common-build project has the goal to simplify the development environment setup. It works for the main environment such as Linux, Windows and Mac.
-It can be used as a &quot;transparent&quot; wrapper of the most common build tools such as Gradle, Maven or Ant.</p>
+<p>The common-build project simplifies the development environment setup across Linux, MacOS and Windows.
+It acts as a transparent wrapper for common build tools such as Gradle, Maven or Ant, and manages the installation of developer tools like Java, Node, Python, Trivy and many more. All software is installed into a local &quot;devtools&quot; directory, and all settings can be overridden via environment variables.</p>
 
-<p>It simplifies additional the installation of tools e.g. java versions. All software will be installed in a so called &quot;devtools&quot; directory. All settings you can overwrite
-by corresponding environment variables.</p>
+<p>Key features:</p>
+<ul>
+<li><strong>Tool management</strong> &mdash; Install, update and switch between versions of developer tools with a single command (<code>cb --install</code>). Use <code>cb --setenv</code> to add all managed tools to your PATH.</li>
+<li><strong>Build execution</strong> &mdash; Run project builds transparently through Gradle, Maven or Ant without manual setup.</li>
+<li><strong><a href="docs/project-wizard.html">Project wizard</a></strong> &mdash; Scaffold new projects interactively with <code>cb --new</code>, supporting multiple project types (Java, Node/React/Vue/Nuxt, Kubernetes, OpenAPI, and more).</li>
+<li><strong><a href="docs/organization-config.html">Organization config</a></strong> &mdash; Centralize tool versions, project templates, naming conventions and lifecycle hooks in a Git repository for consistent corporate-wide developer environments.</li>
+<li><strong>Self-update</strong> &mdash; Keep common-build itself up to date with <code>cb --install cb</code>.</li>
+</ul>
 
 <h2>Installing common-build</h2>
 
 <h3>Using script to install the latest release</h3>
 
+<p><strong>Linux / MacOS</strong></p>
+
+<p>Install the latest cli to <code>$HOME/devtools</code>:</p>
+
+<pre><code>curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash</code></pre>
+
+<p>Alternatively, download <a href="https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install"><code>cb-install</code></a> manually and run it with <code>/bin/bash cb-install</code>.</p>
+
+<p>Tested on debian, ubuntu, centos and fedora. MacOS is not yet fully tested.</p>
+
 <p><strong>Windows</strong></p>
 
-<p>Install the latest windows cli to <code>c:\devtools</code> and add this directory to User PATH environment variable.</p>
-
-<pre><code>powershell -Command "iwr https://git.io/JJenc -OutFile ${env:TEMP}/cb-install.bat" &amp; %TEMP%\cb-install.bat</code></pre>
-
-<p>or with full link</p>
+<p>Install the latest cli to <code>c:\devtools</code> and add this directory to the User PATH environment variable:</p>
 
 <pre><code>powershell -Command "iwr https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install.bat -OutFile ${env:TEMP}/cb-install.bat" &amp; %TEMP%\cb-install.bat</code></pre>
 
-<p>The common-build supports also cygwin. Please just use the Linux installation.
+<p>Alternatively, download <a href="https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install.bat"><code>cb-install.bat</code></a> manually and run it.</p>
+
+<p>The common-build also supports cygwin &mdash; use the Linux installation for that.
 Currently only Windows 10 is properly tested.</p>
-
-<p><strong>Linux</strong></p>
-
-<p>Install the latest linux cli to <code>$HOME/devtools</code></p>
-
-<pre><code>curl -fsSL https://git.io/JJezw | /bin/bash</code></pre>
-
-<p>or with full link</p>
-
-<pre><code>curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash</code></pre>
-
-<p>Currently it's tested on debian, ubuntu, centos and fedora.</p>
-
-<p><strong>MacOS</strong> (please support me for testing)</p>
-
-<p>Install the latest mac cli to <code>$HOME/devtools</code></p>
-
-<pre><code>curl -fsSL https://git.io/JJezw | /bin/bash</code></pre>
-
-<p>or with full link</p>
-
-<pre><code>curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install | /bin/bash</code></pre>
-
-<p>Currently it's not final tested.</p>
 
 <h2>Usage</h2>
 
@@ -99,7 +89,7 @@ Currently only Windows 10 is properly tested.</p>
 <tr><td><code>--java [version]</code></td><td>Override the Java version for this run, e.g. <code>--java 17</code>.</td></tr>
 <tr><td><code>--install [pkg] [version]</code></td><td>Install a software package. Uses the default version from <code>tool-version-default.properties</code> unless a version is specified. Add <code>-d</code> or <code>--default</code> to mark the installed version as the default.</td></tr>
 <tr><td><code>--packages</code></td><td>List all supported packages.</td></tr>
-<tr><td><code>--setenv</code></td><td>Set all internal environment variables (adds installed tools to <code>PATH</code>).</td></tr>
+<tr><td><code>--setenv</code></td><td>Set all internal environment variables (adds installed tools to <code>PATH</code>). This is the recommended way to make all managed tools available on the command line. It adds tools like git, node, java, maven, gradle, python, trivy, ant and others to the current <code>PATH</code>.</td></tr>
 <tr><td><code>--update</code></td><td>Update the custom config. Can be combined with <code>--force</code>.</td></tr>
 <tr><td><code>-exp</code>, <code>--explore</code></td><td>Open the file explorer at the current path.</td></tr>
 <tr><td><code>--silent</code></td><td>Suppress console output from common-build.</td></tr>
@@ -119,29 +109,34 @@ Currently only Windows 10 is properly tested.</p>
 <tr><th>Package</th><th>Default Version</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td>ant</td><td>1.10.15</td><td>Apache Ant build tool</td></tr>
-<tr><td>btrace</td><td>2.2.6</td><td>BTrace dynamic tracing tool</td></tr>
-<tr><td>eclipse</td><td>2026-03</td><td>Eclipse IDE (JEE package)</td></tr>
-<tr><td>flutter</td><td>3.41.6</td><td>Flutter SDK</td></tr>
-<tr><td>gaiden</td><td>1.3</td><td>Gaiden documentation tool</td></tr>
-<tr><td>gradle</td><td>8.13</td><td>Gradle build tool</td></tr>
-<tr><td>groovy</td><td>4.0.31</td><td>Apache Groovy</td></tr>
-<tr><td>intellij</td><td>2025.2.6.1</td><td>IntelliJ IDEA</td></tr>
-<tr><td>java</td><td>21</td><td>Java JDK</td></tr>
-<tr><td>jmeter</td><td>5.6.3</td><td>Apache JMeter</td></tr>
-<tr><td>maven</td><td>3.9.14</td><td>Apache Maven</td></tr>
-<tr><td>micronaut</td><td>4.10.10</td><td>Micronaut framework CLI</td></tr>
-<tr><td>node</td><td>24.14.1</td><td>Node.js</td></tr>
-<tr><td>python</td><td>3.13.12</td><td>Python</td></tr>
-<tr><td>rust</td><td></td><td>Rust toolchain</td></tr>
-<tr><td>sbt</td><td>1.12.8</td><td>Scala Build Tool</td></tr>
-<tr><td>trivy</td><td>0.69.3</td><td>Trivy security scanner</td></tr>
-<tr><td>visualvm</td><td>2.2.1</td><td>VisualVM profiler</td></tr>
-<tr><td>vscode</td><td>1.113.0</td><td>Visual Studio Code</td></tr>
+<tr><td><a href="https://ant.apache.org/">ant</a></td><td>1.10.15</td><td>Apache Ant build tool</td></tr>
+<tr><td><a href="https://github.com/btraceio/btrace">btrace</a></td><td>2.2.6</td><td>BTrace dynamic tracing tool</td></tr>
+<tr><td><a href="https://www.docker.com/">docker</a></td><td></td><td>Docker</td></tr>
+<tr><td><a href="https://www.eclipse.org/">eclipse</a></td><td>2026-03</td><td>Eclipse IDE (JEE package)</td></tr>
+<tr><td><a href="https://flutter.dev/">flutter</a></td><td>3.41.5</td><td>Flutter SDK</td></tr>
+<tr><td><a href="https://github.com/kobo/gaiden">gaiden</a></td><td>1.3</td><td>Gaiden documentation tool</td></tr>
+<tr><td><a href="https://gradle.org/">gradle</a></td><td>8.13</td><td>Gradle build tool</td></tr>
+<tr><td><a href="https://groovy-lang.org/">groovy</a></td><td>4.0.31</td><td>Apache Groovy</td></tr>
+<tr><td><a href="https://insomnia.rest/">insomnia</a></td><td></td><td>Insomnia API client</td></tr>
+<tr><td><a href="https://www.jetbrains.com/idea/">intellij</a></td><td>2025.2.6.1</td><td>IntelliJ IDEA</td></tr>
+<tr><td><a href="https://adoptium.net/">java</a></td><td>21</td><td>Java JDK</td></tr>
+<tr><td><a href="https://jmeter.apache.org/">jmeter</a></td><td>5.6.3</td><td>Apache JMeter</td></tr>
+<tr><td><a href="https://maven.apache.org/">maven</a></td><td>3.9.14</td><td>Apache Maven</td></tr>
+<tr><td><a href="https://micronaut.io/">micronaut</a></td><td>4.10.18</td><td>Micronaut framework CLI</td></tr>
+<tr><td><a href="https://www.mucommander.com/">mucommander</a></td><td>1.6.0-1</td><td>muCommander file manager</td></tr>
+<tr><td><a href="https://nodejs.org/">node</a></td><td>24.14.1</td><td>Node.js</td></tr>
+<tr><td><a href="https://www.postman.com/">postman</a></td><td></td><td>Postman API client</td></tr>
+<tr><td><a href="https://www.python.org/">python</a></td><td>3.13.12</td><td>Python</td></tr>
+<tr><td><a href="https://www.rust-lang.org/">rust</a></td><td></td><td>Rust toolchain</td></tr>
+<tr><td><a href="https://www.scala-sbt.org/">sbt</a></td><td>1.12.8</td><td>Scala Build Tool</td></tr>
+<tr><td><a href="https://squirrel-sql.sourceforge.io/">squirrel</a></td><td>5.1.0</td><td>SQuirreL SQL Client</td></tr>
+<tr><td><a href="https://trivy.dev/">trivy</a></td><td>0.69.3</td><td>Trivy security scanner</td></tr>
+<tr><td><a href="https://visualvm.github.io/">visualvm</a></td><td>2.2.1</td><td>VisualVM profiler</td></tr>
+<tr><td><a href="https://code.visualstudio.com/">vscode</a></td><td>1.113.0</td><td>Visual Studio Code</td></tr>
 </tbody>
 </table>
 
-<p>Windows-only packages: <code>git</code>, <code>npp</code> (Notepad++), <code>multicommander</code>, <code>winmerge</code>, <code>wt</code> (Windows Terminal), <code>scoop</code>, <code>docker</code>, <code>postman</code>, <code>insomnia</code>, <code>squirrel</code>, <code>rangerdesktop</code>.</p>
+<p>Windows-only packages: <a href="https://git-scm.com/"><code>git</code></a>, <a href="https://notepad-plus-plus.org/"><code>npp</code></a> (Notepad++), <a href="https://multicommander.com/"><code>multicommander</code></a>, <a href="https://winmerge.org/"><code>winmerge</code></a>, <a href="https://github.com/microsoft/terminal"><code>wt</code></a> (Windows Terminal), <a href="https://scoop.sh/"><code>scoop</code></a>, <a href="https://rancherdesktop.io/"><code>rangerdesktop</code></a>.</p>
 
 <h2>Examples</h2>
 
@@ -157,15 +152,23 @@ Currently only Windows 10 is properly tested.</p>
 <p>Install a specific version and set it as default:</p>
 <pre><code>cb --install gradle 8.12 --default</code></pre>
 
-<p>Set up environment (add tools to PATH):</p>
-<pre><code># In .bashrc / .zshrc:
-export PATH="${PATH}:$(cb --setenv | sed 's/^.*(//;s/).*//g' | xargs | sed 's/ /:/g')"</code></pre>
+<p>Set up environment (recommended &mdash; add all managed tools to PATH):</p>
+<pre><code>:: Windows:
+cb --setenv</code></pre>
+<pre><code># Linux/Mac:
+. cb --setenv
+# or
+source cb --setenv</code></pre>
+<p>This makes tools like java, gradle, maven, node, python, git, trivy, ant, etc. directly available on the command line.</p>
 
 <p>List available packages:</p>
 <pre><code>cb --packages</code></pre>
 
 <p>Create a new project:</p>
 <pre><code>cb --new</code></pre>
+
+<p>Update common-build itself to the latest version:</p>
+<pre><code>cb --install cb</code></pre>
 
 <h2>Environment Variables</h2>
 
@@ -184,6 +187,41 @@ export PATH="${PATH}:$(cb --setenv | sed 's/^.*(//;s/).*//g' | xargs | sed 's/ /
 </tbody>
 </table>
 
+<h2>Tool Version Defaults</h2>
+
+<p>The file <code>conf/tool-version-default.properties</code> defines the default version for every managed tool. When you run <code>cb --install &lt;package&gt;</code> without specifying a version, the version from this file is used. It is a simple <code>key = value</code> format:</p>
+
+<pre><code>java = 21
+gradle = 8.13
+node = 24.14.1</code></pre>
+
+<p>You can override a tool version per-run (e.g. <code>cb --java 17</code>) or install a specific version and mark it as the new default with <code>cb --install gradle 8.12 --default</code>. Installed versions are tracked in <code>conf/tool-version-installed.properties</code>.</p>
+
+<h2>Product Types</h2>
+
+<p>A <strong>product type</strong> is an organizational grouping that pre-fills wizard defaults when creating new projects. Products are defined in <code>conf/product-types.properties</code> (see <code>conf/product-types-sample.properties</code> for a template).</p>
+
+<p>Each product maps a name to a set of key:value pairs separated by <code>|</code>:</p>
+
+<pre><code>My product = projectComponentId:myc|projectGroupId:myg|projectRootPackageName:myc.rootpackage.name</code></pre>
+
+<p>When a user selects a product during <code>cb --new</code>, the configured values are automatically applied as defaults for the project wizard fields (component ID, group ID, root package name, etc.). This avoids repetitive input when creating multiple projects under the same product umbrella.</p>
+
+<p>Product types are optional. If no <code>product-types.properties</code> file exists, the wizard skips the product selection step.</p>
+
+<h2>Project Types</h2>
+
+<p>A <strong>project type</strong> is a template that defines what kind of project to scaffold and which wizard fields to prompt. Project types are defined in <code>conf/project-types.properties</code>.</p>
+
+<p>Each entry maps a type ID to a description and a list of configuration sections:</p>
+
+<pre><code>java-application = Simple java application|projectName|projectRootPackageName|projectGroupId|projectComponentId|projectDescription
+vuejs = Vue|projectName=-ui|projectComponentId|projectDescription|install=node|initAction=npx --yes @vue/cli create --default @@projectName@@ &gt;@@logFile@@</code></pre>
+
+<p>Available project types include: <code>java-application</code>, <code>java-library</code>, <code>config</code>, <code>script</code>, <code>openapi</code>, <code>quarkus</code>, <code>vuejs</code>, <code>nuxtjs</code>, <code>react</code>, <code>kubernetes-product</code>, <code>documentation</code>, <code>container</code>, and <code>organization-config</code>.</p>
+
+<p>For full details on how project types work and how to configure them, see the <a href="docs/project-wizard.html">Project Wizard documentation</a>.</p>
+
 <h2>Special Files</h2>
 
 <table>
@@ -194,6 +232,8 @@ export PATH="${PATH}:$(cb --setenv | sed 's/^.*(//;s/).*//g' | xargs | sed 's/ /
 <tr><td><code>.java-version</code></td><td>Place in a project root to pin a specific Java version (e.g. <code>11</code>).</td></tr>
 <tr><td><code>conf/tool-version-default.properties</code></td><td>Default versions for all tools.</td></tr>
 <tr><td><code>conf/tool-version-installed.properties</code></td><td>Tracks currently installed tool versions.</td></tr>
+<tr><td><code>conf/project-types.properties</code></td><td>Project type definitions for <code>cb --new</code>.</td></tr>
+<tr><td><code>conf/product-types.properties</code></td><td>Product type definitions (optional).</td></tr>
 </tbody>
 </table>
 
@@ -205,9 +245,11 @@ export PATH="${PATH}:$(cb --setenv | sed 's/^.*(//;s/).*//g' | xargs | sed 's/ /
 
 <h3>Custom Config Project</h3>
 
-<p>For organization-wide customization, create a Custom Config Home project (<code>cb --new</code>, select the config template). Publish it as a git repository and set <code>CB_CUSTOM_CONFIG</code> to the git URL. Common-build checks for updates daily and applies the configuration automatically.</p>
+<p>For organization-wide customization, create a Custom Config Home project (<code>cb --new</code>, select the organization-config template). Publish it as a git repository and set <code>CB_CUSTOM_CONFIG</code> to the git URL. Common-build checks for updates daily and applies the configuration automatically.</p>
 
-<p>Alternatively, add the git URL to the file <code>$HOME/.common-build/conf/custom-config.properties</code>.</p>
+<p>Alternatively, add the git URL to the file <code>$HOME/.common-build/conf/.cb-custom-config</code>.</p>
+
+<p>For full details on setting up an organization config with custom tool versions, project types, product types, lifecycle hooks, and concrete examples, see the <a href="docs/organization-config.html">Organization Config documentation</a>.</p>
 
 <hr>
 <p><small>GNU General Public License v3.0 &mdash; see <a href="http://www.gnu.org/licenses/">LICENSE</a> for details.</small></p>

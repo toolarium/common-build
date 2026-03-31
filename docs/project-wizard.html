@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Wizard - common-build</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; line-height: 1.6; max-width: 960px; margin: 0 auto; padding: 2rem; color: #24292e; }
+  h1 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+  h2 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; margin-top: 1.5em; }
+  h3 { margin-top: 1.2em; }
+  code { background: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-size: 85%; }
+  pre { background: #f6f8fa; padding: 1em; border-radius: 6px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #dfe2e5; padding: 6px 13px; text-align: left; }
+  th { background: #f6f8fa; font-weight: 600; }
+  tr:nth-child(even) { background: #f6f8fa; }
+  a { color: #0366d6; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  ol { padding-left: 1.5em; }
+  ul { padding-left: 1.5em; }
+  .back-link { margin-bottom: 1em; }
+</style>
+</head>
+<body>
+
+<p class="back-link"><a href="../README.html">&larr; Back to README</a></p>
+
+<h1>Project Wizard (<code>cb --new</code>)</h1>
+
+<p>The project wizard creates new projects interactively. It guides you through product selection, project type selection, and project-specific configuration.</p>
+
+<h2>Quick Start</h2>
+
+<pre><code>cb --new</code></pre>
+
+<p>You can also prefill all wizard parameters from the command line:</p>
+
+<pre><code>cb --new [product-id] [project-type-id] [project-name] [package-name] [group-id] [component-id] [description...]</code></pre>
+
+<p>Example:</p>
+
+<pre><code>cb --new 1 1 my-service com.example.myservice example mycomp "A REST API service"</code></pre>
+
+<h2>Wizard Flow</h2>
+
+<h3>1. Product Selection (optional)</h3>
+
+<p>If a <code>product-types.properties</code> file exists, the wizard displays a numbered list of products:</p>
+
+<pre><code>[1] My product
+[2] Another product</code></pre>
+
+<p>Selecting a product pre-fills wizard defaults (group ID, component ID, root package name, etc.) so you don't have to enter them manually for every project.</p>
+
+<p>If no <code>product-types.properties</code> exists, this step is skipped.</p>
+
+<h3>2. Project Type Selection</h3>
+
+<p>The wizard displays all available project types:</p>
+
+<pre><code>[1]  Simple java application
+[2]  Simple java library
+[3]  Configuration project
+[4]  Script project
+...</code></pre>
+
+<p>The selected project type determines which fields are prompted and what actions are executed.</p>
+
+<h3>3. Project Details</h3>
+
+<p>Depending on the selected project type, the wizard prompts for some or all of the following:</p>
+
+<table>
+<thead>
+<tr><th>Field</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Project Name</strong></td><td>The project directory and artifact name. Some types append a suffix automatically (e.g. <code>-ui</code>, <code>-config</code>).</td></tr>
+<tr><td><strong>Root Package Name</strong></td><td>Java package name (e.g. <code>com.example.myproject</code>). Only for Java-based types.</td></tr>
+<tr><td><strong>Group ID</strong></td><td>Artifact group identifier, typically used for Maven/Gradle publishing.</td></tr>
+<tr><td><strong>Component ID</strong></td><td>Optional component identifier that can be part of the project name.</td></tr>
+<tr><td><strong>Description</strong></td><td>A short project description. Defaults to &quot;The implementation of the {projectName}.&quot;</td></tr>
+</tbody>
+</table>
+
+<h3>4. Project Generation</h3>
+
+<p>After collecting input, the wizard:</p>
+
+<ol>
+<li><strong>Installs dependencies</strong> if the project type defines an <code>install</code> section (e.g. <code>node</code>).</li>
+<li><strong>Runs the init action</strong> if defined (e.g. <code>npx create-react-app</code>).</li>
+<li><strong>Runs the main action</strong> if defined. If no main action is set, the wizard creates a <code>build.gradle</code> using <a href="https://github.com/toolarium/common-gradle-build">common-gradle-build</a> and runs Gradle.</li>
+<li><strong>Runs the post action</strong> if defined (e.g. cleanup tasks).</li>
+</ol>
+
+<h2>Configuration</h2>
+
+<h3><code>product-types.properties</code></h3>
+
+<p>Defines organizational product groupings. Each product pre-fills wizard fields.</p>
+
+<p><strong>Location:</strong> <code>conf/product-types.properties</code> (see <code>conf/product-types-sample.properties</code> for a template)</p>
+
+<p><strong>Syntax:</strong></p>
+
+<pre><code>&lt;product-name&gt; = &lt;setting&gt; [ | &lt;setting&gt; ]</code></pre>
+
+<p>Each setting is a <code>variableName:value</code> pair. Multiple settings are separated by <code>|</code>.</p>
+
+<p><strong>Example:</strong></p>
+
+<pre><code>My product = projectComponentId:myc|projectGroupId:myg|projectRootPackageName:myc.rootpackage.name</code></pre>
+
+<p>When this product is selected, the wizard pre-fills:</p>
+<ul>
+<li>Component ID &rarr; <code>myc</code></li>
+<li>Group ID &rarr; <code>myg</code></li>
+<li>Root package name &rarr; <code>myc.rootpackage.name</code></li>
+</ul>
+
+<h3><code>project-types.properties</code></h3>
+
+<p>Defines available project types and their wizard configuration.</p>
+
+<p><strong>Location:</strong> <code>conf/project-types.properties</code></p>
+
+<p><strong>Syntax:</strong></p>
+
+<pre><code>&lt;project-type-id&gt; = &lt;description&gt; [ | &lt;configuration-section&gt; ]</code></pre>
+
+<p><strong>Configuration sections</strong> control which fields are prompted and what actions are run:</p>
+
+<table>
+<thead>
+<tr><th>Section</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>projectName</code></td><td>Prompt for project name. Append <code>=&lt;suffix&gt;</code> to auto-add a suffix (e.g. <code>projectName=-ui</code>).</td></tr>
+<tr><td><code>projectRootPackageName</code></td><td>Prompt for Java root package name.</td></tr>
+<tr><td><code>projectGroupId</code></td><td>Prompt for group ID.</td></tr>
+<tr><td><code>projectComponentId</code></td><td>Prompt for component ID.</td></tr>
+<tr><td><code>projectDescription</code></td><td>Prompt for project description.</td></tr>
+<tr><td><code>install=&lt;pkg1&gt;[,&lt;pkg2&gt;]</code></td><td>Install dependencies before project creation (e.g. <code>install=node</code>).</td></tr>
+<tr><td><code>initAction=&lt;command&gt;</code></td><td>Run a command before the main project generation.</td></tr>
+<tr><td><code>mainAction=&lt;command&gt;</code></td><td>Run as the main generation step. If empty, common-gradle-build is used.</td></tr>
+<tr><td><code>postAction=&lt;command&gt;</code></td><td>Run a command after project generation (e.g. cleanup).</td></tr>
+</tbody>
+</table>
+
+<p><strong>Important:</strong> The order of sections matters. <code>install</code>, <code>initAction</code>, <code>mainAction</code>, and <code>postAction</code> must appear after the field sections.</p>
+
+<p><strong>Parameter substitution</strong> in actions &mdash; the following tokens are replaced at runtime:</p>
+
+<table>
+<thead>
+<tr><th>Token</th><th>Replaced with</th></tr>
+</thead>
+<tbody>
+<tr><td><code>@@projectName@@</code></td><td>Entered project name</td></tr>
+<tr><td><code>@@projectType@@</code></td><td>Selected project type</td></tr>
+<tr><td><code>@@projectRootPackageName@@</code></td><td>Entered root package name</td></tr>
+<tr><td><code>@@projectGroupId@@</code></td><td>Entered group ID</td></tr>
+<tr><td><code>@@projectComponentId@@</code></td><td>Entered component ID</td></tr>
+<tr><td><code>@@projectDescription@@</code></td><td>Entered description</td></tr>
+<tr><td><code>@@logFile@@</code></td><td><code>/dev/null</code> (Linux/Mac) or <code>nul</code> (Windows)</td></tr>
+<tr><td><code>@@delete@@</code></td><td><code>rm -rf</code> (Linux/Mac) or <code>cb-deltree</code> (Windows)</td></tr>
+</tbody>
+</table>
+
+<h2>Available Project Types</h2>
+
+<table>
+<thead>
+<tr><th>Type</th><th>Description</th><th>Suffix</th><th>Fields</th><th>Dependencies</th></tr>
+</thead>
+<tbody>
+<tr><td><code>java-application</code></td><td>Simple java application</td><td>&mdash;</td><td>name, package, group, component, description</td><td>&mdash;</td></tr>
+<tr><td><code>java-library</code></td><td>Simple java library</td><td>&mdash;</td><td>name, package, group, component, description</td><td>&mdash;</td></tr>
+<tr><td><code>config</code></td><td>Configuration project</td><td><code>-config</code></td><td>name, group, component, description</td><td>&mdash;</td></tr>
+<tr><td><code>script</code></td><td>Script project</td><td><code>-bin</code></td><td>name, group, description</td><td>&mdash;</td></tr>
+<tr><td><code>openapi</code></td><td>OpenAPI definition project</td><td><code>-service-api-spec</code></td><td>name, package, group, component, description</td><td>&mdash;</td></tr>
+<tr><td><code>quarkus</code></td><td>REST-service with Quarkus</td><td><code>-service</code></td><td>name, package, group, component, description</td><td>&mdash;</td></tr>
+<tr><td><code>vuejs</code></td><td>Vue</td><td><code>-ui</code></td><td>name, component, description</td><td>node</td></tr>
+<tr><td><code>nuxtjs</code></td><td>Nuxt</td><td><code>-ui</code></td><td>name, component, description</td><td>node</td></tr>
+<tr><td><code>react</code></td><td>React</td><td><code>-ui</code></td><td>name, component, description</td><td>node</td></tr>
+<tr><td><code>kubernetes-product</code></td><td>Kubernetes product</td><td><code>-app</code></td><td>name, group, component, description</td><td>&mdash;</td></tr>
+<tr><td><code>documentation</code></td><td>Documentation project</td><td><code>-documentation</code></td><td>name, group, description</td><td>&mdash;</td></tr>
+<tr><td><code>container</code></td><td>Individual container (e.g. docker)</td><td><code>-container</code></td><td>name, component, description</td><td>&mdash;</td></tr>
+<tr><td><code>organization-config</code></td><td>Common Organization Config</td><td><code>-config</code></td><td>name, group, description</td><td>&mdash;</td></tr>
+</tbody>
+</table>
+
+<h2>Configuration File Resolution</h2>
+
+<p>The wizard searches for configuration files in this order (first found wins):</p>
+
+<ol>
+<li><strong>Custom runtime config</strong> &mdash; <code>$CB_CUSTOM_RUNTIME_CONFIG_PATH/conf/</code>
+<ul><li>Also supports product-specific project types: <code>project-types-&lt;productname&gt;.properties</code></li></ul></li>
+<li><strong>Local common-gradle-build</strong> &mdash; <code>~/.gradle/common-gradle-build/&lt;version&gt;/gradle/conf/</code></li>
+<li><strong>Default</strong> &mdash; <code>$CB_HOME/conf/</code></li>
+</ol>
+
+<p>This allows organizations to provide their own product and project types via a custom config project.</p>
+
+<h2>Examples</h2>
+
+<p>Create a Java library interactively:</p>
+
+<pre><code>cb --new
+# Select: java-library
+# Enter: project name, package, group, component, description</code></pre>
+
+<p>Create a Vue.js project (installs Node automatically):</p>
+
+<pre><code>cb --new
+# Select: vuejs
+# Enter: project name, component, description</code></pre>
+
+<p>Fully scripted project creation:</p>
+
+<pre><code>cb --new 1 1 my-service com.example.myservice example mycomp "My new service"</code></pre>
+
+<hr>
+<p><small><a href="../README.html">&larr; Back to README</a></small></p>
+
+</body>
+</html>
