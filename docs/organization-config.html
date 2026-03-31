@@ -381,6 +381,35 @@ set CB_CUSTOM_SETTING=%USERPROFILE%\my-cb-hooks.bat</code></pre>
 </tbody>
 </table>
 
+<h2>Private Package Repository</h2>
+
+<p>Organizations can host additional software packages (as zip files) on an internal server. Common-build downloads and installs all packages from that URL when <code>cb --install</code> is called without a specific package name.</p>
+
+<p>Set the following environment variables:</p>
+
+<pre><code># Linux/Mac
+export CB_PACKAGE_URL="https://packages.mycompany.com/devtools/"
+export CB_PACKAGE_USER="myuser"
+export CB_PACKAGE_PASSWORD="ask"
+
+# Windows
+set CB_PACKAGE_URL=https://packages.mycompany.com/devtools/
+set CB_PACKAGE_USER=myuser
+set CB_PACKAGE_PASSWORD=ask</code></pre>
+
+<table>
+<thead>
+<tr><th>Variable</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>CB_PACKAGE_URL</code></td><td>URL to a directory containing <code>.zip</code> package files. Common-build recursively downloads all zip files from this location.</td></tr>
+<tr><td><code>CB_PACKAGE_USER</code></td><td>Username for authentication. If not set, the user is prompted interactively.</td></tr>
+<tr><td><code>CB_PACKAGE_PASSWORD</code></td><td>Password for authentication. Set to <code>ask</code> to be prompted securely on the command line.</td></tr>
+</tbody>
+</table>
+
+<p>The packages are downloaded via <code>wget</code> into the local dev repository, then extracted and linked just like built-in packages. This allows organizations to distribute proprietary or pre-configured tools that are not part of the public common-build package catalog.</p>
+
 <h2>Update Mechanism</h2>
 
 <p>Common-build checks for config updates once per day:</p>

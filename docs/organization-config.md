@@ -376,6 +376,33 @@ The following variables are available inside hook scripts:
 | `CB_CUSTOM_PROJECT_CONFIGFILE` | Path to dynamically generated project types (set in `new-project-start`) |
 
 
+## Private Package Repository
+
+Organizations can host additional software packages (as zip files) on an internal server. Common-build downloads and installs all packages from that URL when `cb --install` is called without a specific package name.
+
+Set the following environment variables:
+
+```bash
+# Linux/Mac
+export CB_PACKAGE_URL="https://packages.mycompany.com/devtools/"
+export CB_PACKAGE_USER="myuser"
+export CB_PACKAGE_PASSWORD="ask"
+
+# Windows
+set CB_PACKAGE_URL=https://packages.mycompany.com/devtools/
+set CB_PACKAGE_USER=myuser
+set CB_PACKAGE_PASSWORD=ask
+```
+
+| Variable | Description |
+|---|---|
+| `CB_PACKAGE_URL` | URL to a directory containing `.zip` package files. Common-build recursively downloads all zip files from this location. |
+| `CB_PACKAGE_USER` | Username for authentication. If not set, the user is prompted interactively. |
+| `CB_PACKAGE_PASSWORD` | Password for authentication. Set to `ask` to be prompted securely on the command line. |
+
+The packages are downloaded via `wget` into the local dev repository, then extracted and linked just like built-in packages. This allows organizations to distribute proprietary or pre-configured tools that are not part of the public common-build package catalog.
+
+
 ## Update Mechanism
 
 Common-build checks for config updates once per day:

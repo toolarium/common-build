@@ -60,7 +60,7 @@ When called without options (or with build arguments only), `cb` sets up the req
 |---|---|
 | `-h`, `--help` | Show the help message. |
 | `-v`, `--version` | Print version information and installed tool versions. |
-| `--new` | Create a new project via an interactive wizard. Settings can be prefilled, e.g. `--new 1 my-project my.root.pkg my my`. |
+| `--new` | Create a new project via an interactive [project wizard](docs/project-wizard.md). Settings can be prefilled, e.g. `--new 1 my-project my.root.pkg my my`. |
 | `--java [version]` | Override the Java version for this run, e.g. `--java 17`. |
 | `--install [pkg] [version]` | Install a software package. Uses the default version from `tool-version-default.properties` unless a version is specified. Add `-d` or `--default` to mark the installed version as the default. |
 | `--packages` | List all supported packages. |
@@ -217,11 +217,69 @@ Available project types include: `java-application`, `java-library`, `config`, `
 For full details on how project types work and how to configure them, see the [Project Wizard documentation](docs/project-wizard.md).
 
 
+## Per-Project Java Version
+
+Place a `.java-version` file in your project root containing just the major version number:
+
+```
+17
+```
+
+When `cb` runs in that directory, it automatically switches to the specified Java version. This is useful for teams working on projects with different Java requirements — each project controls its own version without affecting others.
+
+
+## How It Works
+
+When you run `cb` in a project directory, the following happens:
+
+```
+cb [build-arguments...]
+ │
+ ├─ 1. Load configuration
+ │     Read tool-version-default.properties, custom config, .java-version
+ │
+ ├─ 2. Set up tools
+ │     Resolve and add Java, Gradle/Maven/Ant, and other tools to PATH
+ │
+ ├─ 3. Run lifecycle hooks
+ │     Call custom hook script (if configured): verify-configuration, build-start
+ │
+ ├─ 4. Execute build
+ │     Detect build system (build.gradle → Gradle, pom.xml → Maven, build.xml → Ant)
+ │     Run the build with all arguments forwarded
+ │
+ └─ 5. Post-build
+       Call build-end hook (if configured)
+```
+
+For `cb --setenv`, only steps 1-2 are executed to set up tools in the current shell.
+For `cb --install <package>`, the tool is downloaded, extracted and linked into the `current/` directory.
+For `cb --new`, the [project wizard](docs/project-wizard.md) is started instead.
+
+
+## Sample Output of `cb --version`
+
+```
+================================================================================
+toolarium common build 1.0.14
+
+.: Installed tool versions:
+    - ant: 1.10.15
+    - gradle: 8.13
+    - java: 21
+    - maven: 3.9.14
+    - node: 24.14.1
+    - python: 3.13.12
+    - trivy: 0.69.3
+================================================================================
+```
+
+
 ## Special Files
 
 | File | Description |
 |---|---|
-| `.java-version` | Place in a project root to pin a specific Java version (e.g. `11`). |
+| `.java-version` | Place in a project root to pin a specific Java version (e.g. `17`). |
 | `conf/tool-version-default.properties` | Default versions for all tools. |
 | `conf/tool-version-installed.properties` | Tracks currently installed tool versions. |
 | `conf/project-types.properties` | Project type definitions for `cb --new`. |
