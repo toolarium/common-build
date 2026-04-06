@@ -49,11 +49,11 @@ echo STEP: run installer into sandbox
 :: Run installer in a separate cmd.exe process to isolate setlocal/endlocal,
 :: PATH length, and delayed-expansion interactions that cause exit code 255.
 set "CB_WRAPPER=%SANDBOX%\run-install.bat"
-> "!CB_WRAPPER!" echo @set "CB_HOME="
->> "!CB_WRAPPER!" echo @set "CB_DEVTOOLS=%SANDBOX_DEVTOOLS%"
->> "!CB_WRAPPER!" echo @set "CB_TEMP=%SANDBOX_TMP%"
+> "!CB_WRAPPER!" echo @set CB_HOME=
+>> "!CB_WRAPPER!" echo @set "CB_DEVTOOLS=!SANDBOX_DEVTOOLS!"
+>> "!CB_WRAPPER!" echo @set "CB_TEMP=!SANDBOX_TMP!"
 >> "!CB_WRAPPER!" echo @set "CB_INSTALL_NO_PERSIST=true"
->> "!CB_WRAPPER!" echo @call "%INST%" --silent --force
+>> "!CB_WRAPPER!" echo @call "!INST!" --silent --force
 cmd /c "!CB_WRAPPER!" > "%SANDBOX%\install.log" 2>&1
 set "INSTALL_EXIT=!ERRORLEVEL!"
 
