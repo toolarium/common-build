@@ -90,8 +90,8 @@ existBinary() {
 	fi
 }
 
-[ -z "$CB_HOME" ] && echo "$CB_LINE" &&  echo "${CB_LINEHEADER}Missing CB_HOME environment variable, please install with the cb-install." && echo "$CB_LINE" && exit 1
-! [ -n "$(existBinary find)" ] && echo "$CB_LINE" &&  echo "${CB_LINEHEADER}Missing package find, please install it before you continue." && echo "$CB_LINE" &&  exit 1
+# CB_HOME and find checks are deferred until after argument parsing
+# so that --help, -h, and invalid-argument errors work without CB_HOME.
 
 
 #########################################################################
@@ -356,6 +356,9 @@ CB_OUT=/dev/stdout
 [ "$CB_DRY_RUN" = "true" ] && DRY_RUN_FLAG="--dry-run"
 [ "$CB_DRY_RUN" = "true" ] && [ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}[DRY-RUN mode — no files will be deleted]"
 
+[ -z "$CB_HOME" ] && echo "$CB_LINE" &&  echo "${CB_LINEHEADER}Missing CB_HOME environment variable, please install with the cb-install." && echo "$CB_LINE" && exit 1
+! [ -n "$(existBinary find)" ] && echo "$CB_LINE" &&  echo "${CB_LINEHEADER}Missing package find, please install it before you continue." && echo "$CB_LINE" &&  exit 1
+
 if [ $argCount -eq 0 ] && [ -z "$CB_CLEAN_PATH" ]; then
 	enableCleanupCommonBuild=1
 	enableCleanupCommonGradleBuild=1
@@ -398,6 +401,7 @@ fi
 # custom setting script
 [ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT cleanup-end $*" 2>/dev/null
 
+exit 0
 
 #########################################################################
 #  EOF
