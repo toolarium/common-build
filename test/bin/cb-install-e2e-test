@@ -127,6 +127,7 @@ env -i \
 	HOME="$SANDBOX_HOME" \
 	USER="${USER:-tester}" \
 	SHELL="${SHELL:-/bin/bash}" \
+	GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
 	CB_DEVTOOLS="$SANDBOX_DEVTOOLS" \
 	CB_TEMP="$SANDBOX_TMP" \
 	"$INST" --silent --force > "$SANDBOX/install.log" 2>&1

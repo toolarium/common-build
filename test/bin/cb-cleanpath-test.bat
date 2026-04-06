@@ -128,7 +128,7 @@ echo TEST: --path removes matching entries
 :: Save original PATH
 set "SAVE_PATH=%PATH%"
 :: Set a controlled PATH with a known entry to remove
-set "PATH=C:\keep1;C:\remove-toolarium-junk;C:\keep2"
+set "PATH=C:\keep1;C:\remove-toolarium-junk;C:\keep2;%SystemRoot%\System32"
 call "%CP%" --path toolarium
 :: PATH should no longer contain toolarium
 call :ASSERT_NOT_CONTAINS "toolarium" "%PATH%" "toolarium entry removed from PATH"
@@ -144,7 +144,7 @@ goto :eof
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo TEST: --path keeps non-matching entries
 set "SAVE_PATH=%PATH%"
-set "PATH=C:\alpha;C:\beta;C:\gamma"
+set "PATH=C:\alpha;C:\beta;C:\gamma;%SystemRoot%\System32"
 call "%CP%" --path zzz-no-match
 :: Nothing should be removed
 call :ASSERT_CONTAINS "alpha" "%PATH%" "alpha still in PATH"
@@ -159,7 +159,7 @@ goto :eof
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo TEST: --path match is case-insensitive
 set "SAVE_PATH=%PATH%"
-set "PATH=C:\keep;C:\MyToolarium\bin;C:\also-keep"
+set "PATH=C:\keep;C:\MyToolarium\bin;C:\also-keep;%SystemRoot%\System32"
 call "%CP%" --path TOOLARIUM
 call :ASSERT_NOT_CONTAINS "Toolarium" "%PATH%" "case-insensitive removal works"
 call :ASSERT_CONTAINS "keep" "%PATH%" "non-matching entries preserved"
@@ -172,7 +172,7 @@ goto :eof
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo TEST: --path removes multiple matching entries
 set "SAVE_PATH=%PATH%"
-set "PATH=C:\keep;C:\toolarium-v1;C:\middle;C:\toolarium-v2"
+set "PATH=C:\keep;C:\toolarium-v1;C:\middle;C:\toolarium-v2;%SystemRoot%\System32"
 call "%CP%" --path toolarium
 call :ASSERT_NOT_CONTAINS "toolarium" "%PATH%" "all toolarium entries removed"
 call :ASSERT_CONTAINS "keep" "%PATH%" "keep entry preserved"
@@ -186,7 +186,7 @@ goto :eof
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo TEST: --verbose produces output
 set "SAVE_PATH=%PATH%"
-set "PATH=C:\a;C:\b-remove;C:\c"
+set "PATH=C:\a;C:\b-remove;C:\c;%SystemRoot%\System32"
 set "OUT=%TEMP%\cbcp-verb-%RANDOM%.txt"
 call "%CP%" --verbose --path remove > "%OUT%" 2>&1
 findstr /c:"Clean path" "%OUT%" >nul 2>nul
