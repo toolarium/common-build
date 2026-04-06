@@ -48,14 +48,22 @@ echo\
 echo STEP: run installer into sandbox
 :: Run installer in a separate cmd.exe process to isolate setlocal/endlocal,
 :: PATH length, and delayed-expansion interactions that cause exit code 255.
-set "CB_WRAPPER=%SANDBOX%\run-install.bat"
-> "!CB_WRAPPER!" echo @set CB_HOME=
->> "!CB_WRAPPER!" echo @set "CB_DEVTOOLS=!SANDBOX_DEVTOOLS!"
->> "!CB_WRAPPER!" echo @set "CB_TEMP=!SANDBOX_TMP!"
->> "!CB_WRAPPER!" echo @set "CB_INSTALL_NO_PERSIST=true"
->> "!CB_WRAPPER!" echo @call "!INST!" --silent --force
-cmd /c "!CB_WRAPPER!" > "%SANDBOX%\install.log" 2>&1
+:: Run installer in isolated cmd.exe — set env vars inline to avoid
+:: PATH overflow, delayed-expansion, and wrapper-file quoting issues.
+set "ORIG_CB_HOME=%CB_HOME%"
+set "ORIG_CB_DEVTOOLS=%CB_DEVTOOLS%"
+set "ORIG_CB_TEMP=%CB_TEMP%"
+set "CB_HOME="
+set "CB_DEVTOOLS=!SANDBOX_DEVTOOLS!"
+set "CB_TEMP=!SANDBOX_TMP!"
+set "CB_INSTALL_NO_PERSIST=true"
+cmd /V:OFF /c ""%INST%" --silent --force" > "!SANDBOX!\install.log" 2>&1
 set "INSTALL_EXIT=!ERRORLEVEL!"
+:: restore caller env
+set "CB_HOME=%ORIG_CB_HOME%"
+set "CB_DEVTOOLS=%ORIG_CB_DEVTOOLS%"
+set "CB_TEMP=%ORIG_CB_TEMP%"
+set "CB_INSTALL_NO_PERSIST="
 
 call :ASSERT_EXIT_CODE "0" "!INSTALL_EXIT!" "installer exit code 0"
 if not "!INSTALL_EXIT!"=="0" (
