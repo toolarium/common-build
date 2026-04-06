@@ -110,7 +110,8 @@ if errorlevel 1 (set "ERROR_INFO=No internet connection detected." & goto INSTAL
 
 :: get the list of release from GitHub
 :: build GitHub API auth header from GITHUB_TOKEN if available (avoids rate limits)
-set "CB_PS_GITHUB_HEADER=$githubHeader = @{}; if ($env:GITHUB_TOKEN) { $githubHeader = @{ Authorization = \"token $env:GITHUB_TOKEN\" } };"
+:: $githubHeader is initialized inside each powershell -Command via CB_PS_GITHUB_HEADER
+if defined GITHUB_TOKEN (set "CB_PS_GITHUB_HEADER=$githubHeader = @{ Authorization = 'token ' + $env:GITHUB_TOKEN };") else (set "CB_PS_GITHUB_HEADER=")
 set CB_REMOTE_VERSION= & set CB_DOWNLOAD_VERSION_URL= & set ERROR_DETAIL_INFO= & set ERROR_INFO=
 set cbInfoTemp=%CB_TEMP%\toolarium-common-build_info%RANDOM%%RANDOM%.txt & set cbErrorTemp=%CB_TEMP%\toolarium-common-build_error%RANDOM%%RANDOM%.txt
 del /f /q %cbInfoTemp% 2>nul & del /f /q %cbErrorTemp% 2>nul
