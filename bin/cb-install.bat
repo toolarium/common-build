@@ -94,7 +94,7 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :COMMON_BUILD_INSTALL
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-set "CB_VERSION=%CB_VERSION: =%"
+if defined CB_VERSION set "CB_VERSION=%CB_VERSION: =%"
 if [%CB_INSTALLER_SILENT%] equ [false] (
 	echo %CB_LINE%
 	if not .%CB_VERSION% == . echo %CB_LINEHEADER%Thank you for installing toolarium-common-build %CB_VERSION% on %COMPUTERNAME%
@@ -109,7 +109,10 @@ ping 8.8.8.8 -n 1 -w 1000 >nul 2>nul
 if errorlevel 1 (set "ERROR_INFO=No internet connection detected." & goto INSTALL_FAILED)
 
 :: get the list of release from GitHub
-:: GitHub API auth: GITHUB_TOKEN is read directly by PowerShell via $env:GITHUB_TOKEN
+:: create PowerShell helper for GitHub API auth (avoids rate limits when GITHUB_TOKEN is set)
+set "cbGithubAuth=%CB_TEMP%\cb-github-auth.ps1"
+> "%cbGithubAuth%" echo $githubHeader = @{}
+>> "%cbGithubAuth%" echo if ^($env:GITHUB_TOKEN^) { $githubHeader['Authorization'] = 'token ' + $env:GITHUB_TOKEN }
 set CB_REMOTE_VERSION= & set CB_DOWNLOAD_VERSION_URL= & set ERROR_DETAIL_INFO= & set ERROR_INFO=
 set cbInfoTemp=%CB_TEMP%\toolarium-common-build_info%RANDOM%%RANDOM%.txt & set cbErrorTemp=%CB_TEMP%\toolarium-common-build_error%RANDOM%%RANDOM%.txt
 del /f /q %cbInfoTemp% 2>nul & del /f /q %cbErrorTemp% 2>nul
@@ -118,10 +121,10 @@ if [%CB_INSTALLER_SILENT%] equ [false] (if .%CB_VERSION% == . echo %CB_LINEHEADE
 	if not .%CB_VERSION% == . echo %CB_LINEHEADER%Check version %CB_VERSION% of toolarium-common-build...)
 
 if not .%CB_VERSION% == . set "CB_VERSION=v%CB_VERSION%"
-if not .%CB_VERSION% == . powershell -Command "$githubHeader = if($env:GITHUB_TOKEN){@{Authorization=\"token $env:GITHUB_TOKEN\"}}else{@{}}; [Net.ServicePointManager]::SecurityProtocol = \"tls12, tls11, tls\" ; $releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%"; $releases | ? { $_.name -eq $Env:CB_VERSION } | Select-Object -Property name |  select-object -First 1 -ExpandProperty name" 2>%cbErrorTemp% > %cbInfoTemp%
+if not .%CB_VERSION% == . powershell -Command ". '%cbGithubAuth%'; [Net.ServicePointManager]::SecurityProtocol = \"tls12, tls11, tls\" ; $releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%"; $releases | ? { $_.name -eq $Env:CB_VERSION } | Select-Object -Property name |  select-object -First 1 -ExpandProperty name" 2>%cbErrorTemp% > %cbInfoTemp%
 if not .%CB_VERSION% == . goto VERIFY_VERSION
-if .%CB_INSTALL_ONLY_STABLE% == .true powershell -Command "$githubHeader = if($env:GITHUB_TOKEN){@{Authorization=\"token $env:GITHUB_TOKEN\"}}else{@{}}; [Net.ServicePointManager]::SecurityProtocol = \"tls12, tls11, tls\" ; $releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%"; $releases | ? { $_.prerelease -ne 'false' } | Select-Object -Property name |  select-object -First 1 -ExpandProperty name" 2>%cbErrorTemp% > %cbInfoTemp%
-if .%CB_INSTALL_ONLY_STABLE% == .false powershell -Command "$githubHeader = if($env:GITHUB_TOKEN){@{Authorization=\"token $env:GITHUB_TOKEN\"}}else{@{}}; [Net.ServicePointManager]::SecurityProtocol = \"tls12, tls11, tls\" ; $releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%" | Select-Object -First 1; Split-Path -Path $releases.zipball_url -Leaf" 2>%cbErrorTemp% > %cbInfoTemp%
+if .%CB_INSTALL_ONLY_STABLE% == .true powershell -Command ". '%cbGithubAuth%'; [Net.ServicePointManager]::SecurityProtocol = \"tls12, tls11, tls\" ; $releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%"; $releases | ? { $_.prerelease -ne 'false' } | Select-Object -Property name |  select-object -First 1 -ExpandProperty name" 2>%cbErrorTemp% > %cbInfoTemp%
+if .%CB_INSTALL_ONLY_STABLE% == .false powershell -Command ". '%cbGithubAuth%'; [Net.ServicePointManager]::SecurityProtocol = \"tls12, tls11, tls\" ; $releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%" | Select-Object -First 1; Split-Path -Path $releases.zipball_url -Leaf" 2>%cbErrorTemp% > %cbInfoTemp%
 :VERIFY_VERSION
 if exist %cbInfoTemp% (set /pCB_REMOTE_VERSION=<%cbInfoTemp%)
 if .%CB_REMOTE_VERSION%==. set "ERROR_INFO=Could not get remote release information." & goto INSTALL_FAILED
@@ -129,8 +132,8 @@ set CB_REMOTE_VERSION=%CB_REMOTE_VERSION:~1%
 set "CB_VERSION=v%CB_REMOTE_VERSION%"
 if [%CB_INSTALLER_SILENT%] equ [false] (echo %CB_LINEHEADER%Download common-build %CB_REMOTE_VERSION%...)
 del /f /q %cbInfoTemp% 2>nul & del /f /q %cbErrorTemp% 2>nul
-powershell -Command "$githubHeader = if($env:GITHUB_TOKEN){@{Authorization=\"token $env:GITHUB_TOKEN\"}}else{@{}}; [Net.ServicePointManager]::SecurityProtocol = \"tls12, tls11, tls\" ; $releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%"; $releases | ? { $_.name -eq $Env:CB_VERSION } | Select-Object -Property zipball_url |  select-object -First 1 -ExpandProperty zipball_url" 2>%cbErrorTemp% > %cbInfoTemp%
-::powershell -Command "$githubHeader = if($env:GITHUB_TOKEN){@{Authorization=\"token $env:GITHUB_TOKEN\"}}else{@{}}; $releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%" | Select-Object -First 1; Write-Output $releases.zipball_url" 2>%cbErrorTemp% > %cbInfoTemp%
+powershell -Command ". '%cbGithubAuth%'; [Net.ServicePointManager]::SecurityProtocol = \"tls12, tls11, tls\" ; $releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%"; $releases | ? { $_.name -eq $Env:CB_VERSION } | Select-Object -Property zipball_url |  select-object -First 1 -ExpandProperty zipball_url" 2>%cbErrorTemp% > %cbInfoTemp%
+::powershell -Command "$releases = Invoke-RestMethod -Headers $githubHeader -Uri "%CB_RELEASE_URL%" | Select-Object -First 1; Write-Output $releases.zipball_url" 2>%cbErrorTemp% > %cbInfoTemp%
 if exist %cbInfoTemp% (set /pCB_DOWNLOAD_VERSION_URL=<%cbInfoTemp%)
 if .%CB_DOWNLOAD_VERSION_URL%==. set "ERROR_INFO=Could not get download url of verison %CB_REMOTE_VERSION%." & goto INSTALL_FAILED
 del /f /q %cbInfoTemp% 2>nul & del /f /q %cbErrorTemp% 2>nul
@@ -298,6 +301,7 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 del /f /q %cbInfoTemp% 2>nul
 del /f /q %cbErrorTemp% 2>nul
+del /f /q %cbGithubAuth% 2>nul
 
 title %CD%
 endlocal & (
