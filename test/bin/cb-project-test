@@ -43,7 +43,7 @@ linkOrInstallTool() {
 	local toolName="$1" extVar="$2" fallbackGlob="$3"
 	local extPath="${!extVar:-}"
 
-	# try env var
+	# try env var (e.g. CB_EXTERNAL_JAVA_HOME)
 	if [ -n "$extPath" ] && [ -d "$extPath/bin" ]; then
 		ln -s "$extPath" "$SANDBOX_HOME/current/$toolName" 2>/dev/null
 		echo "  -> linked $toolName from $extPath"
@@ -68,6 +68,17 @@ linkOrInstallTool() {
 		echo "  -> $toolName installed into sandbox"
 		return 0
 	fi
+
+	# cb --install failed — fall back to well-known system env var (e.g. JAVA_HOME)
+	local sysVar
+	sysVar="$(echo "${toolName}" | tr '[:lower:]' '[:upper:]')_HOME"
+	local sysPath="${!sysVar:-}"
+	if [ -n "$sysPath" ] && [ -d "$sysPath/bin" ]; then
+		ln -s "$sysPath" "$SANDBOX_HOME/current/$toolName" 2>/dev/null
+		echo "  -> WARNING: cb --install $toolName failed, falling back to $sysVar=$sysPath"
+		return 0
+	fi
+
 	echo "  -> WARNING: $toolName install failed"
 	return 1
 }
