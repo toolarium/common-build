@@ -24,12 +24,10 @@
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-:: read path
+:: read path (avoid parenthesized blocks — registry values may contain literal parentheses)
 set "SYSTEM_PATH=" & set "USER_PATH="
-for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKLM\System\CurrentControlSet\Control\Session Manager\Environment" /v "Path" 2^>nul') do (if /I "%%N" == "Path" (set "SYSTEM_PATH=%%P" & goto GET_USER_PATH_FROM_REGISTRY))
-:GET_USER_PATH_FROM_REGISTRY
-for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKCU\Environment" /v "Path" 2^>nul') do (if /I "%%N" == "Path" (set "USER_PATH=%%P" & goto GET_USER_PATH_FROM_REGISTRY_END))
-:GET_USER_PATH_FROM_REGISTRY_END
+for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKLM\System\CurrentControlSet\Control\Session Manager\Environment" /v "Path" 2^>nul') do if /I "%%N" == "Path" set "SYSTEM_PATH=%%P"
+for /F "skip=2 tokens=1,2*" %%N in ('%SystemRoot%\System32\reg.exe query "HKCU\Environment" /v "Path" 2^>nul') do if /I "%%N" == "Path" set "USER_PATH=%%P"
 
 if not defined TEMP set "TEMP=%TMP%"
 if not defined CB_TEMP set "CB_TEMP=%TEMP%\cb"
@@ -41,7 +39,7 @@ set VERBOSE=false
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CHECK_PARAMETER
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-if %0X==X goto END
+if %1X==X goto END
 if .%1==. goto HELP
 if .%1 == .--verbose shift & set VERBOSE=true
 if .%2==. goto HELP
