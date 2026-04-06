@@ -51,6 +51,8 @@ echo exit /b 0) > "%SANDBOX_CB_HOME%\bin\include\cb-credential.bat"
 echo exit /b 1) > "%SANDBOX_CB_HOME%\bin\cb.bat"
 
 set "CB_HOME=%SANDBOX_CB_HOME%"
+:: Tell the update script to use the system git (skip its own git install attempt)
+set "GIT_CLIENT=git"
 
 echo Running update-cb-custom-home.bat tests...
 echo Using:   %UPDATE_SCRIPT%

@@ -118,6 +118,7 @@ parseJson() {
 			for f in $elementFilter; do
 				key="${f%:*}"
 				val="${f#*:}"
+				val="${val%\"}"
 				[ -n "$selectParts" ] && selectParts="$selectParts and "
 				# detect booleans/numbers (unquoted), regex patterns (test), or plain strings (==)
 				case "$val" in
