@@ -104,11 +104,11 @@ esac
 if [ -d "$CLEAN_PATH" ]; then
 	if [ "$CB_DRY_RUN" = "true" ]; then
 		[ "$CB_SILENT" = "false" ] && echo ".: [DRY-RUN] Would clean in [$CLEAN_PATH] with pattern [$CLEAN_PATTERN] which are older than $CLEAN_DAYS day(s)..."
-		deletedCount=$(find "$CLEAN_PATH" -maxdepth 1 -type f -name "$CLEAN_PATTERN" -mtime +$CLEAN_DAYS -print 2>/dev/null | wc -l)
+		deletedCount=$(find "$CLEAN_PATH" -maxdepth 1 -type f -name "$CLEAN_PATTERN" -mtime +$CLEAN_DAYS -print 2>/dev/null | wc -l | tr -d ' ')
 		[ "$CB_SILENT" = "false" ] && echo ".: [DRY-RUN] Would delete $deletedCount file(s)."
 	else
 		[ "$CB_SILENT" = "false" ] && echo ".: Clean in [$CLEAN_PATH] with pattern [$CLEAN_PATTERN] which are older than $CLEAN_DAYS day(s)..."
-		deletedCount=$(find "$CLEAN_PATH" -maxdepth 1 -type f -name "$CLEAN_PATTERN" -mtime +$CLEAN_DAYS -print -delete 2>/dev/null | wc -l)
+		deletedCount=$(find "$CLEAN_PATH" -maxdepth 1 -type f -name "$CLEAN_PATTERN" -mtime +$CLEAN_DAYS -print -delete 2>/dev/null | wc -l | tr -d ' ')
 		[ "$CB_SILENT" = "false" ] && echo ".: Deleted $deletedCount file(s)."
 	fi
 else
