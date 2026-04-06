@@ -45,7 +45,11 @@ CB_JSON="$CB_HOME/bin/cb-json"
 CB_RELEASE_URL="https://api.github.com/repos/toolarium/common-build/releases"
 # GitHub API auth (avoids rate limiting on CI)
 CB_GITHUB_AUTH=""
-[ -n "$GITHUB_TOKEN" ] && CB_GITHUB_AUTH="-H \"Authorization: token $GITHUB_TOKEN\""
+CB_GITHUB_AUTH_WGET=""
+if [ -n "$GITHUB_TOKEN" ]; then
+	CB_GITHUB_AUTH="-H \"Authorization: token $GITHUB_TOKEN\""
+	CB_GITHUB_AUTH_WGET="--header=\"Authorization: token $GITHUB_TOKEN\""
+fi
 CB_JSON_SCRIPT_URL="https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-json"
 FULLTIMESTAMP="date '+%Y%d%m%H%M%S'"
 USER_FRIENDLY_FULLTIMESTAMP="date '+%d.%m.%Y %H:%M:%S'"
@@ -254,7 +258,7 @@ getCBJson() {
 # getLatestRelease
 #########################################################################
 getLatestRelease() {
-	[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -fsSL $CB_GITHUB_AUTH" || CMD="wget -q --header=\"Accept: application/json\" -O -"
+	[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -fsSL $CB_GITHUB_AUTH" || CMD="wget -q --header=\"Accept: application/json\" $CB_GITHUB_AUTH_WGET -O -"
 	CMD="$CMD $CB_RELEASE_URL 2>\"$cbErrorTemp\" | $CB_JSON"
 	[ "$1" = "true" ] && CMD="$CMD --filter \"prerelease=false\""
 	CMD="$CMD --value --name name"
@@ -268,7 +272,7 @@ getLatestRelease() {
 # getRelease
 #########################################################################
 getRelease() {
-	[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -fsSL $CB_GITHUB_AUTH" || CMD="wget -q --header=\"Accept: application/json\" -O -"
+	[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -fsSL $CB_GITHUB_AUTH" || CMD="wget -q --header=\"Accept: application/json\" $CB_GITHUB_AUTH_WGET -O -"
 	CMD="$CMD $CB_RELEASE_URL 2>\"$cbErrorTemp\" | $CB_JSON --filter \"name=(v)?$1\\\"\" --value --name name"
 
  	version=$(eval "$CMD" 2>>"$cbErrorTemp")
@@ -280,7 +284,7 @@ getRelease() {
 # getReleaseDownloadUrl
 #########################################################################
 getReleaseDownloadUrl() {
-	[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -fsSL $CB_GITHUB_AUTH" || CMD="wget -q --header=\"Accept: application/json\" -O -"
+	[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -fsSL $CB_GITHUB_AUTH" || CMD="wget -q --header=\"Accept: application/json\" $CB_GITHUB_AUTH_WGET -O -"
 	CMD="$CMD $CB_RELEASE_URL 2>\"$cbErrorTemp\" | $CB_JSON"
 	[ "$1" = "true" ] && CMD="$CMD --filter \"prerelease=false\""
 	CMD="$CMD --filter \"name=(v)?$1\\\"\" --value --name tarball_url"
@@ -294,7 +298,7 @@ getReleaseDownloadUrl() {
 # downloadRelease
 #########################################################################
 downloadRelease() {
-	[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -SsL $CB_GITHUB_AUTH \"$1\" -o \"$2\"" || CMD="wget -q -O \"$2\" \"$1\""
+	[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -SsL $CB_GITHUB_AUTH \"$1\" -o \"$2\"" || CMD="wget -q $CB_GITHUB_AUTH_WGET -O \"$2\" \"$1\""
 	eval "$CMD" 2>"$cbErrorTemp"
 }
 

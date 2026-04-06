@@ -49,13 +49,17 @@ echo STEP: run installer into sandbox
 set "ORIG_CB_HOME=%CB_HOME%"
 set "ORIG_CB_DEVTOOLS=%CB_DEVTOOLS%"
 set "ORIG_CB_TEMP=%CB_TEMP%"
+set "ORIG_PATH=%PATH%"
 set "CB_HOME="
 set "CB_DEVTOOLS=%SANDBOX_DEVTOOLS%"
 set "CB_TEMP=%SANDBOX_TMP%"
 set "CB_INSTALL_NO_PERSIST=true"
+:: shorten PATH to avoid >8191 char overflow in cb-install.bat endlocal block
+set "PATH=%SystemRoot%\System32;%SystemRoot%;%SystemRoot%\System32\WindowsPowerShell\v1.0"
 call "%INST%" --silent --force > "%SANDBOX%\install.log" 2>&1
 set "INSTALL_EXIT=!ERRORLEVEL!"
 :: restore caller env
+set "PATH=%ORIG_PATH%"
 set "CB_HOME=%ORIG_CB_HOME%"
 set "CB_DEVTOOLS=%ORIG_CB_DEVTOOLS%"
 set "CB_TEMP=%ORIG_CB_TEMP%"

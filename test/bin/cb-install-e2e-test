@@ -217,6 +217,7 @@ runInstaller() {
 		HOME="$SANDBOX_HOME" \
 		USER="${USER:-tester}" \
 		SHELL="${SHELL:-/bin/bash}" \
+		GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
 		CB_DEVTOOLS="$SANDBOX_DEVTOOLS" \
 		CB_TEMP="$SANDBOX_TMP" \
 		"$INST" --silent > /dev/null 2>&1
