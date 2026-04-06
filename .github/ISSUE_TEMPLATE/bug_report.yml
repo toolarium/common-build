@@ -1,0 +1,53 @@
+name: Bug Report
+description: Report a bug in common-build
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Windows (Cygwin/MSYS)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: common-build version
+      description: "Output of `cb --version`"
+      placeholder: "1.1.0"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: "Describe the bug clearly."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: "Minimal steps to trigger the bug."
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output / logs
+      description: "Paste relevant output. Use `cb --verbose` for more detail."
+      render: shell

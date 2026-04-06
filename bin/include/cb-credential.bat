@@ -62,9 +62,9 @@ goto CHECK_PARAMETER
 :HELP
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %PN% - get credentials of an url.
-echo.
+echo\
 echo usage: %PN% [OPTION] GIT-URL
-echo.
+echo\
 echo Overview of the available OPTIONs:
 echo  -h, --help           Show this help message.
 echo  --raw                Return the plaintext credentials; otherwise its a
@@ -83,12 +83,12 @@ goto END
 :READ_CREDENTIAL
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 %GIT_CLIENT% --version >nul 2>nul
-if %ERRORLEVEL% NEQ 0 echo. & echo .: ERROR: No git client found. & echo. & goto END_WITH_ERROR
+if %ERRORLEVEL% NEQ 0 echo\  & echo .: ERROR: No git client found. & echo\ & goto END_WITH_ERROR
 
 if [%CB_PARAMETERS%] EQU [] if exist .git\config for /f "tokens=1,2 delims==" %%i in ('type .git\config^|findstr /C:http') do ( call :SET_URL %%j ) 
 ::if [%CB_PARAMETERS%] EQU [] if exist .git\config for /f "tokens=* delims= " %%a in ("%CB_PARAMATERS%") do ( set "CB_PARAMATERS=%%a" )
 
-if [%CB_PARAMETERS%] EQU [] echo. & echo .: ERROR: No url found. Please provide external git url & echo. & goto END_WITH_ERROR
+if [%CB_PARAMETERS%] EQU [] echo\  & echo .: ERROR: No url found. Please provide external git url & echo\ & goto END_WITH_ERROR
 for /f "tokens=1,2,3,* delims=/" %%i in ("%CB_PARAMETERS%") do (set "urlProtocol=%%i" & set "urlHost=%%j" & set "urlPath=%%k")
 for /f "tokens=1,* delims=:" %%i in ("%urlProtocol%") do (set "urlProtocol=%%i")
 if .%urlProtocol% == . echo .: ERROR: No protocol found & goto END_WITH_ERROR

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Package Development Guide - common-build</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; line-height: 1.6; max-width: 960px; margin: 0 auto; padding: 2rem; color: #24292e; }
+  h1 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+  h2 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; margin-top: 1.5em; }
+  h3 { margin-top: 1.2em; }
+  code { background: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-size: 85%; }
+  pre { background: #f6f8fa; padding: 1em; border-radius: 6px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #dfe2e5; padding: 6px 13px; text-align: left; }
+  th { background: #f6f8fa; font-weight: 600; }
+  tr:nth-child(even) { background: #f6f8fa; }
+  a { color: #0366d6; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  ol { padding-left: 1.5em; }
+  ul { padding-left: 1.5em; }
+  .back-link { margin-bottom: 1em; }
+  .note { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px 16px; margin: 1em 0; }
+  .warning { background: #f8d7da; border-left: 4px solid #dc3545; padding: 12px 16px; margin: 1em 0; }
+</style>
+</head>
+<body>
+
+<p class="back-link"><a href="index.html">&larr; Back</a></p>
+
+<h1>Package Development Guide</h1>
+<p>This document describes how to create and maintain package scripts for the toolarium common-build package installation system.</p>
+
+<h2>Overview</h2>
+<p>The package system allows <code>cb --install &lt;package&gt; [version]</code> to download, extract, and register developer tools. Each package is defined by a pair of scripts:</p>
+<pre>
+bin/packages/&lt;package-name&gt;/&lt;package-name&gt;.sh    (Linux/macOS)
+bin/packages/&lt;package-name&gt;/&lt;package-name&gt;.bat   (Windows)
+</pre>
+<p>The package script's sole job is to <strong>set environment variables</strong> that tell the main <code>cb</code> installer what to download, where to extract, and how to register the tool. The script does not download or extract anything itself.</p>
+
+<h2>Installation Flow</h2>
+<p>When a user runs <code>cb --install maven 3.9.14 --default</code>, the following steps happen:</p>
+<ol>
+  <li><strong>Version resolution</strong> &mdash; If no version is given, cb looks up the default in <code>conf/tool-version-default.properties</code> (or the custom config's version).</li>
+  <li><strong>Package script execution</strong> &mdash; cb sources <code>bin/packages/maven/maven.sh</code> (or <code>.bat</code>), passing the version as <code>$1</code>. The script sets <code>CB_PACKAGE_*</code> variables.</li>
+  <li><strong>URL construction</strong> &mdash; If <code>CB_PACKAGE_DOWNLOAD_URL</code> is not set, cb constructs it from <code>CB_PACKAGE_BASE_URL</code> + <code>CB_PACKAGE_DOWNLOAD_NAME</code>.</li>
+  <li><strong>Download</strong> &mdash; The archive is downloaded to <code>$CB_DEVTOOLS/.repository/</code> (skipped if already cached).</li>
+  <li><strong>Extraction</strong> &mdash; The archive is extracted into <code>$CB_DEVTOOLS/</code>. The top-level directory is auto-detected from the archive, or forced via <code>CB_PACKAGE_DEST_VERSION_NAME</code>.</li>
+  <li><strong>Post-install commands</strong> &mdash; <code>CB_PACKAGE_BUILD_CMD</code> and <code>CB_PACKAGE_PERMISSION_CMD</code> run inside the extracted directory.</li>
+  <li><strong>Junction/symlink creation</strong> &mdash; If <code>--default</code> is given (or this is the first install), a symlink is created: <code>$CB_HOME/current/&lt;package&gt;</code> &rarr; <code>$CB_DEVTOOLS/&lt;extracted-dir&gt;</code>.</li>
+  <li><strong>Version tracking</strong> &mdash; The version is recorded in <code>conf/tool-version-installed.properties</code>.</li>
+</ol>
+
+<h2>Environment Variables Set by Package Scripts</h2>
+<p>These variables are the contract between a package script and the cb installer.</p>
+
+<h3>Mandatory</h3>
+<table>
+<tr><th>Variable</th><th>Description</th><th>Example</th></tr>
+<tr>
+  <td><code>CB_PACKAGE_DOWNLOAD_NAME</code></td>
+  <td>Exact filename of the downloaded archive. Must match what the download URL produces. Used as the filename in <code>$CB_DEVTOOLS/.repository/</code>.</td>
+  <td><code>apache-maven-3.9.14-bin.zip</code></td>
+</tr>
+</table>
+
+<h3>URL (one of these must be set)</h3>
+<table>
+<tr><th>Variable</th><th>Description</th><th>Example</th></tr>
+<tr>
+  <td><code>CB_PACKAGE_BASE_URL</code></td>
+  <td>Base URL directory. Combined with <code>CB_PACKAGE_DOWNLOAD_NAME</code> to form the full URL. Use this when the URL follows the pattern <code>base/filename</code>.</td>
+  <td><code>https://archive.apache.org/dist/maven/maven-3/3.9.14/binaries</code></td>
+</tr>
+<tr>
+  <td><code>CB_PACKAGE_DOWNLOAD_URL</code></td>
+  <td>Complete download URL. Overrides <code>CB_PACKAGE_BASE_URL</code> when set. Use this when the URL cannot be split into base + filename. Set to <code>"NA"</code> to skip the download entirely.</td>
+  <td><code>https://github.com/git-for-windows/git/releases/download/v2.53.0/Git-2.53.0-64-bit.exe</code></td>
+</tr>
+</table>
+
+<h3>Optional</h3>
+<table>
+<tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+<tr>
+  <td><code>CB_PACKAGE_VERSION</code></td>
+  <td><em>(empty)</em></td>
+  <td>The version being installed. Used in log messages and version tracking. Set this if the actual version differs from the input parameter (e.g., after API lookup).</td>
+</tr>
+<tr>
+  <td><code>CB_PACKAGE_VERSION_NAME</code></td>
+  <td>Same as <code>CB_PACKAGE_DOWNLOAD_NAME</code></td>
+  <td>Friendly name for the extracted tool directory. Used in log messages.</td>
+</tr>
+<tr>
+  <td><code>CB_PACKAGE_DEST_VERSION_NAME</code></td>
+  <td><em>(auto-detected from archive)</em></td>
+  <td>Forces extraction into <code>$CB_DEVTOOLS/&lt;this-value&gt;/</code> instead of auto-detecting the top-level directory from the archive. Use when the archive has non-standard structure or no top-level directory.</td>
+</tr>
+<tr>
+  <td><code>CB_PACKAGE_DIRECTORY_NAME</code></td>
+  <td><em>(set by cb after extraction)</em></td>
+  <td>Full path to the extracted tool. Normally set by cb, but package scripts may pre-set it for the <code>CB_PACKAGE_ALREADY_EXIST</code> check.</td>
+</tr>
+<tr>
+  <td><code>CB_PACKAGE_ALREADY_EXIST</code></td>
+  <td><code>false</code></td>
+  <td>Set to <code>true</code> when the target directory already exists and overwrite is not forced. <strong>Critical:</strong> without this, re-running an install extracts over the existing directory but does not update the <code>current/</code> symlink or <code>tool-version-installed.properties</code>.</td>
+</tr>
+<tr>
+  <td><code>CB_PACKAGE_NO_DEFAULT</code></td>
+  <td><code>false</code></td>
+  <td>Set to <code>true</code> to skip symlink creation and version tracking. Use for tools that install system-wide (e.g., Docker via system package manager).</td>
+</tr>
+<tr>
+  <td><code>CB_PACKAGE_BUILD_CMD</code></td>
+  <td><em>(empty)</em></td>
+  <td>Shell command executed inside the extracted directory after extraction. Use for flattening nested structures, compiling from source, or post-install setup.</td>
+</tr>
+<tr>
+  <td><code>CB_PACKAGE_PERMISSION_CMD</code></td>
+  <td><em>(empty)</em></td>
+  <td>Shell command executed inside the extracted directory after the build command. Use for setting executable permissions.</td>
+</tr>
+<tr>
+  <td><code>CB_PACKAGE_INSTALL_PARAMETER</code></td>
+  <td><em>(empty)</em></td>
+  <td>Parameters passed to <code>.exe</code> or <code>.sh</code> installers. Use for silent/unattended installation flags.</td>
+</tr>
+<tr>
+  <td><code>CB_POST_INSTALL_ACTION</code></td>
+  <td><em>(empty)</em></td>
+  <td>Command executed after extraction and symlink creation. Use for creating desktop shortcuts, wrapper scripts, or additional configuration.</td>
+</tr>
+</table>
+
+<h2>Environment Variables Available to Package Scripts</h2>
+<p>These variables are set by <code>cb</code> before calling the package script. Package scripts can read them to make platform-specific decisions.</p>
+
+<h3>Platform and Architecture</h3>
+<table>
+<tr><th>Variable</th><th>Values</th><th>Description</th></tr>
+<tr><td><code>CB_OS</code></td><td><code>linux</code>, <code>mac</code>, <code>cygwin</code>, <code>freebsd</code>, <code>solaris</code>, <code>aix</code></td><td>Operating system (normalized from <code>uname</code>)</td></tr>
+<tr><td><code>CB_MACHINE</code></td><td><code>x86_64</code>, <code>aarch64</code>, <code>arm</code>, <code>s390x</code>, etc.</td><td>Machine architecture from <code>uname -m</code></td></tr>
+<tr><td><code>CB_PROCESSOR_ARCHITECTURE_NUMBER</code></td><td><code>32</code> or <code>64</code></td><td>Processor word size (from <code>getconf LONG_BIT</code>)</td></tr>
+</table>
+
+<h3>Directories</h3>
+<table>
+<tr><th>Variable</th><th>Description</th><th>Typical value</th></tr>
+<tr><td><code>CB_HOME</code></td><td>Common-build installation root</td><td><code>/home/user/devtools/toolarium-common-build-1.1.0</code></td></tr>
+<tr><td><code>CB_DEVTOOLS</code></td><td>Root directory for all installed tools</td><td><code>/home/user/devtools</code></td></tr>
+<tr><td><code>CB_DEV_REPOSITORY</code></td><td>Download cache directory</td><td><code>/home/user/devtools/.repository</code></td></tr>
+<tr><td><code>CB_CURRENT_PATH</code></td><td>Symlink directory (<code>current/&lt;tool&gt;</code> &rarr; versioned dir)</td><td><code>/home/user/devtools/toolarium-common-build-1.1.0/current</code></td></tr>
+<tr><td><code>CB_TEMP</code></td><td>Temporary directory for work files</td><td><code>/tmp/cb-user</code></td></tr>
+<tr><td><code>CB_LOGS</code></td><td>Log directory</td><td><code>$CB_HOME/logs</code></td></tr>
+</table>
+
+<h3>Flags</h3>
+<table>
+<tr><th>Variable</th><th>Values</th><th>Description</th></tr>
+<tr><td><code>CB_INSTALL_OVERWRITE_DIST</code></td><td><code>true</code> / <code>false</code></td><td>Whether to force re-download and re-extraction</td></tr>
+<tr><td><code>CB_INSTALL_SILENT</code></td><td><code>true</code> / <code>false</code></td><td>Suppress console output</td></tr>
+<tr><td><code>CB_VERBOSE</code></td><td><code>true</code> / <code>false</code></td><td>Enable verbose logging</td></tr>
+<tr><td><code>CB_SET_DEFAULT</code></td><td><code>true</code> / <code>false</code></td><td>Whether to create the <code>current/</code> symlink (set by <code>--default</code> or <code>-d</code> flag)</td></tr>
+<tr><td><code>CB_OFFLINE</code></td><td><code>true</code> / <code>false</code></td><td>Offline mode (skip downloads)</td></tr>
+</table>
+
+<h2>Writing a Package Script</h2>
+
+<h3>Minimal example (shell)</h3>
+<pre>
+#!/bin/bash
+# bin/packages/mytool/mytool.sh
+
+# Default version (can be overridden via CB_MYTOOL_VERSION env var)
+[ -z "$CB_MYTOOL_VERSION" ] && CB_MYTOOL_VERSION="1.2.3"
+
+# Accept version from command line, fall back to default
+CB_PACKAGE_VERSION="$1"
+[ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION="$CB_MYTOOL_VERSION"
+
+# Set download coordinates
+CB_PACKAGE_BASE_URL="https://releases.example.com/mytool/${CB_PACKAGE_VERSION}"
+CB_PACKAGE_DOWNLOAD_NAME="mytool-${CB_PACKAGE_VERSION}.tar.gz"
+CB_PACKAGE_VERSION_NAME="mytool-${CB_PACKAGE_VERSION}"
+
+export CB_PACKAGE_VERSION CB_PACKAGE_BASE_URL CB_PACKAGE_DOWNLOAD_NAME CB_PACKAGE_VERSION_NAME
+</pre>
+
+<h3>Minimal example (batch)</h3>
+<pre>
+@ECHO OFF
+:: bin\packages\mytool\mytool.bat
+
+if not defined CB_MYTOOL_VERSION set "CB_MYTOOL_VERSION=1.2.3"
+
+set "CB_PACKAGE_VERSION=%1"
+if .%CB_PACKAGE_VERSION%==. set "CB_PACKAGE_VERSION=%CB_MYTOOL_VERSION%"
+
+set "CB_PACKAGE_BASE_URL=https://releases.example.com/mytool/%CB_PACKAGE_VERSION%"
+set "CB_PACKAGE_DOWNLOAD_NAME=mytool-%CB_PACKAGE_VERSION%.zip"
+set "CB_PACKAGE_VERSION_NAME=mytool-%CB_PACKAGE_VERSION%"
+</pre>
+
+<h3>With already-exist check (recommended)</h3>
+<pre>
+#!/bin/bash
+[ -z "$CB_MYTOOL_VERSION" ] && CB_MYTOOL_VERSION="1.2.3"
+CB_PACKAGE_VERSION="$1"
+[ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION="$CB_MYTOOL_VERSION"
+
+CB_PACKAGE_BASE_URL="https://releases.example.com/mytool/${CB_PACKAGE_VERSION}"
+CB_PACKAGE_DOWNLOAD_NAME="mytool-${CB_PACKAGE_VERSION}.tar.gz"
+CB_PACKAGE_VERSION_NAME="mytool-${CB_PACKAGE_VERSION}"
+
+# Prevent redundant extraction when already installed
+CB_PACKAGE_DIRECTORY_NAME="$CB_DEVTOOLS/mytool-${CB_PACKAGE_VERSION}"
+[ "$CB_INSTALL_OVERWRITE_DIST" = "false" ] && [ -d "$CB_PACKAGE_DIRECTORY_NAME" ] && CB_PACKAGE_ALREADY_EXIST=true
+
+export CB_PACKAGE_VERSION CB_PACKAGE_BASE_URL CB_PACKAGE_DOWNLOAD_NAME CB_PACKAGE_VERSION_NAME
+export CB_PACKAGE_DIRECTORY_NAME CB_PACKAGE_ALREADY_EXIST
+</pre>
+
+<h3>Platform-specific downloads</h3>
+<pre>
+#!/bin/bash
+CB_PACKAGE_VERSION="$1"
+[ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION="2.0.0"
+
+case "$CB_OS" in
+  linux)  CB_PACKAGE_DOWNLOAD_NAME="mytool-${CB_PACKAGE_VERSION}-linux-x${CB_PROCESSOR_ARCHITECTURE_NUMBER}.tar.gz" ;;
+  mac)    CB_PACKAGE_DOWNLOAD_NAME="mytool-${CB_PACKAGE_VERSION}-macos-x${CB_PROCESSOR_ARCHITECTURE_NUMBER}.tar.gz" ;;
+  cygwin) CB_PACKAGE_DOWNLOAD_NAME="mytool-${CB_PACKAGE_VERSION}-windows-x${CB_PROCESSOR_ARCHITECTURE_NUMBER}.zip" ;;
+  *)      CB_PACKAGE_DOWNLOAD_NAME="mytool-${CB_PACKAGE_VERSION}-linux-x${CB_PROCESSOR_ARCHITECTURE_NUMBER}.tar.gz" ;;
+esac
+
+CB_PACKAGE_DOWNLOAD_URL="https://github.com/example/mytool/releases/download/v${CB_PACKAGE_VERSION}/${CB_PACKAGE_DOWNLOAD_NAME}"
+CB_PACKAGE_VERSION_NAME="mytool-${CB_PACKAGE_VERSION}"
+CB_PACKAGE_DEST_VERSION_NAME="mytool-${CB_PACKAGE_VERSION}"
+
+export CB_PACKAGE_VERSION CB_PACKAGE_DOWNLOAD_URL CB_PACKAGE_DOWNLOAD_NAME
+export CB_PACKAGE_VERSION_NAME CB_PACKAGE_DEST_VERSION_NAME
+</pre>
+
+<h3>With post-install build command</h3>
+<pre>
+#!/bin/bash
+# When the archive has a nested directory structure that needs flattening
+CB_PACKAGE_VERSION="$1"
+[ -z "$CB_PACKAGE_VERSION" ] && CB_PACKAGE_VERSION="21.0.2"
+
+CB_PACKAGE_DOWNLOAD_URL="https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-${CB_PACKAGE_VERSION}/graalvm-community-jdk-${CB_PACKAGE_VERSION}_linux-x64_bin.tar.gz"
+CB_PACKAGE_DOWNLOAD_NAME="graalvm-community-jdk-${CB_PACKAGE_VERSION}_linux-x64_bin.tar.gz"
+CB_PACKAGE_VERSION_NAME="graalvm-${CB_PACKAGE_VERSION}"
+CB_PACKAGE_DEST_VERSION_NAME="graalvm-${CB_PACKAGE_VERSION}"
+
+# Flatten nested directory after extraction
+CB_PACKAGE_BUILD_CMD="mv graalvm-community-*/* . 2>/dev/null; rmdir graalvm-community-* 2>/dev/null"
+
+export CB_PACKAGE_VERSION CB_PACKAGE_DOWNLOAD_URL CB_PACKAGE_DOWNLOAD_NAME
+export CB_PACKAGE_VERSION_NAME CB_PACKAGE_DEST_VERSION_NAME CB_PACKAGE_BUILD_CMD
+</pre>
+
+<div class="warning">
+<strong>Important:</strong> Shell scripts must <code>export</code> all <code>CB_PACKAGE_*</code> variables. Batch scripts do not need explicit export since <code>set</code> variables are visible to the calling process.
+</div>
+
+<h2>Supported Archive Formats</h2>
+<table>
+<tr><th>Extension</th><th>Tool required</th><th>Notes</th></tr>
+<tr><td><code>.zip</code></td><td><code>unzip</code></td><td>Most common on Windows</td></tr>
+<tr><td><code>.tar.gz</code>, <code>.tgz</code></td><td><code>tar</code></td><td>Most common on Linux/macOS</td></tr>
+<tr><td><code>.tar</code></td><td><code>tar</code></td><td>Uncompressed tar</td></tr>
+<tr><td><code>.xz</code></td><td><code>xz</code>, <code>tar</code></td><td>High-compression (cb checks for <code>xz</code> before use)</td></tr>
+<tr><td><code>.exe</code></td><td><em>none</em></td><td>Windows installer (executed via <code>cmd /c</code> on Cygwin)</td></tr>
+<tr><td><code>.sh</code></td><td><em>none</em></td><td>Shell installer (executed directly with <code>CB_PACKAGE_INSTALL_PARAMETER</code>)</td></tr>
+<tr><td><code>.deb</code></td><td><code>dpkg</code></td><td>Debian package (requires root via <code>sudo</code>)</td></tr>
+<tr><td><code>.rpm</code></td><td><code>rpm</code></td><td>Red Hat package (requires root via <code>sudo</code>)</td></tr>
+</table>
+
+<h2>Adding a Tool to PATH</h2>
+<p>After installing a package, it must be added to PATH in <strong>two separate code paths</strong> in <code>cb</code>/<code>cb.bat</code>:</p>
+<ol>
+  <li><strong><code>--setenv</code></strong> (function <code>setCBEnv()</code> / label <code>:SET_ENV</code>) &mdash; Sets environment variables for interactive shell use.</li>
+  <li><strong>Build execution</strong> (function <code>commonBuild()</code> / label <code>:COMMON_BUILD</code>) &mdash; Adds tools to PATH for build-time use. This path does NOT go through <code>setCBEnv</code>.</li>
+</ol>
+<div class="note">
+When adding a new tool that needs to be in PATH during builds, ensure it is added in <strong>both</strong> paths. Otherwise, <code>cb --setenv</code> will find the tool but <code>cb</code> (build mode) will not.
+</div>
+
+<h2>Custom Package Hooks</h2>
+<p>If a custom settings script (<code>CB_CUSTOM_SETTING_SCRIPT</code>) is configured, cb calls it at these points during installation:</p>
+<table>
+<tr><th>Hook</th><th>When</th></tr>
+<tr><td><code>install-start</code></td><td>Before any installation logic</td></tr>
+<tr><td><code>download-package-start</code></td><td>Before download, receives package name and version</td></tr>
+<tr><td><code>download-package-end</code></td><td>After download completes</td></tr>
+<tr><td><code>extract-package-start</code></td><td>Before extraction</td></tr>
+<tr><td><code>extract-package-end</code></td><td>After extraction and symlink creation</td></tr>
+<tr><td><code>install-end</code></td><td>After all installation steps complete</td></tr>
+</table>
+
+<h2>Version Configuration</h2>
+<p>Default versions for all tools are defined in <code>conf/tool-version-default.properties</code>:</p>
+<pre>
+maven = 3.9.14
+gradle = 8.14
+node = 22.16.0
+java = 21
+</pre>
+<p>Installed versions are tracked in <code>conf/tool-version-installed.properties</code> (auto-maintained by cb).</p>
+<p>Each package script should also define a fallback default version constant (e.g., <code>CB_MAVEN_VERSION=3.9.14</code>) used when no version is specified and the properties file is unavailable.</p>
+
+<h2>Platform Compatibility</h2>
+<table>
+<tr><th>Platform</th><th>CB_OS value</th><th>Package script</th><th>Archive format</th></tr>
+<tr><td>Ubuntu / Debian / RHEL / Alpine</td><td><code>linux</code></td><td><code>.sh</code></td><td><code>.tar.gz</code>, <code>.tgz</code>, <code>.zip</code></td></tr>
+<tr><td>macOS</td><td><code>mac</code></td><td><code>.sh</code></td><td><code>.tar.gz</code>, <code>.zip</code></td></tr>
+<tr><td>Windows (native)</td><td><em>n/a</em></td><td><code>.bat</code></td><td><code>.zip</code>, <code>.exe</code></td></tr>
+<tr><td>Windows (Git Bash / MSYS2 / Cygwin)</td><td><code>cygwin</code></td><td><code>.sh</code></td><td><code>.zip</code>, <code>.tar.gz</code></td></tr>
+<tr><td>FreeBSD</td><td><code>freebsd</code></td><td><code>.sh</code></td><td><code>.tar.gz</code></td></tr>
+<tr><td>Solaris</td><td><code>solaris</code></td><td><code>.sh</code></td><td><code>.tar.gz</code></td></tr>
+</table>
+
+<h2>Global Configuration Variables</h2>
+<p>These environment variables can be set by the user or in CI to customize common-build behavior globally. They affect installation, connectivity, and directory layout.</p>
+
+<h3>Directory Layout</h3>
+<table>
+<tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+<tr><td><code>CB_DEVTOOLS</code></td><td><code>$HOME/devtools</code> (Unix), <code>c:\devtools</code> (Windows)</td><td>Root directory for all dev tools.</td></tr>
+<tr><td><code>CB_DEVTOOLS_NAME</code></td><td><code>devtools</code></td><td>Name of the devtools directory (without path). Changing this overrides the directory name within <code>$HOME</code>.</td></tr>
+<tr><td><code>CB_DEVTOOLS_DRIVE</code></td><td><code>c:</code></td><td>(Windows only) Drive letter where devtools are installed.</td></tr>
+<tr><td><code>CB_HOME</code></td><td><code>$CB_DEVTOOLS/toolarium-common-build-v&lt;version&gt;</code></td><td>Common-build installation directory.</td></tr>
+<tr><td><code>CB_TEMP</code></td><td><code>$TMPDIR/cb-$USER</code> (Unix), <code>%TEMP%\cb</code> (Windows)</td><td>Temporary directory for work files, download caches, and lock files.</td></tr>
+</table>
+
+<h3>Network and Connectivity</h3>
+<table>
+<tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+<tr><td><code>CB_ONLINE_ADDRESS</code></td><td><code>8.8.8.8</code></td><td>IP address or hostname used for the internet connectivity check. Override in corporate environments that block direct DNS or use a proxy.</td></tr>
+<tr><td><code>CB_ONLINE_ADDRESS_PORT</code></td><td><code>53</code></td><td>Port used for the connectivity check.</td></tr>
+<tr><td><code>CB_ONLINE_TIMEOUT</code></td><td><code>2</code></td><td>Timeout in seconds for the connectivity check.</td></tr>
+</table>
+
+<h3>Custom Configuration</h3>
+<table>
+<tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+<tr><td><code>CB_CUSTOM_CONFIG</code></td><td><em>(empty)</em></td><td>Git URL to a custom config project for full organization-wide customization.</td></tr>
+<tr><td><code>CB_CUSTOM_SETTING</code></td><td><em>(empty)</em></td><td>Path to a custom hook script called during all operations. See <code>$CB_HOME/bin/sample/cb-custom-sample.sh</code>.</td></tr>
+<tr><td><code>CB_PACKAGE_URL</code></td><td><em>(empty)</em></td><td>URL to a directory of additional package zip files (for private/corporate package hosting).</td></tr>
+<tr><td><code>CB_PACKAGE_USER</code></td><td><em>(empty)</em></td><td>Username for accessing <code>CB_PACKAGE_URL</code>.</td></tr>
+<tr><td><code>CB_PACKAGE_PASSWORD</code></td><td><em>(empty)</em></td><td>Password for <code>CB_PACKAGE_URL</code>. Set to <code>ask</code> for interactive prompt.</td></tr>
+</table>
+
+<h3>Installer Behavior</h3>
+<table>
+<tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+<tr><td><code>CB_INSTALL_ONLY_STABLE</code></td><td><code>true</code></td><td>Set to <code>false</code> to allow draft/pre-release versions when running <code>cb-install</code>.</td></tr>
+<tr><td><code>CB_INSTALL_NO_PERSIST</code></td><td><em>(unset)</em></td><td>(Windows only) Set to <code>true</code> to prevent <code>cb-install.bat</code> from writing <code>CB_HOME</code> and <code>PATH</code> to the user registry via <code>setx</code>. Used for automated testing.</td></tr>
+</table>
+
+<h2>System Dependencies</h2>
+<p>The following tools must be present on the system. <code>cb-install</code> verifies these at installation time:</p>
+<table>
+<tr><th>Tool</th><th>Required by</th><th>Purpose</th></tr>
+<tr><td><code>curl</code> or <code>wget</code></td><td>cb-install, cb --install</td><td>Downloading packages</td></tr>
+<tr><td><code>tar</code></td><td>cb-install, cb --install</td><td>Extracting <code>.tar.gz</code> / <code>.tgz</code> archives</td></tr>
+<tr><td><code>unzip</code></td><td>cb-install, cb --install</td><td>Extracting <code>.zip</code> archives</td></tr>
+<tr><td><code>find</code></td><td>cb-install, cb</td><td>Locating installed tool versions</td></tr>
+<tr><td><code>diff</code></td><td>cb-install</td><td>Comparing configuration files</td></tr>
+<tr><td><code>git</code></td><td>cb (custom config)</td><td>Cloning organization config repositories</td></tr>
+</table>
+
+<h2>Checklist for New Packages</h2>
+<ol>
+  <li>Create <code>bin/packages/&lt;name&gt;/&lt;name&gt;.sh</code> and <code>.bat</code></li>
+  <li>Set <code>CB_PACKAGE_DOWNLOAD_NAME</code> (mandatory)</li>
+  <li>Set <code>CB_PACKAGE_BASE_URL</code> or <code>CB_PACKAGE_DOWNLOAD_URL</code></li>
+  <li>Set <code>CB_PACKAGE_VERSION_NAME</code> for clean directory naming</li>
+  <li>Add the <code>CB_PACKAGE_ALREADY_EXIST</code> check</li>
+  <li>Handle platform differences using <code>CB_OS</code> / <code>CB_MACHINE</code> / <code>CB_PROCESSOR_ARCHITECTURE_NUMBER</code></li>
+  <li>Add a default version to <code>conf/tool-version-default.properties</code></li>
+  <li>If the tool needs PATH access: add it to both <code>setCBEnv()</code> and <code>commonBuild()</code> in <code>cb</code>/<code>cb.bat</code></li>
+  <li>Shell scripts: <code>export</code> all <code>CB_PACKAGE_*</code> variables</li>
+  <li>Test with <code>cb --install &lt;name&gt; --default</code> and verify <code>current/&lt;name&gt;</code> symlink is created</li>
+</ol>
+
+<hr>
+<p><small>GNU General Public License v3.0 &mdash; see <a href="http://www.gnu.org/licenses/">LICENSE</a> for details.</small></p>
+<p><small><a href="index.html">&larr; Back</a></small></p>
+
+</body>
+</html>

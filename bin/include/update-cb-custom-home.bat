@@ -124,12 +124,12 @@ if .%credentialCheck%==.true set "errorMsg=%errorMsg%, unknown reason (valid cre
 if .%commonGradleBuildHomeUpdated%==.false set "errorMsg=%errorMsg% (could not clone)"
 echo %CB_LINEHEADER%%errorMsg%:
 echo    %commonGradleBuildHomeGitUrl% 
-echo.
+echo\
 echo Windows credentials can be managed with the commands:
 echo     rundll32.exe keymgr.dll,KRShowKeyMgr
 echo or 
 echo     control.exe keymgr.dll
-echo.
+echo\
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

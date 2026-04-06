@@ -75,19 +75,23 @@ preapreProjectConfigurationFile() {
 		endWithError
 	fi
 
-	cbProjectConfigFileTimestamp=$(stat -c $'%Y\t%y\t%n' "$CB_PROJECT_CONFIGFILE" 2>/dev/null | awk '{print $2$3}' 2>/dev/null | sed 's/-//g;s/://g;s/\.//g' 2>/dev/null | cut -c1-14 2>/dev/null )
+	if [ "$(uname)" = "Darwin" ]; then
+		cbProjectConfigFileTimestamp=$(stat -f "%m" "$CB_PROJECT_CONFIGFILE" 2>/dev/null)
+	else
+		cbProjectConfigFileTimestamp=$(stat -c $'%Y\t%y\t%n' "$CB_PROJECT_CONFIGFILE" 2>/dev/null | awk '{print $2$3}' 2>/dev/null | sed 's/-//g;s/://g;s/\.//g' 2>/dev/null | cut -c1-14 2>/dev/null )
+	fi
 	if [ -n "$cbProjectConfigFileTimestamp" ]; then
 		CB_PROJECT_CONFIGFILE_TMPFILE="$CB_TEMP/cb-project-types-${projectTypesFileAppendix}$cbProjectConfigFileTimestamp.tmp"
 	else
-		CB_PROJECT_CONFIGFILE_TMPFILE=$(mktemp $CB_TEMP/cb-project-types-${projectTypesFileAppendix}XXXXXXXXX.tmp)
+		CB_PROJECT_CONFIGFILE_TMPFILE="$CB_TEMP/cb-project-types-${projectTypesFileAppendix}$(date '+%Y%m%d%H%M%S')$$.tmp"
 	fi
 
 	if [ "$CB_VERBOSE" = "true" ]; then
 		echo "${CB_LINEHEADER}Use project configuration file: $CB_PROJECT_CONFIGFILE"
-		! [ -r "$CB_PROJECT_CONFIGFILE_TMPFILE" ] && echo "${CB_LINEHEADER}Create project types temp file: $CB_PROJECT_CONFIGFILE_TMPFILE"
+		! [ -s "$CB_PROJECT_CONFIGFILE_TMPFILE" ] && echo "${CB_LINEHEADER}Create project types temp file: $CB_PROJECT_CONFIGFILE_TMPFILE"
 	fi
 
-	! [ -r "$CB_PROJECT_CONFIGFILE_TMPFILE" ] && cat "$CB_PROJECT_CONFIGFILE" 2>/dev/null | tr -d '\15\32' | grep -v "#" | grep "=" > "$CB_PROJECT_CONFIGFILE_TMPFILE" 2>/dev/null
+	! [ -s "$CB_PROJECT_CONFIGFILE_TMPFILE" ] && cat "$CB_PROJECT_CONFIGFILE" 2>/dev/null | tr -d '\15\32' | grep -v "#" | grep "=" > "$CB_PROJECT_CONFIGFILE_TMPFILE" 2>/dev/null
 }
 
 
@@ -102,18 +106,22 @@ preapreProductConfigurationFile() {
 		return
 	fi
 		
-	cbProductConfigFileTimestamp=$(stat -c $'%Y\t%y\t%n' "$CB_PRODUCT_CONFIGFILE" 2>/dev/null | awk '{print $2$3}' 2>/dev/null | sed 's/-//g;s/://g;s/\.//g' 2>/dev/null | cut -c1-14 2>/dev/null )
+	if [ "$(uname)" = "Darwin" ]; then
+		cbProductConfigFileTimestamp=$(stat -f "%m" "$CB_PRODUCT_CONFIGFILE" 2>/dev/null)
+	else
+		cbProductConfigFileTimestamp=$(stat -c $'%Y\t%y\t%n' "$CB_PRODUCT_CONFIGFILE" 2>/dev/null | awk '{print $2$3}' 2>/dev/null | sed 's/-//g;s/://g;s/\.//g' 2>/dev/null | cut -c1-14 2>/dev/null )
+	fi
 	if [ -n "$cbProductConfigFileTimestamp" ]; then
 		CB_PRODUCT_CONFIGFILE_TMPFILE="$CB_TEMP/cb-product-types-$cbProductConfigFileTimestamp.tmp"
 	else
-		CB_PRODUCT_CONFIGFILE_TMPFILE=$(mktemp $CB_TEMP/cb-product-types-XXXXXXXXX.tmp)
+		CB_PRODUCT_CONFIGFILE_TMPFILE="$CB_TEMP/cb-product-types-$(date '+%Y%m%d%H%M%S')$$.tmp"
 	fi
-	
+
 	if [ "$CB_VERBOSE" = "true" ]; then
 		echo "${CB_LINEHEADER}Use product configuration file: $CB_PRODUCT_CONFIGFILE"
-		! [ -r "$CB_PRODUCT_CONFIGFILE_TMPFILE" ] && echo "${CB_LINEHEADER}Create product types temp file: $CB_PRODUCT_CONFIGFILE_TMPFILE"
+		! [ -s "$CB_PRODUCT_CONFIGFILE_TMPFILE" ] && echo "${CB_LINEHEADER}Create product types temp file: $CB_PRODUCT_CONFIGFILE_TMPFILE"
 	fi
-	! [ -r "$CB_PRODUCT_CONFIGFILE_TMPFILE" ] && cat "$CB_PRODUCT_CONFIGFILE" 2>/dev/null | tr -d '\15\32' | grep -v "#" | grep "=" > "$CB_PRODUCT_CONFIGFILE_TMPFILE" 2>/dev/null
+	! [ -s "$CB_PRODUCT_CONFIGFILE_TMPFILE" ] && cat "$CB_PRODUCT_CONFIGFILE" 2>/dev/null | tr -d '\15\32' | grep -v "#" | grep "=" > "$CB_PRODUCT_CONFIGFILE_TMPFILE" 2>/dev/null
 }
 
 

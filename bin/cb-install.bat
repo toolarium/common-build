@@ -39,7 +39,7 @@ if not exist %CB_TEMP% mkdir "%CB_TEMP%" >nul 2>nul
 
 :: define parameters
 set "CB_LINEHEADER=.: "
-set CB_LINE=----------------------------------------------------------------------------------------
+set "CB_LINE=------------------------------------------------------------------------------------------------------------------------"
 set PN=%~nx0
 set "CB_WORKING_PATH=%CD%"
 set "CB_USER_DRIVE=%CD:~0,2%"
@@ -89,7 +89,7 @@ goto CHECK_PARAMETER
 echo %CB_LINE%
 echo toolarium common build installer %CB_INSTALLER_VERSION%
 echo %CB_LINE%
-echo.
+echo\
 goto END
 
 
@@ -104,7 +104,7 @@ if [%CB_INSTALLER_SILENT%] equ [false] (
 	echo %CB_LINEHEADER%Use %CB_DEVTOOLS% path as devtools folder, %USER_FRIENDLY_FULLTIMESTAMP%
 	echo %CB_LINE%
 	pause
-	echo.)
+	echo\  )
 
 :: check connection
 ping 8.8.8.8 -n 1 -w 1000 >nul 2>nul
@@ -159,14 +159,16 @@ powershell -command "Expand-Archive -Force %CB_DEV_REPOSITORY%\%CB_VERSION_NAME%
 move %CB_DEV_REPOSITORY%\toolarium-common-build-???????? %CB_DEVTOOLS%\%CB_VERSION_NAME% >nul
 if /I [%CB_DEVTOOLS_DRIVE%] NEQ [%CB_USER_DRIVE%] (%CB_USER_DRIVE%)
 
-:: remove unecessary files
+:: remove unecessary files (keep docs\ - it ships the release documentation)
 del /f /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\.gitattributes 2>nul
 del /f /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\.gitignore 2>nul
 del /f /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\README.md 2>nul
+del /f /q %CB_DEVTOOLS%\%CB_VERSION_NAME%\CLAUDE.md 2>nul
 call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree "%CB_DEVTOOLS%\%CB_VERSION_NAME%\.git" 2>nul
 call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree "%CB_DEVTOOLS%\%CB_VERSION_NAME%\.github" 2>nul
-call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree "%CB_DEVTOOLS%\%CB_VERSION_NAME%\docs" 2>nul
+call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree "%CB_DEVTOOLS%\%CB_VERSION_NAME%\.claude" 2>nul
 call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree "%CB_DEVTOOLS%\%CB_VERSION_NAME%\testdata" 2>nul
+call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree "%CB_DEVTOOLS%\%CB_VERSION_NAME%\test" 2>nul
 call %CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\cb-deltree "%CB_DEVTOOLS%\%CB_VERSION_NAME%\bin\testing" 2>nul
 :EXTRACT_CB_END
 
@@ -186,7 +188,7 @@ if [%CB_HOME%] equ [%CB_DEVTOOLS%\%CB_VERSION_NAME%] goto SET_CBHOME_END
 :READ_PREVIOUS_VERSION_END
 if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Set CB_HOME to %CB_DEVTOOLS%\%CB_VERSION_NAME%
 set "CB_HOME=%CB_DEVTOOLS%\%CB_VERSION_NAME%"
-setx CB_HOME "%CB_DEVTOOLS%\%CB_VERSION_NAME%" >nul 2>nul
+if not defined CB_INSTALL_NO_PERSIST setx CB_HOME "%CB_DEVTOOLS%\%CB_VERSION_NAME%" >nul 2>nul
 
 :: take over symbol link and config
 if not defined CB_HOME_PREVIOUS goto SET_CBHOME_END
@@ -200,9 +202,9 @@ if exist %CB_HOME_PREVIOUS%\conf\tool-version-installed.properties copy %CB_HOME
 if [%CB_PREVIOUS_VERSION_NAME%] equ [%CB_VERSION_NAME%] goto SET_PATH_END
 :: read user path and cleanup
 set USER_PATH=
-if exist %CB_HOME%\bin\cb-cleanpath.bat call %CB_HOME%\bin\cb-cleanpath.bat --user toolarium 2>nul
+if not defined CB_INSTALL_NO_PERSIST if exist %CB_HOME%\bin\cb-cleanpath.bat call %CB_HOME%\bin\cb-cleanpath.bat --user toolarium 2>nul
 if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Update CB_HOME in the user PATH environment
-setx PATH "%CB_HOME%\bin;%USER_PATH%" >nul 2>nul
+if not defined CB_INSTALL_NO_PERSIST setx PATH "%CB_HOME%\bin;%USER_PATH%" >nul 2>nul
 ::call %CB_HOME%\bin\cb-cleanpath.bat --system toolarium
 ::setx -m PATH "%SYSTEM_PATH%" >nul 2>nul
 :SET_PATH_END
@@ -213,6 +215,29 @@ set "CB_LOGS=%CB_HOME%\logs"
 if not exist %CB_LOGS% (mkdir %CB_LOGS% >nul 2>nul)
 set "CB_CURRENT_PATH=%CB_HOME%\current"
 if not exist %CB_CURRENT_PATH% (mkdir %CB_CURRENT_PATH% >nul 2>nul)
+
+:: nushell support: create cb-setenv.nu and add source line to env.nu
+where nu >nul 2>nul
+if %ERRORLEVEL% NEQ 0 goto NUSHELL_END
+set "CB_NUSHELL_DIR=%USERPROFILE%\.config\nushell"
+if not exist "%CB_NUSHELL_DIR%" mkdir "%CB_NUSHELL_DIR%" >nul 2>nul
+set "CB_NUSHELL_HELPER=%CB_NUSHELL_DIR%\cb-setenv.nu"
+if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Create Nushell helper %CB_NUSHELL_HELPER%
+echo # toolarium-common-build support (auto-generated, do not edit)> "%CB_NUSHELL_HELPER%"
+echo $env.CB_HOME = '%CB_HOME%'>> "%CB_NUSHELL_HELPER%"
+echo $env.PATH = ($env.PATH ^| prepend '%CB_HOME%\bin')>> "%CB_NUSHELL_HELPER%"
+set "CB_NUSHELL_ENV=%CB_NUSHELL_DIR%\env.nu"
+if not exist "%CB_NUSHELL_ENV%" type nul > "%CB_NUSHELL_ENV%" 2>nul
+findstr /C:"cb-setenv.nu" "%CB_NUSHELL_ENV%" >nul 2>nul
+if %ERRORLEVEL% EQU 0 goto NUSHELL_END
+if [%CB_INSTALLER_SILENT%] equ [false] echo %CB_LINEHEADER%Add source line to %CB_NUSHELL_ENV%
+echo.>> "%CB_NUSHELL_ENV%"
+echo # toolarium-common-build support>> "%CB_NUSHELL_ENV%"
+echo source ~/.config/nushell/cb-setenv.nu>> "%CB_NUSHELL_ENV%"
+:NUSHELL_END
+set CB_NUSHELL_DIR=
+set CB_NUSHELL_HELPER=
+set CB_NUSHELL_ENV=
 
 :: download wget -> https://eternallybored.org/misc/wget/1.20.3/64/wget.exe
 set CB_WGET_CMD=wget.exe
@@ -237,10 +262,10 @@ goto INSTALL_FAILED
 goto INSTALL_SUCCESSFULL_END
 
 :INSTALL_FAILED
-if [%CB_INSTALLER_SILENT%] equ [false] (echo.)
+if [%CB_INSTALLER_SILENT%] equ [false] (echo\ )
 echo %CB_LINE%
 echo Failed installation: %ERROR_INFO%
-if exist %cbErrorTemp% (echo. & type %cbErrorTemp%)
+if exist %cbErrorTemp% (echo\  & type %cbErrorTemp%)
 echo %CB_LINE%
 goto END
 
@@ -248,7 +273,7 @@ goto END
 if [%CB_INSTALLER_SILENT%] equ [false] (
 	echo %CB_LINEHEADER%Successfully installed toolarium-common-build v%CB_REMOTE_VERSION%.
 	echo %CB_LINEHEADER%The %%PATH%% is extended and you can start working with the command cb. 	
-	echo.
+	echo\
 	if exist %CB_HOME%\bin\include\how-to.bat pause & call %CB_HOME%\bin\include\how-to.bat 2>nul | more)
 goto END
 
@@ -258,14 +283,14 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %PN% - toolarium common build installer v%CB_INSTALLER_VERSION%
 echo usage: %PN% [OPTION]
-echo.
+echo\
 echo Overview of the available OPTIONs:
 echo  -h, --help           Show this help message.
 echo  -v, --version        Print the version information.
 echo  --silent             Suppress the console output.
 echo  --force              Force to reinstall the common-build.
 echo  --draft              Also considers draft / pre-release versions.
-echo.
+echo\
 goto END
 
 

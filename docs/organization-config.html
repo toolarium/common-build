@@ -26,11 +26,11 @@
 </head>
 <body>
 
-<p class="back-link"><a href="../README.html">&larr; Back to README</a></p>
+<p class="back-link"><a href="index.html">&larr; Back</a></p>
 
-<h1>Common Organization Config</h1>
+<h1>Organization Config</h1>
 
-<p>In a corporate environment, organizations often need to enforce consistent tool versions, project structures, naming conventions, and custom validation rules across all development teams. The <strong>Common Organization Config</strong> feature allows you to centralize these settings in a Git repository that common-build automatically clones and applies.</p>
+<p>In a corporate environment, organizations often need to enforce consistent tool versions, project structures, naming conventions, and custom validation rules across all development teams. The <strong>Organization Config</strong> feature allows you to centralize these settings in a Git repository that common-build automatically clones and applies.</p>
 
 <h2>Overview</h2>
 
@@ -203,6 +203,8 @@ platform-library = Platform Shared Library|projectName=-lib|projectRootPackageNa
 <tr><td><code>extract-package-end</code></td><td>After extracting a package</td><td>Post-extract configuration</td></tr>
 <tr><td><code>setenv-start</code></td><td>Before setting environment</td><td>Pre-environment setup</td></tr>
 <tr><td><code>setenv-end</code></td><td>After setting environment</td><td>Additional PATH entries</td></tr>
+<tr><td><code>cleanup-start</code></td><td>Before cleanup runs (<code>cb-cleanup</code>)</td><td>Pre-cleanup hooks, notifications</td></tr>
+<tr><td><code>cleanup-end</code></td><td>After cleanup completes (<code>cb-cleanup</code>)</td><td>Post-cleanup reporting</td></tr>
 <tr><td><code>custom-config-update-end</code></td><td>After config repository is updated</td><td>Notify about config changes</td></tr>
 <tr><td><code>error-end</code></td><td>When a critical error occurs</td><td>Error reporting, alerting</td></tr>
 </tbody>
@@ -210,11 +212,13 @@ platform-library = Platform Shared Library|projectName=-lib|projectRootPackageNa
 
 <h3>Validation Hooks</h3>
 
-<p>The <code>new-project-validate-*</code> hooks must return an exit code:</p>
+<p>The <code>new-project-validate-*</code> hooks must return a code:</p>
 <ul>
 <li><strong>0</strong> &mdash; validation passed</li>
 <li><strong>1</strong> &mdash; validation failed (wizard re-prompts the user)</li>
 </ul>
+
+<p>Since hook scripts are <strong>sourced</strong> (not executed as a subprocess), use <code>return 0</code> / <code>return 1</code> in shell scripts &mdash; not <code>exit</code>, which would terminate the calling shell.</p>
 
 <h3>Hook Script Examples</h3>
 
@@ -227,9 +231,9 @@ customNewProjectValidateName() {
     local projectName="$1"
     if [[ ! "$projectName" =~ ^myorg- ]]; then
         echo "ERROR: Project name must start with 'myorg-' (got: $projectName)"
-        exit 1
+        return 1
     fi
-    exit 0
+    return 0
 }
 
 # Enforce Java package naming convention
@@ -237,9 +241,9 @@ customNewProjectValidateRootPackageName() {
     local packageName="$1"
     if [[ ! "$packageName" =~ ^com\.myorg\. ]]; then
         echo "ERROR: Package name must start with 'com.myorg.' (got: $packageName)"
-        exit 1
+        return 1
     fi
-    exit 0
+    return 0
 }
 
 # Pin corporate Java version on build start
@@ -283,9 +287,11 @@ while [ $# -gt 0 ]; do
         extract-package-end)                  shift; return 0;;
         setenv-start)                         shift; return 0;;
         setenv-end)                           shift; return 0;;
+        cleanup-start)                        shift; return 0;;
+        cleanup-end)                          shift; return 0;;
         custom-config-update-end)             shift; return 0;;
         error-end)                            shift; customErrorEnd "$@"; return 0;;
-        *)                                    return 1;;
+        *)                                    return 0;;
     esac
     shift
 done</code></pre>
@@ -315,9 +321,11 @@ if .%1==.extract-package-start shift &amp; goto CUSTOM_END
 if .%1==.extract-package-end shift &amp; goto CUSTOM_END
 if .%1==.setenv-start shift &amp; goto CUSTOM_END
 if .%1==.setenv-end shift &amp; goto CUSTOM_END
+if .%1==.cleanup-start shift &amp; goto CUSTOM_END
+if .%1==.cleanup-end shift &amp; goto CUSTOM_END
 if .%1==.custom-config-update-end shift &amp; goto CUSTOM_END
 if .%1==.error-end shift &amp; goto CUSTOM_ERROR_END
-exit /b 1
+goto CUSTOM_END
 
 :CUSTOM_BUILD_START
 echo %CB_LINEHEADER%Using corporate Java version: %CB_JAVA_VERSION%
@@ -357,7 +365,13 @@ export CB_CUSTOM_SETTING="$HOME/my-cb-hooks.sh"
 # Windows
 set CB_CUSTOM_SETTING=%USERPROFILE%\my-cb-hooks.bat</code></pre>
 
-<p>The script receives the same lifecycle events as <code>bin/cb-custom.sh</code> in a custom config project. See <code>$CB_HOME/bin/sample/cb-custom-sample.sh</code> and <code>$CB_HOME/bin/sample/cb-custom-sample.bat</code> for complete templates.</p>
+<p>The script receives the same lifecycle events as <code>bin/cb-custom.sh</code> in a custom config project. See the <a href="sample/">sample scripts</a> for complete templates:</p>
+<ul>
+<li><a href="sample/cb-custom-sample.sh"><code>cb-custom-sample.sh</code></a> &mdash; Linux/Mac sample with all hooks active and echo output</li>
+<li><a href="sample/cb-custom-sample.bat"><code>cb-custom-sample.bat</code></a> &mdash; Windows sample with all hooks active and echo output</li>
+<li><a href="sample/cb-custom.sh"><code>cb-custom.sh</code></a> &mdash; Linux/Mac minimal template (all hooks are no-ops)</li>
+<li><a href="sample/cb-custom.bat"><code>cb-custom.bat</code></a> &mdash; Windows minimal template (all hooks are no-ops)</li>
+</ul>
 
 <h2>Environment Variables</h2>
 
@@ -430,7 +444,8 @@ set CB_PACKAGE_PASSWORD=ask</code></pre>
 <pre><code>cb --update --force</code></pre>
 
 <hr>
-<p><small><a href="../README.html">&larr; Back to README</a></small></p>
+<p><small>GNU General Public License v3.0 &mdash; see <a href="http://www.gnu.org/licenses/">LICENSE</a> for details.</small></p>
+<p><small><a href="index.html">&larr; Back</a></small></p>
 
 </body>
 </html>

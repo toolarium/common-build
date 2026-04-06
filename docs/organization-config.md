@@ -186,14 +186,18 @@ Hook scripts allow your organization to run custom logic at every stage of the c
 | `extract-package-end` | After extracting a package | Post-extract configuration |
 | `setenv-start` | Before setting environment | Pre-environment setup |
 | `setenv-end` | After setting environment | Additional PATH entries |
+| `cleanup-start` | Before cleanup runs (`cb-cleanup`) | Pre-cleanup hooks, notifications |
+| `cleanup-end` | After cleanup completes (`cb-cleanup`) | Post-cleanup reporting |
 | `custom-config-update-end` | After config repository is updated | Notify about config changes |
 | `error-end` | When a critical error occurs | Error reporting, alerting |
 
 ### Validation Hooks
 
-The `new-project-validate-*` hooks must return an exit code:
+The `new-project-validate-*` hooks must return a code:
 - **0** — validation passed
 - **1** — validation failed (wizard re-prompts the user)
+
+Since hook scripts are **sourced** (not executed as a subprocess), use `return 0` / `return 1` in shell scripts — not `exit`, which would terminate the calling shell.
 
 ### Hook Script Examples
 
@@ -207,9 +211,9 @@ customNewProjectValidateName() {
     local projectName="$1"
     if [[ ! "$projectName" =~ ^myorg- ]]; then
         echo "ERROR: Project name must start with 'myorg-' (got: $projectName)"
-        exit 1
+        return 1
     fi
-    exit 0
+    return 0
 }
 
 # Enforce Java package naming convention
@@ -217,9 +221,9 @@ customNewProjectValidateRootPackageName() {
     local packageName="$1"
     if [[ ! "$packageName" =~ ^com\.myorg\. ]]; then
         echo "ERROR: Package name must start with 'com.myorg.' (got: $packageName)"
-        exit 1
+        return 1
     fi
-    exit 0
+    return 0
 }
 
 # Pin corporate Java version on build start
@@ -275,9 +279,11 @@ while [ $# -gt 0 ]; do
         extract-package-end)                  shift; return 0;;
         setenv-start)                         shift; return 0;;
         setenv-end)                           shift; return 0;;
+        cleanup-start)                        shift; return 0;;
+        cleanup-end)                          shift; return 0;;
         custom-config-update-end)             shift; return 0;;
         error-end)                            shift; customErrorEnd "$@"; return 0;;
-        *)                                    return 1;;
+        *)                                    return 0;;
     esac
     shift
 done
@@ -309,9 +315,11 @@ if .%1==.extract-package-start shift & goto CUSTOM_END
 if .%1==.extract-package-end shift & goto CUSTOM_END
 if .%1==.setenv-start shift & goto CUSTOM_END
 if .%1==.setenv-end shift & goto CUSTOM_END
+if .%1==.cleanup-start shift & goto CUSTOM_END
+if .%1==.cleanup-end shift & goto CUSTOM_END
 if .%1==.custom-config-update-end shift & goto CUSTOM_END
 if .%1==.error-end shift & goto CUSTOM_ERROR_END
-exit /b 1
+goto CUSTOM_END
 
 :CUSTOM_BUILD_START
 echo %CB_LINEHEADER%Using corporate Java version: %CB_JAVA_VERSION%
@@ -355,7 +363,12 @@ export CB_CUSTOM_SETTING="$HOME/my-cb-hooks.sh"
 set CB_CUSTOM_SETTING=%USERPROFILE%\my-cb-hooks.bat
 ```
 
-The script receives the same lifecycle events as `bin/cb-custom.sh` in a custom config project. See `$CB_HOME/bin/sample/cb-custom-sample.sh` and `$CB_HOME/bin/sample/cb-custom-sample.bat` for complete templates.
+The script receives the same lifecycle events as `bin/cb-custom.sh` in a custom config project. See the [sample scripts](sample/) for complete templates:
+
+- [`cb-custom-sample.sh`](sample/cb-custom-sample.sh) — Linux/Mac sample with all hooks active and echo output
+- [`cb-custom-sample.bat`](sample/cb-custom-sample.bat) — Windows sample with all hooks active and echo output
+- [`cb-custom.sh`](sample/cb-custom.sh) — Linux/Mac minimal template (all hooks are no-ops)
+- [`cb-custom.bat`](sample/cb-custom.bat) — Windows minimal template (all hooks are no-ops)
 
 
 ## Environment Variables

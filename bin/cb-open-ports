@@ -1,0 +1,274 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-open-ports
+#
+# Copyright by toolarium, all rights reserved.
+#
+# This file is part of the toolarium common-build.
+#
+# The common-build is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The common-build is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Foobar. If not, see <http://www.gnu.org/licenses/>.
+#
+#########################################################################
+
+
+CB_LINE="----------------------------------------------------------------------------------------"
+CB_LINEHEADER=".: "
+PN=$(basename "$0" 2>/dev/null)
+fileOutputName="open-ports.dat"
+outputFormat="%-6s\t%-7s\t%-30s\t%-10s\t%-5s\t%-5s\t%-5s\t%-13s\t%-10s\t%-15s\t%-50s\n"
+
+# detect OS (needed for /proc, netstat flags, pmap)
+CB_OS="$(uname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+case "$CB_OS" in
+	linux*) CB_OS="linux" ;;
+	darwin*) CB_OS="mac" ;;
+	cygwin*|mingw*|msys*) CB_OS="cygwin" ;;
+	*) CB_OS="other" ;;
+esac
+
+
+#########################################################################
+# printUsage
+#########################################################################
+printUsage() {
+    echo "$PN - script to read all open ports. Optional filter can be passed as argument."
+	echo "usage: $PN [OPTION] [filter1 filter2 ...]"
+	echo ""
+	echo "Overview of the available OPTIONs:"
+	echo " -h, --help             Show this help message."
+	echo " -q                     Suppress header"
+	echo " -l, --localhost        Include ports on localhost (127.0.0.1)"
+	echo " -i, --ignoreLocalhost  Ignore ports on localhost (127.0.0.1) [default]"
+	echo " -p [path]              Defines the ouput path and don't print output"
+	echo " -f [filename]          Defines the filename, default: $fileOutputName"
+	echo ""
+}
+
+
+#########################################################################
+# read the open ports
+#########################################################################
+readOpenPortList() {
+    if [ "$CB_OS" = "mac" ]; then
+        # macOS: use lsof to find listening TCP/UDP ports
+        # Output: pid\tcommand\taddr:port
+        lsof -i -P -n 2>/dev/null | awk '
+            NR==1        { next }
+            $NF !~ /LISTEN/ && $5 !~ /^UDP/ { next }
+            {
+                pid=$2; cmd=$1; addr=$9
+                if ($5 ~ /^UDP/) addr=$9
+                if (!seen[pid "\t" cmd "\t" addr]++)
+                    print pid "\t" cmd "\t" addr
+            }
+        '
+    else
+        # Linux: netstat output columns depend on protocol and privileges:
+        #   TCP (root):     proto recvq sendq local foreign STATE pid/prog
+        #   TCP (non-root): proto recvq sendq local foreign STATE
+        #   UDP (root):     proto recvq sendq local foreign pid/prog
+        #   UDP (non-root): proto recvq sendq local foreign
+        # pid/prog is always the LAST field when present and contains "/";
+        # local address is always $4. Shell ${rawPort##*:} extracts the port later.
+        netstat -plunt 2>/dev/null | awk '
+            NR<=2        { next }
+            $NF !~ /\//  { next }
+            {
+                split($NF, pn, "/")
+                if (pn[1] == "") next
+                if (!seen[pn[1] "\t" pn[2] "\t" $4]++)
+                    print pn[1] "\t" pn[2] "\t" $4
+            }
+        '
+    fi
+}
+
+
+#########################################################################
+# read the open ports
+#########################################################################
+createOpenPortListFile() {
+	[ -n "$ignoreLocalhost" ] && ignoreFilter="127.0.0.1" || ignoreFilter="^$"
+
+	# filter once, collect all PIDs
+	filteredPorts=$(printf '%s\n' "$openPortList" | grep -v "$ignoreFilter")
+	[ -z "$filteredPorts" ] && return 0
+
+	# build comma-separated pid list (deduplicated)
+	pidList=$(printf '%s\n' "$filteredPorts" | awk '{print $1}' | sort -u | paste -sd, -)
+
+	# ONE ps call for all PIDs; build a map pid -> "size pcpu pri nlwp ni pmem etime user group"
+	psInfoFile="${TMPDIR:-/tmp}/cb-op-ps-$$"
+	if [ "$CB_OS" = "mac" ]; then
+		# macOS ps: no -o nlwp/pri/group; use rss instead of size
+		ps -p "$pidList" -o pid,rss,pcpu,nice,etime,user 2>/dev/null | tail -n +2 > "$psInfoFile"
+	else
+		ps -p "$pidList" -o pid,size,pcpu,pri,nlwp,ni,pmem,etime,user,group 2>/dev/null | tail -n +2 > "$psInfoFile"
+	fi
+
+	while IFS=$'\t ' read -r processNumber processName rawPort _rest; do
+		[ -z "$processNumber" ] && continue
+		openPort="${rawPort##*:}"
+		processPath="-"
+
+		# look up ps info for this PID in the prefetched map
+		# shellcheck disable=SC2086
+		set -- $(awk -v p="$processNumber" '$1==p{$1=""; print; exit}' "$psInfoFile")
+		if [ "$CB_OS" = "mac" ]; then
+			# macOS ps: rss pcpu nice etime user (no pri, nlwp, group)
+			processSize=$1
+			processCpu=$2
+			processPrio="-"
+			processNlwp="-"
+			processTime=$4
+			processUser=$5
+			processGroup="-"
+		else
+			processSize=$1
+			processCpu=$2
+			processPrio=$3
+			processNlwp=$4
+			#processNice=$5
+			#processMem=$6
+			processTime=$7
+			processUser=$8
+			processGroup=$9
+		fi
+		if [ "$CB_OS" = "linux" ] && command -v pmap >/dev/null 2>&1; then
+			processSizePmap=$(awk 'END{gsub(/K/,"",$2); print $2}' <(pmap "$processNumber" 2>/dev/null))
+			[ -n "$processSizePmap" ] && processSize="$processSizePmap"
+		fi
+
+		# fill missing fields (typical when running as non-root) with '-'
+		[ -z "$processSize" ] && processSize="-"
+		[ -z "$processCpu" ] && processCpu="-"
+		[ -z "$processPrio" ] && processPrio="-"
+		[ -z "$processNlwp" ] && processNlwp="-"
+		[ -z "$processTime" ] && processTime="-"
+		[ -z "$processUser" ] && processUser="-"
+		[ -z "$processGroup" ] && processGroup="-"
+		printf "$outputFormat" "$openPort" "$processNumber" "$processName" "$processSize" "$processCpu" "$processPrio" "$processNlwp" "$processTime" "$processUser" "$processGroup" "$processPath"
+	done <<EOF
+$filteredPorts
+EOF
+
+	rm -f "$psInfoFile" >/dev/null 2>&1
+}
+
+
+#########################################################################
+# write the output file
+#########################################################################
+createOutputFile() {
+    filePath="${filename%/*}"
+    filePartName="${filename##*/}"
+
+    ! [ -d "$filePath" ] && echo "${CB_LINEHEADER}Could not found file path $filePath!" && exit 1
+
+    tempFileName="${TMPDIR:-/tmp}/$filePartName$$"
+    rm -f $tempFileName > /dev/null 2>&1
+
+    echo "${CB_LINEHEADER}Write output to $filename..."
+    cat - 2> /dev/null | tee "$tempFileName" > /dev/null 2>&1
+    [ -n "$CB_OUTPUT_OWNER" ] && chown "$CB_OUTPUT_OWNER" "$tempFileName" > /dev/null 2>&1
+    [ -n "$CB_OUTPUT_GROUP" ] && chgrp "$CB_OUTPUT_GROUP" "$tempFileName" > /dev/null 2>&1
+    chmod 640 "$tempFileName" > /dev/null 2>&1
+    rm -f "$filename" > /dev/null 2>&1 && mv -f "$tempFileName" "$filename" > /dev/null 2>&1
+}
+
+
+#########################################################################
+# main
+#########################################################################
+sysfilter=
+writeFile=
+filterParameter=
+ignoreLocalhost=1
+
+# validate user parameters
+while [ $# -gt 0 ]; do
+    case "$1" in
+		-h)					printUsage; exit 0;;
+		--help)				printUsage; exit 0;;
+        -q)     			suppressHeader=1;;
+        --ignoreLocalhost)  ignoreLocalhost=1;;
+        -i)     			ignoreLocalhost=1;;
+        --localhost)        ignoreLocalhost=;;
+        -l)     			ignoreLocalhost=;;
+        -p)     			shift;logPath="$1";writeFile=1;;
+        -f)     			shift;fileOutputName="$1";writeFile=1;;
+		-*)					echo "Invalid parameter: $1"; echo ""; printUsage; exit 1;;
+        *)          		filterParameter="$filterParameter $1";;
+    esac
+    shift
+done
+
+if [ "$CB_OS" = "mac" ]; then
+	if ! command -v lsof >/dev/null 2>&1; then
+		echo "${CB_LINEHEADER}Missing lsof, please install it before you continue." 1>&2
+		exit 1
+	fi
+elif [ "$CB_OS" = "linux" ]; then
+	if ! command -v netstat >/dev/null 2>&1; then
+		echo "$CB_LINE"
+		echo "${CB_LINEHEADER}Missing package netstat, please install it before you continue."
+		echo "$CB_LINE"
+		exit 1
+	fi
+else
+	echo "${CB_LINEHEADER}cb-open-ports is only supported on Linux and macOS (detected: $(uname -s))" 1>&2
+	exit 1
+fi
+
+if [ -n "$filterParameter" ]; then
+	filterRegex=$(echo "$filterParameter" | sed 's/^ //;s/ /|/g')
+fi
+
+# run netstat once, cache the result; reuse for empty-check AND main flow
+openPortList=$(readOpenPortList)
+#if [ -z "$openPortList" ]; then
+#	echo "${CB_LINEHEADER}No listening ports found." 1>&2
+#fi
+
+printHeader() {
+	[ -n "$suppressHeader" ] || printf "$outputFormat" "PORT" "PID" "PROG" "SIZE(KB)" "CPU" "PRIO" "NLWP" "TIME" "USER" "GROUP" "PATH"
+}
+
+if [ -n "$writeFile" ]; then
+	if [ -d "$logPath" ]; then
+		filename="$logPath/$fileOutputName"
+		if [ -n "$filterParameter" ]; then
+			{ printHeader; createOpenPortListFile | sort -n | grep -E "$filterRegex"; } | createOutputFile
+		else
+			{ printHeader; createOpenPortListFile | sort -n; } | createOutputFile
+		fi
+	else
+		echo "${CB_LINEHEADER}Could not create file because path $logPath is not accessable!"
+	fi
+else
+	if [ -n "$filterParameter" ]; then
+		printHeader
+		createOpenPortListFile | sort -n | grep -E "$filterRegex"
+	else
+		printHeader
+		createOpenPortListFile | sort -n
+	fi
+fi
+
+
+#########################################################################
+# EOF
+#########################################################################

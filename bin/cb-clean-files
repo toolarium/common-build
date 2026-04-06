@@ -4,6 +4,11 @@
 #
 # cb-clean-files
 #
+# Deletes regular files older than N days from a single directory
+# (non-recursive, top level only), filtered by an optional glob pattern.
+# Rejects dangerous target paths (/, $HOME, /usr, /etc, ...). Supports
+# --dry-run and --silent modes, reports how many files were deleted.
+#
 # Copyright by toolarium, all rights reserved.
 #
 # This file is part of the toolarium common-build.
@@ -30,19 +35,8 @@ export CB_TEMP
 CLEAN_PATH="$CB_TEMP"
 CLEAN_PATTERN="*"
 CLEAN_DAYS=1
-
-
-#########################################################################
-# Parse a json output an element
-#########################################################################
-parseJson() {
-	processed=$(catOut "$@")
-	for i in $(echo "$nameFilter" | tr "." "\n"); do
-		[ "#" = "$i" ] && tagElementFilter="" || tagElementFilter="$i"
-		processed="$(echo $processed | cutJsonElement)"
-	done
-	echo "$processed"
-}
+CB_SILENT=false
+CB_DRY_RUN=false
 
 
 #########################################################################
@@ -50,19 +44,26 @@ parseJson() {
 #########################################################################
 printUsage() {
 	echo "$PN - clean files"
-	echo "usage: $PN [OPTION]"	
+	echo "usage: $PN [OPTION]"
+	echo ""
+	echo "Deletes regular files (NOT directories) older than N days from the"
+	echo "top level of a single directory, filtered by an optional glob pattern."
+	echo "Non-recursive: subdirectories are never entered and never removed."
+	echo "Dangerous target paths (/, \$HOME, /usr, /etc, ...) are refused."
 	echo ""
 	echo "Overview of the available OPTIONs:"
 	echo " -h, --help           Show this help message."
-	echo " --path path          Defines the path, default \$CB_TEMP"
-	echo " --pattern pattern    Defines the file pattern, default $CLEAN_PATTERN"
-	echo " --days days          The number of days back to delete, default $CLEAN_DAYS"
+	echo " --silent             Suppress informational output."
+	echo " --dry-run            List matching files without deleting them."
+	echo " --path path          Target directory (default \$CB_TEMP). The directory itself is never removed."
+	echo " --pattern pattern    File name glob, default $CLEAN_PATTERN"
+	echo " --days days          Delete files with mtime older than N days, default $CLEAN_DAYS"
 	echo ""
 	echo "Examples:"
-	echo " Delete cb temp files:"
+	echo " Delete cb temp files older than 1 day:"
 	echo " cb-clean-files"
 	echo ""
-	echo " Delete gradle worrker files:"
+	echo " Delete gradle worker files in /tmp:"
 	echo " cb-clean-files --path /tmp --pattern gradle-worker*"
 }
 
@@ -70,25 +71,48 @@ printUsage() {
 #########################################################################
 # main
 #########################################################################
-parseContent="false"
-returnValue=false
 while [ $# -gt 0 ]; do
     case "$1" in
 		-h) 			printUsage; exit 0;;
 		--help) 		printUsage; exit 0;;
-		--path) 		shift; CLEAN_PATH="$1";;
-		--pattern) 		shift; CLEAN_PATTERN="$1";;
-		--days) 		shift; CLEAN_DAYS="$1";;
+		--silent)		CB_SILENT=true;;
+		--dry-run)		CB_DRY_RUN=true;;
+		--path) 		shift; [ -z "$1" ] && echo "Missing value for --path"; CLEAN_PATH="$1";;
+		--pattern) 		shift; [ -z "$1" ] && echo "Missing value for --pattern"; CLEAN_PATTERN="$1";;
+		--days) 		shift; [ -z "$1" ] && echo "Missing value for --days"; CLEAN_DAYS="$1";;
 		*) 				echo "Invalid parameter: $1"; echo ""; printUsage; exit 1;;
     esac
 	shift
 done
 
-if [ -r "$CLEAN_PATH" ]; then
-	echo ".: Clean in [$CLEAN_PATH] with pattern [$CLEAN_PATTERN] which are older than $CLEAN_DAYS day(s)..."
-	find "$CLEAN_PATH" -name "$CLEAN_PATTERN" -mtime $CLEAN_DAYS -exec rm -f 2>/dev/null {} \;
+# validate --days is a positive integer
+case "$CLEAN_DAYS" in
+	''|*[!0-9]*) echo ".: Invalid --days value [$CLEAN_DAYS], must be a non-negative integer"; exit 1;;
+esac
+
+# validate --path is not empty or a dangerous root location
+CLEAN_PATH_ABS=$(cd "$CLEAN_PATH" 2>/dev/null && pwd)
+if [ -z "$CLEAN_PATH_ABS" ]; then
+	[ "$CB_SILENT" = "false" ] && echo ".: Path $CLEAN_PATH don't exist"
+	exit 0
+fi
+case "$CLEAN_PATH_ABS" in
+	/|/bin|/boot|/dev|/etc|/home|/lib|/lib64|/opt|/proc|/root|/run|/sbin|/srv|/sys|/usr|/var|"$HOME")
+		echo ".: Refusing to clean dangerous path [$CLEAN_PATH_ABS]"; exit 1;;
+esac
+
+if [ -d "$CLEAN_PATH" ]; then
+	if [ "$CB_DRY_RUN" = "true" ]; then
+		[ "$CB_SILENT" = "false" ] && echo ".: [DRY-RUN] Would clean in [$CLEAN_PATH] with pattern [$CLEAN_PATTERN] which are older than $CLEAN_DAYS day(s)..."
+		deletedCount=$(find "$CLEAN_PATH" -maxdepth 1 -type f -name "$CLEAN_PATTERN" -mtime +$CLEAN_DAYS -print 2>/dev/null | wc -l)
+		[ "$CB_SILENT" = "false" ] && echo ".: [DRY-RUN] Would delete $deletedCount file(s)."
+	else
+		[ "$CB_SILENT" = "false" ] && echo ".: Clean in [$CLEAN_PATH] with pattern [$CLEAN_PATTERN] which are older than $CLEAN_DAYS day(s)..."
+		deletedCount=$(find "$CLEAN_PATH" -maxdepth 1 -type f -name "$CLEAN_PATTERN" -mtime +$CLEAN_DAYS -print -delete 2>/dev/null | wc -l)
+		[ "$CB_SILENT" = "false" ] && echo ".: Deleted $deletedCount file(s)."
+	fi
 else
-	echo ".: Path $CLEAN_PATH don't exist"
+	[ "$CB_SILENT" = "false" ] && echo ".: Path $CLEAN_PATH don't exist"
 fi
 
 

@@ -1,0 +1,243 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-project-test
+#
+# Tests project scaffolding via 'cb --new' for every project type
+# defined in conf/project-types.properties, then optionally runs the
+# build via 'cb' in the created project directory.
+#
+# Tool prerequisites (java, gradle, node) are linked from external
+# installs or installed into the temp sandbox — NEVER into the repo.
+#
+# Gates:
+#   default                       scaffold-only for Groups A+B
+#   CB_PROJECT_TEST_BUILD=1       add build phase for A+B
+#   CB_PROJECT_TEST_NETWORK=1     add Group C (vuejs, nuxtjs, react)
+#   both                          full matrix
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+PASS=0
+FAIL=0
+SKIP=0
+
+#########################################################################
+# Build a sandbox CB_HOME (never use the repo)
+#########################################################################
+SANDBOX_HOME=$(mktemp -d 2>/dev/null || echo "/tmp/cb-project-home-$$")
+mkdir -p "$SANDBOX_HOME/current"
+ln -s "$SRC_ROOT/bin"     "$SANDBOX_HOME/bin"     2>/dev/null
+ln -s "$SRC_ROOT/conf"    "$SANDBOX_HOME/conf"    2>/dev/null
+ln -s "$SRC_ROOT/VERSION" "$SANDBOX_HOME/VERSION" 2>/dev/null
+export CB_HOME="$SANDBOX_HOME"
+CB="$SANDBOX_HOME/bin/cb"
+
+#########################################################################
+# Link external tools into sandbox or install them via cb
+#########################################################################
+linkOrInstallTool() {
+	local toolName="$1" extVar="$2" fallbackGlob="$3"
+	local extPath="${!extVar:-}"
+
+	# try env var
+	if [ -n "$extPath" ] && [ -d "$extPath/bin" ]; then
+		ln -s "$extPath" "$SANDBOX_HOME/current/$toolName" 2>/dev/null
+		echo "  -> linked $toolName from $extPath"
+		return 0
+	fi
+
+	# try standard devtools path (Windows git-bash convention)
+	if [ -z "$extPath" ] && [ -n "$fallbackGlob" ]; then
+		for d in $fallbackGlob; do
+			if [ -d "$d/bin" ]; then
+				ln -s "$d" "$SANDBOX_HOME/current/$toolName" 2>/dev/null
+				echo "  -> linked $toolName from $d"
+				return 0
+			fi
+		done
+	fi
+
+	# install via cb into the sandbox (safe — CB_HOME is temp)
+	echo "  -> installing $toolName via cb --install (into sandbox)..."
+	"$CB" --silent --install "$toolName" --default >/dev/null 2>&1
+	if [ -d "$SANDBOX_HOME/current/$toolName/bin" ] || [ -d "$SANDBOX_HOME/current/$toolName" ]; then
+		echo "  -> $toolName installed into sandbox"
+		return 0
+	fi
+	echo "  -> WARNING: $toolName install failed"
+	return 1
+}
+
+echo "Setting up sandbox tools..."
+linkOrInstallTool java    CB_EXTERNAL_JAVA_HOME    "/c/devtools/toolarium-common-build-*/current/java"
+linkOrInstallTool gradle  CB_EXTERNAL_GRADLE_HOME  "/c/devtools/toolarium-common-build-*/current/gradle"
+
+HAS_JAVA=false
+HAS_GRADLE=false
+HAS_NODE=false
+[ -d "$SANDBOX_HOME/current/java/bin" ]   && HAS_JAVA=true
+[ -d "$SANDBOX_HOME/current/gradle/bin" ] && HAS_GRADLE=true
+
+if [ "$CB_PROJECT_TEST_NETWORK" = "1" ]; then
+	linkOrInstallTool node CB_EXTERNAL_NODE_HOME "/c/devtools/toolarium-common-build-*/current/node"
+	[ -d "$SANDBOX_HOME/current/node" ] && HAS_NODE=true
+fi
+
+#########################################################################
+# Sandbox for project creation
+#########################################################################
+SANDBOX=$(mktemp -d 2>/dev/null || echo "/tmp/cb-project-test-$$")
+mkdir -p "$SANDBOX" || { echo "ERROR: could not create sandbox $SANDBOX"; exit 1; }
+LOGDIR="$SANDBOX/logs"
+mkdir -p "$LOGDIR"
+
+cleanup() {
+	[ -n "$SANDBOX" ] && [ -d "$SANDBOX" ] && rm -rf "$SANDBOX" >/dev/null 2>&1
+	[ -n "$SANDBOX_HOME" ] && [ -d "$SANDBOX_HOME" ] && rm -rf "$SANDBOX_HOME" >/dev/null 2>&1
+}
+trap cleanup EXIT INT TERM
+
+#########################################################################
+# assertion helpers
+#########################################################################
+assertDirExists() {
+	local d="$1" msg="$2"
+	if [ -d "$d" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (dir missing: $d)"
+	fi
+}
+
+assertScaffoldFile() {
+	local dir="$1" msg="$2"
+	for f in build.gradle settings.gradle README.md package.json; do
+		if [ -f "$dir/$f" ]; then
+			PASS=$((PASS+1))
+			echo "  PASS: $msg ($f)"
+			return
+		fi
+	done
+	FAIL=$((FAIL+1))
+	echo "  FAIL: $msg (no scaffold file in $dir)"
+}
+
+assertBuildSuccess() {
+	local exitCode="$1" logFile="$2" msg="$3"
+	if [ "$exitCode" = "0" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (exit code $exitCode, log: $logFile)"
+		# show last 10 lines on failure
+		tail -10 "$logFile" 2>/dev/null | sed 's/^/    | /'
+	fi
+}
+
+#########################################################################
+# Run one project type: scaffold + optional build
+# Args: typeId projectName label extraArg1 ...
+#########################################################################
+runProjectType() {
+	local typeId="$1" projectName="$2" label="$3"
+	shift 3
+	local subDir="$SANDBOX/type${typeId}-${label}"
+	mkdir -p "$subDir" >/dev/null 2>&1
+
+	echo "TEST: cb --new $typeId ($label)"
+
+	# Phase 1: scaffold
+	( cd "$subDir" && "$CB" --new "$typeId" "$projectName" "$@" >/dev/null 2>&1 )
+	local projectDir="$subDir/$projectName"
+	assertDirExists    "$projectDir" "scaffold: project directory created"
+	assertScaffoldFile "$projectDir" "scaffold: file present"
+
+	# Phase 2: build (optional)
+	if [ "$CB_PROJECT_TEST_BUILD" = "1" ] && [ -d "$projectDir" ]; then
+		if [ "$HAS_GRADLE" = "true" ] || [ "$HAS_NODE" = "true" ]; then
+			local logFile="$LOGDIR/build-type${typeId}-${label}.log"
+			( cd "$projectDir" && "$CB" --silent >"$logFile" 2>&1 )
+			assertBuildSuccess "$?" "$logFile" "build: cb exit 0"
+		else
+			SKIP=$((SKIP+1))
+			echo "  SKIP: build phase (gradle/node not available)"
+		fi
+	elif [ "$CB_PROJECT_TEST_BUILD" != "1" ]; then
+		SKIP=$((SKIP+1))
+		echo "  SKIP: build phase (set CB_PROJECT_TEST_BUILD=1)"
+	fi
+}
+
+labelFor() {
+	local id="$1"
+	grep -v '^#' "$SRC_ROOT/conf/project-types.properties" 2>/dev/null \
+		| grep '=' \
+		| awk -F= -v want="$id" 'NR==want{print $1}' \
+		| sed 's/[[:space:]]*$//'
+}
+
+#########################################################################
+# main
+#########################################################################
+echo ""
+echo "Running cb project-creation tests..."
+echo "Using:   $CB"
+echo "CB_HOME: $CB_HOME"
+echo "Sandbox: $SANDBOX"
+echo "Java:    $HAS_JAVA  Gradle: $HAS_GRADLE  Node: $HAS_NODE"
+echo "Flags:   BUILD=$CB_PROJECT_TEST_BUILD  NETWORK=$CB_PROJECT_TEST_NETWORK"
+echo ""
+
+[ ! -x "$CB" ] && echo "ERROR: $CB not found or not executable" && exit 1
+
+if [ "$HAS_JAVA" != "true" ]; then
+	echo "SKIP: java not available — set CB_EXTERNAL_JAVA_HOME or install java."
+	exit 0
+fi
+
+echo "========================================="
+echo "Group A+B: Gradle-based project types"
+echo "========================================="
+echo ""
+
+# Group A — Gradle + Java
+runProjectType 1  "my-test"                     "$(labelFor 1)"  my.rootpackage.name my my test-description
+runProjectType 2  "my-lib"                      "$(labelFor 2)"  my.rootpackage.name my my test-description
+runProjectType 5  "my-test-service-api-spec"    "$(labelFor 5)"  my.rootpackage.name my my test-description
+runProjectType 6  "my-test-service"             "$(labelFor 6)"  my.rootpackage.name my my test-description
+
+# Group B — Gradle-only
+runProjectType 3  "my-test-config"              "$(labelFor 3)"  my my test-description
+runProjectType 4  "my-test-bin"                 "$(labelFor 4)"  my test-description
+runProjectType 10 "my-test-app"                 "$(labelFor 10)" my my test-description
+runProjectType 11 "my-test-documentation"       "$(labelFor 11)" my test-description
+runProjectType 12 "my-test-container"           "$(labelFor 12)" my test-description
+runProjectType 13 "my-test-org-config"          "$(labelFor 13)" my test-description
+
+if [ "$CB_PROJECT_TEST_NETWORK" = "1" ]; then
+	echo ""
+	echo "========================================="
+	echo "Group C: Node-based project types"
+	echo "========================================="
+	echo ""
+	runProjectType 7 "my-test-vue-ui"   "$(labelFor 7)" my test-description
+	runProjectType 8 "my-test-nuxt-ui"  "$(labelFor 8)" my test-description
+	runProjectType 9 "my-test-react-ui" "$(labelFor 9)" my test-description
+else
+	echo ""
+	echo "SKIP: Group C (vuejs, nuxtjs, react) — set CB_PROJECT_TEST_NETWORK=1"
+	SKIP=$((SKIP+3))
+fi
+
+echo ""
+echo "========================================="
+echo "Results: $PASS passed, $FAIL failed, $SKIP skipped"
+echo "========================================="
+[ $FAIL -eq 0 ] && exit 0 || exit 1

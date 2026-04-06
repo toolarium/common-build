@@ -32,8 +32,8 @@ hashCode() {
     h="0"
     for j in $(seq 1 ${#o}); do
         a=$((j-1))
-        v=$(echo -n "${o:$a:1}" | od -d)
-        h=$((31 * $h + ${v:10:3} ))
+        v=$(printf '%d' "'${o:$a:1}")
+        h=$((31 * $h + $v ))
         h=$(( (2**31-1) & $h ))
     done
     echo $h

@@ -1,0 +1,149 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-hashcode-test
+#
+# Tests for the 'hashCode.sh' script: verifies Java-compatible hashCode
+# computation for various inputs.
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+PASS=0
+FAIL=0
+
+HASHCODE="$SRC_ROOT/bin/include/hashCode.sh"
+
+#########################################################################
+# assertion helpers
+#########################################################################
+assertEquals() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (expected [$expected], got [$actual])"
+	fi
+}
+
+#########################################################################
+# tests — expected values match Java's String.hashCode()
+#########################################################################
+test_empty_string() {
+	echo "TEST: hashCode of empty string"
+	output=$(bash "$HASHCODE" "" 2>&1)
+	assertEquals "0" "$output" "empty string returns 0"
+}
+
+test_single_char_a() {
+	echo "TEST: hashCode of 'a'"
+	# Java: "a".hashCode() = 97
+	output=$(bash "$HASHCODE" "a" 2>&1)
+	assertEquals "97" "$output" "hashCode('a') = 97"
+}
+
+test_single_char_z() {
+	echo "TEST: hashCode of 'z'"
+	# Java: "z".hashCode() = 122
+	output=$(bash "$HASHCODE" "z" 2>&1)
+	assertEquals "122" "$output" "hashCode('z') = 122"
+}
+
+test_hello() {
+	echo "TEST: hashCode of 'hello'"
+	# Java: "hello".hashCode() = 99162322
+	output=$(bash "$HASHCODE" "hello" 2>&1)
+	assertEquals "99162322" "$output" "hashCode('hello') = 99162322"
+}
+
+test_world() {
+	echo "TEST: hashCode of 'world'"
+	# Java: "world".hashCode() = 113318802
+	output=$(bash "$HASHCODE" "world" 2>&1)
+	assertEquals "113318802" "$output" "hashCode('world') = 113318802"
+}
+
+test_hello_world() {
+	echo "TEST: hashCode of 'Hello World'"
+	# Java: "Hello World".hashCode() = -862545276 -> & 0x7FFFFFFF = 1284938372
+	output=$(bash "$HASHCODE" "Hello World" 2>&1)
+	assertEquals "1284938372" "$output" "hashCode('Hello World') = 1284938372"
+}
+
+test_common_build() {
+	echo "TEST: hashCode of 'common-build'"
+	# "common-build".hashCode() & 0x7FFFFFFF = 1161472012
+	output=$(bash "$HASHCODE" "common-build" 2>&1)
+	assertEquals "1161472012" "$output" "hashCode('common-build') = 1161472012"
+}
+
+test_numeric_string() {
+	echo "TEST: hashCode of '12345'"
+	# Java: "12345".hashCode() = 46792755
+	output=$(bash "$HASHCODE" "12345" 2>&1)
+	assertEquals "46792755" "$output" "hashCode('12345') = 46792755"
+}
+
+test_single_space() {
+	echo "TEST: hashCode of ' ' (space)"
+	# Java: " ".hashCode() = 32
+	output=$(bash "$HASHCODE" " " 2>&1)
+	assertEquals "32" "$output" "hashCode(' ') = 32"
+}
+
+test_abc() {
+	echo "TEST: hashCode of 'abc'"
+	# Java: "abc".hashCode() = 96354
+	output=$(bash "$HASHCODE" "abc" 2>&1)
+	assertEquals "96354" "$output" "hashCode('abc') = 96354"
+}
+
+test_deterministic() {
+	echo "TEST: hashCode is deterministic"
+	output1=$(bash "$HASHCODE" "test-input" 2>&1)
+	output2=$(bash "$HASHCODE" "test-input" 2>&1)
+	assertEquals "$output1" "$output2" "same input produces same hash"
+}
+
+test_different_inputs_differ() {
+	echo "TEST: different inputs produce different hashes"
+	output1=$(bash "$HASHCODE" "foo" 2>&1)
+	output2=$(bash "$HASHCODE" "bar" 2>&1)
+	if [ "$output1" != "$output2" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: 'foo' and 'bar' have different hashes"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: 'foo' and 'bar' produced the same hash ($output1)"
+	fi
+}
+
+#########################################################################
+# main
+#########################################################################
+echo "Running hashCode tests..."
+echo "Using: $HASHCODE"
+echo ""
+
+[ ! -r "$HASHCODE" ] && echo "ERROR: $HASHCODE not found" && exit 1
+
+test_empty_string
+test_single_char_a
+test_single_char_z
+test_hello
+test_world
+test_hello_world
+test_common_build
+test_numeric_string
+test_single_space
+test_abc
+test_deterministic
+test_different_inputs_differ
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1

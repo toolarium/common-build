@@ -30,7 +30,7 @@ AWK=awk
 gawk --version >/dev/null 2>/dev/null && AWK=gawk
 
 JQ=
-#jq --help >/dev/null 2>&1 && JQ=jq && export JQ
+jq --help >/dev/null 2>&1 && JQ=jq && export JQ
 
 
 #########################################################################
@@ -108,7 +108,30 @@ cutJsonElement() {
 #########################################################################
 parseJson() {
 	if [ -n "$JQ" ]; then
-		jq "'.$@'"
+		# Build the jq navigation path from nameFilter (strip # markers used by --filter)
+		jqPath=$(echo "$nameFilter" | sed 's/#//g')
+
+		# Build the full jq filter expression
+		jqExpr=".$jqPath"
+
+		# Apply --filter criteria: select array elements matching key==value
+		if [ -n "$elementFilter" ]; then
+			selectParts=""
+			for f in $elementFilter; do
+				key="${f%:*}"
+				val="${f#*:}"
+				[ -n "$selectParts" ] && selectParts="$selectParts and "
+				selectParts="${selectParts}.${key} == \"${val}\""
+			done
+			jqExpr="${jqExpr} | if type == \"array\" then map(select(${selectParts}))[] else . end"
+		fi
+
+		# Apply --value: output raw strings without quotes
+		if [ "$returnValue" = "true" ]; then
+			jq -r "$jqExpr"
+		else
+			jq "$jqExpr"
+		fi
 	else
 		processed=$(catOut "$@")
 		for i in $(echo "$nameFilter" | tr "." "\n"); do

@@ -1,0 +1,219 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-version-filter-test
+#
+# Tests for cb-version-filter.sh.
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+VFILTER="$SRC_ROOT/bin/cb-version-filter"
+TEST_DIR="/tmp/cb-version-filter-test-$$"
+PASS=0
+FAIL=0
+
+#########################################################################
+# assertion helpers
+#########################################################################
+assertEquals() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg"
+		echo "        expected: [$expected]"
+		echo "        actual:   [$actual]"
+	fi
+}
+
+assertContains() {
+	local needle="$1" haystack="$2" msg="$3"
+	if echo "$haystack" | grep -q -- "$needle"; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (missing: $needle)"
+	fi
+}
+
+assertNotContains() {
+	local needle="$1" haystack="$2" msg="$3"
+	if echo "$haystack" | grep -q -- "$needle"; then
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (should not contain: $needle)"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	fi
+}
+
+# normalize output: trim, remove trailing newline, convert newlines to space
+normalize() {
+	echo "$1" | tr '\n' ' ' | sed 's/  */ /g;s/^ //;s/ $//'
+}
+
+#########################################################################
+# setup / teardown (for --path tests)
+#########################################################################
+setup() {
+	rm -rf "$TEST_DIR"
+	mkdir -p "$TEST_DIR"
+	for v in 2.2.1 2.2.0 2.1.2 2.1.1 2.1.0 1.3.4 1.3.3 1.2.1 1.2.0; do
+		mkdir -p "$TEST_DIR/$v"
+	done
+}
+
+teardown() {
+	rm -rf "$TEST_DIR"
+}
+
+#########################################################################
+# core tests
+#########################################################################
+test_help() {
+	echo "TEST: --help"
+	output=$("$VFILTER" --help 2>&1)
+	assertContains "filter version numbers" "$output" "help output mentions purpose"
+	assertContains "--majorThreshold" "$output" "help lists --majorThreshold"
+	assertContains "--invertFilter" "$output" "help lists --invertFilter"
+}
+
+test_invalid_arg() {
+	echo "TEST: invalid argument rejected"
+	output=$("$VFILTER" --unknown-arg 2>&1)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit code 1 for unknown arg"
+	assertContains "Invalid parameter" "$output" "error message shown"
+}
+
+test_invertfilter_does_not_swallow() {
+	# regression: --invertFilter must not consume the following argument
+	echo "TEST: --invertFilter does not swallow next arg"
+	input="2.2.1 2.2.0 2.1.2 2.1.1 2.1.0 1.3.4 1.3.3 1.2.1 1.2.0"
+	# if --invertFilter swallowed --majorThreshold, the threshold would default to 2
+	# and output would be different from what we get with explicit --majorThreshold 2
+	out1=$(echo "$input" | "$VFILTER" --invertFilter --majorThreshold 2 --previousMajorPatchThreshold 2 2>&1)
+	out2=$(echo "$input" | "$VFILTER" --majorThreshold 2 --invertFilter --previousMajorPatchThreshold 2 2>&1)
+	norm1=$(normalize "$out1")
+	norm2=$(normalize "$out2")
+	assertEquals "$norm2" "$norm1" "same output regardless of --invertFilter position"
+}
+
+test_empty_input() {
+	echo "TEST: empty piped input"
+	output=$(echo "" | "$VFILTER" --majorThreshold 2 2>&1)
+	# should not error out
+	assertEquals "" "$(normalize "$output")" "empty input produces no output"
+}
+
+test_path_option() {
+	echo "TEST: --path reads directory names as versions"
+	setup
+	output=$("$VFILTER" --path "$TEST_DIR" --majorThreshold 2 --previousMajorPatchThreshold 2 2>&1)
+	normalized=$(normalize "$output")
+	assertContains "2.2.1" "$normalized" "--path returns 2.2.1"
+	assertContains "1.3.4" "$normalized" "--path returns 1.3.4"
+	teardown
+}
+
+test_nonexistent_path() {
+	echo "TEST: nonexistent --path"
+	output=$("$VFILTER" --path /nonexistent/xyz --majorThreshold 2 2>&1)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit 1 on missing path"
+}
+
+#########################################################################
+# printUsage example tests
+#########################################################################
+INPUT_SET="2.2.1 2.2.0 2.1.2 2.1.1 2.1.0 1.3.4 1.3.3 1.2.1 1.2.0"
+
+test_example_1() {
+	# cat myfile | cb-version-filter.sh --majorThreshold 2
+	echo "TEST: example 1 - --majorThreshold 2"
+	output=$(echo "$INPUT_SET" | "$VFILTER" --majorThreshold 2 2>&1)
+	normalized=$(normalize "$output")
+	assertEquals "2.2.1 2.1.2 1.3.4 1.2.1" "$normalized" "example 1 output matches"
+}
+
+test_example_2() {
+	# cat myfile | cb-version-filter.sh --majorThreshold 2 --previousMajorPatchThreshold 2
+	# same semantics as example 3 but via hypothetical file
+	echo "TEST: example 2 - --majorThreshold 2 --previousMajorPatchThreshold 2"
+	output=$(echo "$INPUT_SET" | "$VFILTER" --majorThreshold 2 --previousMajorPatchThreshold 2 2>&1)
+	normalized=$(normalize "$output")
+	assertEquals "2.2.1 2.1.2 1.3.4 1.3.3 1.2.1 1.2.0" "$normalized" "example 2 output matches"
+}
+
+test_example_3() {
+	# echo "2.2.1 ... 1.2.0" | cb-version-filter.sh --majorThreshold 2 --previousMajorPatchThreshold 2
+	echo "TEST: example 3 - explicit echo input"
+	output=$(echo "$INPUT_SET" | "$VFILTER" --majorThreshold 2 --previousMajorPatchThreshold 2 2>&1)
+	normalized=$(normalize "$output")
+	assertEquals "2.2.1 2.1.2 1.3.4 1.3.3 1.2.1 1.2.0" "$normalized" "example 3 output matches"
+}
+
+test_example_4_invert() {
+	# echo "..." | cb-version-filter.sh --majorThreshold 2 --previousMajorPatchThreshold 2 --invertFilter
+	echo "TEST: example 4 - --invertFilter returns versions to skip"
+	output=$(echo "$INPUT_SET" | "$VFILTER" --majorThreshold 2 --previousMajorPatchThreshold 2 --invertFilter 2>&1)
+	normalized=$(normalize "$output")
+	assertEquals "2.2.0 2.1.1 2.1.0" "$normalized" "example 4 invert output matches"
+}
+
+test_majorminormax_cap_overflow() {
+	echo "TEST: --majorMinorMax cap and --invertFilter overflow"
+	input="2.2.1 2.2.0 2.1.2 2.1.1 2.1.0 1.3.4 1.3.3 1.2.1 1.2.0"
+	kept=$(echo "$input" | "$VFILTER" --majorThreshold 2 --minorThreshold 2 --patchThreshold 2 --majorMinorMax 3 2>&1)
+	dropped=$(echo "$input" | "$VFILTER" --majorThreshold 2 --minorThreshold 2 --patchThreshold 2 --majorMinorMax 3 --invertFilter 2>&1)
+	assertEquals "2.2.1 2.2.0 2.1.2 2.1.1 1.3.4 1.3.3" "$(normalize "$kept")" "cap kept set"
+	assertEquals "2.1.0 1.2.1 1.2.0" "$(normalize "$dropped")" "cap dropped set (inverted includes overflow)"
+}
+
+test_example_5_path_invert() {
+	# cb-version-filter.sh --path test --majorThreshold 2 --previousMajorPatchThreshold 2 --invertFilter
+	echo "TEST: example 5 - --path with --invertFilter"
+	setup
+	output=$("$VFILTER" --path "$TEST_DIR" --majorThreshold 2 --previousMajorPatchThreshold 2 --invertFilter 2>&1)
+	normalized=$(normalize "$output")
+	assertEquals "2.2.0 2.1.1 2.1.0" "$normalized" "example 5 path+invert output matches"
+	teardown
+}
+
+#########################################################################
+# main
+#########################################################################
+echo "Running cb-version-filter tests..."
+echo "Using: $VFILTER"
+echo ""
+
+[ ! -x "$VFILTER" ] && echo "ERROR: $VFILTER not found or not executable" && exit 1
+
+echo "=== Core tests ==="
+test_help
+test_invalid_arg
+test_invertfilter_does_not_swallow
+test_empty_input
+test_path_option
+test_nonexistent_path
+
+echo ""
+echo "=== printUsage example tests ==="
+test_example_1
+test_example_2
+test_example_3
+test_example_4_invert
+test_majorminormax_cap_overflow
+test_example_5_path_invert
+
+teardown
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1

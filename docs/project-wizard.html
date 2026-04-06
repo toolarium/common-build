@@ -21,15 +21,35 @@
   ol { padding-left: 1.5em; }
   ul { padding-left: 1.5em; }
   .back-link { margin-bottom: 1em; }
+  .sister-banner {
+    background: linear-gradient(135deg, #e3f2fd 0%, #e8eaf6 100%);
+    border: 1px solid #90caf9;
+    border-left: 4px solid #1976d2;
+    border-radius: 6px;
+    padding: 1rem 1.3rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+  .sister-banner .icon { font-size: 1.5rem; flex-shrink: 0; }
+  .sister-banner strong a { color: #1565c0; text-decoration: none; }
+  .sister-banner strong a:hover { text-decoration: underline; }
+  .sister-banner p { margin: 0; font-size: 0.93rem; color: #37474f; }
 </style>
 </head>
 <body>
 
-<p class="back-link"><a href="../README.html">&larr; Back to README</a></p>
+<p class="back-link"><a href="index.html">&larr; Back</a></p>
 
 <h1>Project Wizard (<code>cb --new</code>)</h1>
 
 <p>The project wizard creates new projects interactively. It guides you through product selection, project type selection, and project-specific configuration.</p>
+
+<div class="sister-banner">
+  <span class="icon">&#x1F91D;</span>
+  <p>Works hand in hand with its sister project <strong><a href="https://github.com/toolarium/common-gradle-build">common-gradle-build</a></strong> &mdash; for Gradle-based project types the wizard uses common-gradle-build to generate and build the project. They can be combined to get a complete development environment with tool management and build automation.</p>
+</div>
 
 <h2>Quick Start</h2>
 
@@ -225,7 +245,8 @@
 <pre><code>cb --new 1 1 my-service com.example.myservice example mycomp "My new service"</code></pre>
 
 <hr>
-<p><small><a href="../README.html">&larr; Back to README</a></small></p>
+<p><small>GNU General Public License v3.0 &mdash; see <a href="http://www.gnu.org/licenses/">LICENSE</a> for details.</small></p>
+<p><small><a href="index.html">&larr; Back</a></small></p>
 
 </body>
 </html>

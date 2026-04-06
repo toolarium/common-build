@@ -1,5 +1,8 @@
-# common-build 
+# common-build
 [![License](https://img.shields.io/github/license/toolarium/common-build)](https://opensource.org/licenses/GPL-3.0)
+[![CI](https://github.com/toolarium/common-build/actions/workflows/cb-test.yml/badge.svg)](https://github.com/toolarium/common-build/actions/workflows/cb-test.yml)
+[![Release](https://img.shields.io/github/v/release/toolarium/common-build)](https://github.com/toolarium/common-build/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-blue)]()
 
 <img align="right" height="110" src="docs/logo/common-build-icon.png">
 
@@ -11,8 +14,12 @@ Key features:
 - **Tool management** — Install, update and switch between versions of developer tools with a single command (`cb --install`). Use `cb --setenv` to add all managed tools to your PATH.
 - **Build execution** — Run project builds transparently through Gradle, Maven or Ant without manual setup.
 - **[Project wizard](docs/project-wizard.md)** — Scaffold new projects interactively with `cb --new`, supporting multiple project types (Java, Node/React/Vue/Nuxt, Kubernetes, OpenAPI, and more).
-- **[Organization config](docs/organization-config.md)** — Centralize tool versions, project templates, naming conventions and lifecycle hooks in a Git repository for consistent corporate-wide developer environments.
+- **[Organization Config](docs/organization-config.md)** — Centralize tool versions, project templates, naming conventions and lifecycle hooks in a Git repository for consistent corporate-wide developer environments.
+- **[Package development](docs/package-development.html)** — Add new tool packages to common-build with a simple script convention, supporting cross-platform downloads, version management, and post-install hooks.
 - **Self-update** — Keep common-build itself up to date with `cb --install cb`.
+- **[Automated testing](TESTING.md)** — Cross-platform test suite with sandbox isolation, gated build verification, and nightly CI coverage for all project types.
+
+> Works hand in hand with its sister project [**common-gradle-build**](https://github.com/toolarium/common-gradle-build). For Gradle-based projects, common-gradle-build provides the build framework while common-build manages the developer toolchain and project scaffolding.
 
 
 ## Installing common-build
@@ -29,7 +36,7 @@ curl -fsSL https://raw.githubusercontent.com/toolarium/common-build/master/bin/c
 
 Alternatively, download [`cb-install`](https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install) manually and run it with `/bin/bash cb-install`.
 
-Tested on debian, ubuntu, centos and fedora. MacOS is not yet fully tested.
+Tested on debian, ubuntu, centos, fedora and macOS.
 
 **Windows**
 
@@ -62,9 +69,10 @@ When called without options (or with build arguments only), `cb` sets up the req
 | `-v`, `--version` | Print version information and installed tool versions. |
 | `--new` | Create a new project via an interactive [project wizard](docs/project-wizard.md). Settings can be prefilled, e.g. `--new 1 my-project my.root.pkg my my`. |
 | `--java [version]` | Override the Java version for this run, e.g. `--java 17`. |
-| `--install [pkg] [version]` | Install a software package. Uses the default version from `tool-version-default.properties` unless a version is specified. Add `-d` or `--default` to mark the installed version as the default. |
+| `--install [pkg] [version]` | Install a software package. Uses the default version from `tool-version-default.properties` unless a version is specified. Add `-d` or `--default` to mark the installed version as the default. See [Package Development](docs/package-development.html) for creating custom packages. |
 | `--packages` | List all supported packages. |
-| `--setenv` | Set all internal environment variables (adds installed tools to `PATH`). This is the recommended way to make all managed tools available on the command line. It adds tools like git, node, java, maven, gradle, python, trivy, ant and others to the current `PATH`. |
+| `--setenv` | Set all internal environment variables (adds installed tools to `PATH`). This is the recommended way to make all managed tools available on the command line. It adds tools like git, node, java, maven, gradle, python, trivy, ant and others to the current `PATH`. For GraalVM, only `GRAALVM_HOME` is set (not added to `PATH`). On Windows, if Visual Studio Build Tools are installed, the VC environment is initialized automatically via `vcvars64.bat`. |
+| `--nushell` | When used with `--setenv`, output [Nushell](https://www.nushell.sh/)-compatible syntax (`$env.VAR = '...'`) instead of modifying the current shell. See [Nushell support](#nushell-support) below. |
 | `--update` | Update the custom config. Can be combined with `--force`. |
 | `-exp`, `--explore` | Open the file explorer at the current path. |
 | `--silent` | Suppress console output from common-build. |
@@ -90,6 +98,7 @@ The following packages can be installed via `cb --install <package>`:
 | [groovy](https://groovy-lang.org/) | 4.0.31 | Apache Groovy |
 | [insomnia](https://insomnia.rest/) | | Insomnia API client |
 | [intellij](https://www.jetbrains.com/idea/) | 2025.2.6.1 | IntelliJ IDEA |
+| [graalvm](https://www.graalvm.org/) | 21.0.2 | GraalVM Community Edition |
 | [java](https://adoptium.net/) | 21 | Java JDK |
 | [jmeter](https://jmeter.apache.org/) | 5.6.3 | Apache JMeter |
 | [maven](https://maven.apache.org/) | 3.9.14 | Apache Maven |
@@ -106,6 +115,22 @@ The following packages can be installed via `cb --install <package>`:
 | [vscode](https://code.visualstudio.com/) | 1.113.0 | Visual Studio Code |
 
 Windows-only packages: [`git`](https://git-scm.com/), [`npp`](https://notepad-plus-plus.org/) (Notepad++), [`multicommander`](https://multicommander.com/), [`winmerge`](https://winmerge.org/), [`wt`](https://github.com/microsoft/terminal) (Windows Terminal), [`scoop`](https://scoop.sh/), [`rangerdesktop`](https://rancherdesktop.io/).
+
+
+## Utility Scripts
+
+In addition to the main `cb` command, common-build ships with a set of standalone helper scripts in `bin/`. Each one has cross-platform counterparts (shell script and `.bat`) and supports `-h` / `--help`.
+
+| Script | Description |
+|---|---|
+| `cb-clean-files` | Delete regular files older than N days from a single directory (top-level, non-recursive). Supports glob pattern filter, `--dry-run` and `--silent` modes. Rejects dangerous target paths (`/`, `$HOME`, `/usr`, `/etc`, ...). |
+| `cb-cleanup` | Cleanup common-build artifacts (caches, temp directories, stale downloads). Calls `cleanup-start` / `cleanup-end` lifecycle hooks if a custom hook script is configured. |
+| `cb-dockterm` | Open an interactive terminal inside a running Docker container. Types are defined in `conf/dockterm-types.properties` (key = type name, value = Docker image). Default types: alpine, arch, debian, fedora, kali, ubuntu. Add custom entries to use private or corporate images. |
+| `cb-filetail` | Follow/tail a file (like `tail -f`) with optional `grep` filtering — cross-platform, works on Windows too. |
+| `cb-meminfo` | Print memory usage information for the current host. |
+| `cb-open-ports` | List all open TCP/UDP ports on the host. Accepts optional filter arguments (e.g. `cb-open-ports 8080 443`). |
+| `cb-shortcut` | Create Windows desktop shortcuts (Windows-only). |
+| `cb-version-filter` | Filter a list of semver version numbers by major-version thresholds and previous-major patch thresholds. Accepts input via stdin, file, or `--path`. Useful for pruning old release versions. Example: `echo 2.2.1 2.1.0 1.3.4 1.2.0 \| cb-version-filter --majorThreshold 2 --previousMajorPatchThreshold 2` |
 
 
 ## Examples
@@ -141,8 +166,13 @@ cb --setenv
 # or
 source cb --setenv
 ```
+```nu
+# Nushell (save output to a file, then source it):
+cb --setenv --nushell | save -f ~/.config/nushell/cb-tools.nu
+source ~/.config/nushell/cb-tools.nu
+```
 
-This makes tools like java, gradle, maven, node, python, git, trivy, ant, etc. directly available on the command line.
+This makes tools like java, gradle, maven, node, python, git, trivy, ant, etc. directly available on the command line. GraalVM is not added to `PATH` but `GRAALVM_HOME` is set.
 
 List available packages:
 ```bash
@@ -165,12 +195,19 @@ cb --install cb
 | Variable | Description | Default |
 |---|---|---|
 | `CB_DEVTOOLS` | Root directory for all dev tools. | `$HOME/devtools` (Linux/macOS), `c:\devtools` (Windows) |
+| `CB_DEVTOOLS_NAME` | Name of the devtools directory (without path). | `devtools` |
+| `CB_DEVTOOLS_DRIVE` | (Windows only) Drive letter where devtools are installed. | `c:` |
 | `CB_HOME` | Common-build installation directory. | `$CB_DEVTOOLS/toolarium-common-build-v<version>` |
+| `CB_TEMP` | Temporary directory for work files, download caches, and lock files. | `$TMPDIR/cb-$USER` (Unix), `%TEMP%\cb` (Windows) |
 | `CB_CUSTOM_CONFIG` | Git URL to a custom config project for full customization. | |
-| `CB_CUSTOM_SETTING` | Path to a custom hook script called during all operations. See `$CB_HOME/bin/sample/cb-custom-sample.sh`. | |
+| `CB_CUSTOM_SETTING` | Path to a custom hook script called during all operations. See [`docs/sample/`](docs/sample/) for templates. | |
 | `CB_PACKAGE_URL` | URL to a directory of additional package zip files. | |
 | `CB_PACKAGE_USER` | Username for accessing `CB_PACKAGE_URL`. | |
 | `CB_PACKAGE_PASSWORD` | Password for `CB_PACKAGE_URL`. Set to `ask` for interactive prompt. | |
+| `CB_ONLINE_ADDRESS` | IP address or hostname for the internet connectivity check. Override for corporate proxies. | `8.8.8.8` |
+| `CB_ONLINE_ADDRESS_PORT` | Port for the connectivity check. | `53` |
+| `CB_ONLINE_TIMEOUT` | Timeout in seconds for the connectivity check. | `2` |
+| `CB_INSTALL_ONLY_STABLE` | Set to `false` to allow pre-release/draft versions during `cb-install`. | `true` |
 
 
 ## Tool Version Defaults
@@ -179,6 +216,7 @@ The file `conf/tool-version-default.properties` defines the default version for 
 
 ```properties
 java = 21
+graalvm = 21.0.2
 gradle = 8.13
 node = 24.14.1
 ```
@@ -284,13 +322,17 @@ toolarium common build 1.0.14
 | `conf/tool-version-installed.properties` | Tracks currently installed tool versions. |
 | `conf/project-types.properties` | Project type definitions for `cb --new`. |
 | `conf/product-types.properties` | Product type definitions (optional). |
+| `conf/dockterm-types.properties` | Docker container types for `cb-dockterm`. Key = type name, value = Docker image. |
 
 
 ## Customization
 
 ### Custom Hook Script
 
-Set `CB_CUSTOM_SETTING` to point to a shell script that will be called at various lifecycle hooks: `start`, `build-start`, `build-end`, `install-start`, `install-end`, `setenv-start`, `setenv-end`, `error-end`, and more. See `$CB_HOME/bin/sample/cb-custom-sample.sh` for a template.
+Set `CB_CUSTOM_SETTING` to point to a shell script that will be called at various lifecycle hooks: `start`, `build-start`, `build-end`, `install-start`, `install-end`, `cleanup-start`, `cleanup-end`, `setenv-start`, `setenv-end`, `error-end`, and more. See the [sample scripts](docs/sample/) for complete templates:
+
+- [`cb-custom-sample.sh`](docs/sample/cb-custom-sample.sh) / [`cb-custom-sample.bat`](docs/sample/cb-custom-sample.bat) — fully commented samples with all hooks active
+- [`cb-custom.sh`](docs/sample/cb-custom.sh) / [`cb-custom.bat`](docs/sample/cb-custom.bat) — minimal templates ready to copy and customize
 
 ### Custom Config Project
 
@@ -299,4 +341,39 @@ For organization-wide customization, create a Custom Config Home project (`cb --
 Alternatively, add the git URL to the file `$HOME/.common-build/conf/.cb-custom-config`.
 
 For full details on setting up an organization config with custom tool versions, project types, product types, lifecycle hooks, and concrete examples, see the [Organization Config documentation](docs/organization-config.md).
+
+
+## Nushell Support
+
+Common-build supports [Nushell](https://www.nushell.sh/) as a first-class shell. The `--nushell` flag causes `cb --setenv` to output Nushell-compatible environment variable assignments instead of modifying the current process environment.
+
+**Manual usage:**
+
+```nu
+# Print Nushell env commands to stdout
+cb --setenv --nushell
+
+# Save and source in one step
+cb --setenv --nushell | save -f ~/.config/nushell/cb-tools.nu
+source ~/.config/nushell/cb-tools.nu
+```
+
+**Automatic setup via installer:**
+
+When `cb-install` (or `cb-install.bat`) detects that Nushell is installed, it automatically:
+1. Creates `~/.config/nushell/cb-setenv.nu` with `CB_HOME` and `PATH` configuration.
+2. Adds a `source` line to `~/.config/nushell/env.nu` so the configuration is loaded on every Nushell startup.
+
+On subsequent updates (`cb --install cb`), the `cb-setenv.nu` file is regenerated with the updated `CB_HOME` path.
+
+
+## Versioning and compatibility
+
+This project follows [Semantic Versioning](https://semver.org/):
+
+- **Patch** releases (e.g. 1.0.1 → 1.0.2) are fully backward compatible — bug fixes only.
+- **Minor** releases (e.g. 1.0.x → 1.1.0) add new features while remaining backward compatible — all existing scripts, environment variables, and configurations continue to work.
+- **Major** releases (e.g. 1.x → 2.0.0) may introduce breaking changes.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed compatibility guidelines.
 

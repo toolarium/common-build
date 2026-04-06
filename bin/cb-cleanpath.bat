@@ -58,16 +58,16 @@ goto CHECK_PARAMETER
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo cb-cleanpath - cleanup path
 echo usage: cb-cleanpath [OPTION]
-echo.
+echo\
 echo Overview of the available OPTIONs:
 echo  -h, --help                        Show this help message.
 echo  -s, --system expression-to-clean  Cleanup system path and set the SYSTEM_PATH environment variable.
 echo  -u, --user expression-to-clean    Cleanup user path and set the USER_PATH environment variable.
 echo  -p, --path expression-to-clean    Cleanup path and set the PATH environment variable.
-echo.
+echo\
 echo Example:
 echo  -Cleanup user path: cb-cleanpath --user toolarium
-echo.
+echo\
 goto END
 
 

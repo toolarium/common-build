@@ -21,6 +21,21 @@
   .header { display: flex; align-items: flex-start; justify-content: space-between; }
   .header img { margin-left: 1em; }
   .badge img { vertical-align: middle; }
+  .sister-banner {
+    background: linear-gradient(135deg, #e3f2fd 0%, #e8eaf6 100%);
+    border: 1px solid #90caf9;
+    border-left: 4px solid #1976d2;
+    border-radius: 6px;
+    padding: 1rem 1.3rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+  .sister-banner .icon { font-size: 1.5rem; flex-shrink: 0; }
+  .sister-banner strong a { color: #1565c0; text-decoration: none; }
+  .sister-banner strong a:hover { text-decoration: underline; }
+  .sister-banner p { margin: 0; font-size: 0.93rem; color: #37474f; }
 </style>
 </head>
 <body>
@@ -28,9 +43,12 @@
 <div class="header">
 <div>
 <h1>common-build</h1>
-<p class="badge"><a href="https://opensource.org/licenses/GPL-3.0"><img src="https://img.shields.io/github/license/toolarium/common-build" alt="License"></a></p>
+<p class="badge">
+<a href="https://opensource.org/licenses/GPL-3.0"><img src="https://img.shields.io/github/license/toolarium/common-build" alt="License"></a>
+<img src="https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-blue" alt="Platform">
+</p>
 </div>
-<img height="110" src="docs/logo/common-build-icon.png" alt="common-build logo">
+<img height="110" src="logo/common-build-icon.png" alt="common-build logo">
 </div>
 
 <p>The common-build project simplifies the development environment setup across Linux, MacOS and Windows.
@@ -40,10 +58,16 @@ It acts as a transparent wrapper for common build tools such as Gradle, Maven or
 <ul>
 <li><strong>Tool management</strong> &mdash; Install, update and switch between versions of developer tools with a single command (<code>cb --install</code>). Use <code>cb --setenv</code> to add all managed tools to your PATH.</li>
 <li><strong>Build execution</strong> &mdash; Run project builds transparently through Gradle, Maven or Ant without manual setup.</li>
-<li><strong><a href="docs/project-wizard.html">Project wizard</a></strong> &mdash; Scaffold new projects interactively with <code>cb --new</code>, supporting multiple project types (Java, Node/React/Vue/Nuxt, Kubernetes, OpenAPI, and more).</li>
-<li><strong><a href="docs/organization-config.html">Organization config</a></strong> &mdash; Centralize tool versions, project templates, naming conventions and lifecycle hooks in a Git repository for consistent corporate-wide developer environments.</li>
+<li><strong><a href="project-wizard.html">Project wizard</a></strong> &mdash; Scaffold new projects interactively with <code>cb --new</code>, supporting multiple project types (Java, Node/React/Vue/Nuxt, Kubernetes, OpenAPI, and more).</li>
+<li><strong><a href="organization-config.html">Organization Config</a></strong> &mdash; Centralize tool versions, project templates, naming conventions and lifecycle hooks in a Git repository for consistent corporate-wide developer environments.</li>
+<li><strong><a href="package-development.html">Package development</a></strong> &mdash; Add new tool packages to common-build with a simple script convention, supporting cross-platform downloads, version management, and post-install hooks.</li>
 <li><strong>Self-update</strong> &mdash; Keep common-build itself up to date with <code>cb --install cb</code>.</li>
 </ul>
+
+<div class="sister-banner">
+  <span class="icon">&#x1F91D;</span>
+  <p>Works hand in hand with its sister project <strong><a href="https://github.com/toolarium/common-gradle-build">common-gradle-build</a></strong> &mdash; for Gradle-based projects, common-gradle-build provides the build framework while common-build manages the developer toolchain and project scaffolding.</p>
+</div>
 
 <h2>Installing common-build</h2>
 
@@ -57,7 +81,7 @@ It acts as a transparent wrapper for common build tools such as Gradle, Maven or
 
 <p>Alternatively, download <a href="https://raw.githubusercontent.com/toolarium/common-build/master/bin/cb-install"><code>cb-install</code></a> manually and run it with <code>/bin/bash cb-install</code>.</p>
 
-<p>Tested on debian, ubuntu, centos and fedora. MacOS is not yet fully tested.</p>
+<p>Tested on debian, ubuntu, centos, fedora and macOS.</p>
 
 <p><strong>Windows</strong></p>
 
@@ -85,11 +109,12 @@ Currently only Windows 10 is properly tested.</p>
 <tbody>
 <tr><td><code>-h</code>, <code>--help</code></td><td>Show the help message.</td></tr>
 <tr><td><code>-v</code>, <code>--version</code></td><td>Print version information and installed tool versions.</td></tr>
-<tr><td><code>--new</code></td><td>Create a new project via an interactive <a href="docs/project-wizard.html">project wizard</a>. Settings can be prefilled, e.g. <code>--new 1 my-project my.root.pkg my my</code>.</td></tr>
+<tr><td><code>--new</code></td><td>Create a new project via an interactive <a href="project-wizard.html">project wizard</a>. Settings can be prefilled, e.g. <code>--new 1 my-project my.root.pkg my my</code>.</td></tr>
 <tr><td><code>--java [version]</code></td><td>Override the Java version for this run, e.g. <code>--java 17</code>.</td></tr>
-<tr><td><code>--install [pkg] [version]</code></td><td>Install a software package. Uses the default version from <code>tool-version-default.properties</code> unless a version is specified. Add <code>-d</code> or <code>--default</code> to mark the installed version as the default.</td></tr>
+<tr><td><code>--install [pkg] [version]</code></td><td>Install a software package. Uses the default version from <code>tool-version-default.properties</code> unless a version is specified. Add <code>-d</code> or <code>--default</code> to mark the installed version as the default. See <a href="package-development.html">Package Development</a> for how to create custom packages.</td></tr>
 <tr><td><code>--packages</code></td><td>List all supported packages.</td></tr>
-<tr><td><code>--setenv</code></td><td>Set all internal environment variables (adds installed tools to <code>PATH</code>). This is the recommended way to make all managed tools available on the command line. It adds tools like git, node, java, maven, gradle, python, trivy, ant and others to the current <code>PATH</code>.</td></tr>
+<tr><td><code>--setenv</code></td><td>Set all internal environment variables (adds installed tools to <code>PATH</code>). This is the recommended way to make all managed tools available on the command line. It adds tools like git, node, java, maven, gradle, python, trivy, ant and others to the current <code>PATH</code>. For GraalVM, only <code>GRAALVM_HOME</code> is set (not added to <code>PATH</code>). On Windows, if Visual Studio Build Tools are installed, the VC environment is initialized automatically via <code>vcvars64.bat</code>.</td></tr>
+<tr><td><code>--nushell</code></td><td>When used with <code>--setenv</code>, output <a href="https://www.nushell.sh/">Nushell</a>-compatible syntax (<code>$env.VAR = '...'</code>) instead of modifying the current shell. See <a href="#nushell-support">Nushell support</a> below.</td></tr>
 <tr><td><code>--update</code></td><td>Update the custom config. Can be combined with <code>--force</code>.</td></tr>
 <tr><td><code>-exp</code>, <code>--explore</code></td><td>Open the file explorer at the current path.</td></tr>
 <tr><td><code>--silent</code></td><td>Suppress console output from common-build.</td></tr>
@@ -138,6 +163,24 @@ Currently only Windows 10 is properly tested.</p>
 
 <p>Windows-only packages: <a href="https://git-scm.com/"><code>git</code></a>, <a href="https://notepad-plus-plus.org/"><code>npp</code></a> (Notepad++), <a href="https://multicommander.com/"><code>multicommander</code></a>, <a href="https://winmerge.org/"><code>winmerge</code></a>, <a href="https://github.com/microsoft/terminal"><code>wt</code></a> (Windows Terminal), <a href="https://scoop.sh/"><code>scoop</code></a>, <a href="https://rancherdesktop.io/"><code>rangerdesktop</code></a>.</p>
 
+<h2>Utility Scripts</h2>
+
+<p>In addition to the main <code>cb</code> command, common-build ships with a set of standalone helper scripts in <code>bin/</code>. Each one has cross-platform counterparts (shell script and <code>.bat</code>) and supports <code>-h</code> / <code>--help</code>.</p>
+
+<table>
+<thead><tr><th>Script</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>cb-clean-files</code></td><td>Delete regular files older than N days from a single directory (top-level, non-recursive). Supports glob pattern filter, <code>--dry-run</code> and <code>--silent</code> modes. Rejects dangerous target paths (<code>/</code>, <code>$HOME</code>, <code>/usr</code>, <code>/etc</code>, ...).</td></tr>
+<tr><td><code>cb-cleanup</code></td><td>Cleanup common-build artifacts (caches, temp directories, stale downloads). Calls <code>cleanup-start</code> / <code>cleanup-end</code> lifecycle hooks if a custom hook script is configured.</td></tr>
+<tr><td><code>cb-dockterm</code></td><td>Open an interactive terminal inside a running Docker container. Types are defined in <code>conf/dockterm-types.properties</code> (key = type name, value = Docker image). Default types: alpine, arch, debian, fedora, kali, ubuntu. Add custom entries to use private or corporate images.</td></tr>
+<tr><td><code>cb-filetail</code></td><td>Follow/tail a file (like <code>tail -f</code>) with optional <code>grep</code> filtering &mdash; cross-platform, works on Windows too.</td></tr>
+<tr><td><code>cb-meminfo</code></td><td>Print memory usage information for the current host.</td></tr>
+<tr><td><code>cb-open-ports</code></td><td>List all open TCP/UDP ports on the host. Accepts optional filter arguments (e.g. <code>cb-open-ports 8080 443</code>).</td></tr>
+<tr><td><code>cb-shortcut</code></td><td>Create Windows desktop shortcuts (Windows-only).</td></tr>
+<tr><td><code>cb-version-filter</code></td><td>Filter a list of semver version numbers by major-version thresholds and previous-major patch thresholds. Accepts input via stdin, file, or <code>--path</code>. Useful for pruning old release versions.</td></tr>
+</tbody>
+</table>
+
 <h2>Examples</h2>
 
 <p>Run a build:</p>
@@ -159,6 +202,9 @@ cb --setenv</code></pre>
 . cb --setenv
 # or
 source cb --setenv</code></pre>
+<pre><code># Nushell (save output to a file, then source it):
+cb --setenv --nushell | save -f ~/.config/nushell/cb-tools.nu
+source ~/.config/nushell/cb-tools.nu</code></pre>
 <p>This makes tools like java, gradle, maven, node, python, git, trivy, ant, etc. directly available on the command line.</p>
 
 <p>List available packages:</p>
@@ -178,12 +224,19 @@ source cb --setenv</code></pre>
 </thead>
 <tbody>
 <tr><td><code>CB_DEVTOOLS</code></td><td>Root directory for all dev tools.</td><td><code>$HOME/devtools</code> (Linux/macOS), <code>c:\devtools</code> (Windows)</td></tr>
+<tr><td><code>CB_DEVTOOLS_NAME</code></td><td>Name of the devtools directory (without path).</td><td><code>devtools</code></td></tr>
+<tr><td><code>CB_DEVTOOLS_DRIVE</code></td><td>(Windows only) Drive letter where devtools are installed.</td><td><code>c:</code></td></tr>
 <tr><td><code>CB_HOME</code></td><td>Common-build installation directory.</td><td><code>$CB_DEVTOOLS/toolarium-common-build-v&lt;version&gt;</code></td></tr>
+<tr><td><code>CB_TEMP</code></td><td>Temporary directory for work files, download caches, and lock files.</td><td><code>$TMPDIR/cb-$USER</code> (Unix), <code>%TEMP%\cb</code> (Windows)</td></tr>
 <tr><td><code>CB_CUSTOM_CONFIG</code></td><td>Git URL to a custom config project for full customization.</td><td></td></tr>
-<tr><td><code>CB_CUSTOM_SETTING</code></td><td>Path to a custom hook script called during all operations. See <code>$CB_HOME/bin/sample/cb-custom-sample.sh</code>.</td><td></td></tr>
+<tr><td><code>CB_CUSTOM_SETTING</code></td><td>Path to a custom hook script called during all operations. See <a href="sample/">sample scripts</a> for templates.</td><td></td></tr>
 <tr><td><code>CB_PACKAGE_URL</code></td><td>URL to a directory of additional package zip files.</td><td></td></tr>
 <tr><td><code>CB_PACKAGE_USER</code></td><td>Username for accessing <code>CB_PACKAGE_URL</code>.</td><td></td></tr>
 <tr><td><code>CB_PACKAGE_PASSWORD</code></td><td>Password for <code>CB_PACKAGE_URL</code>. Set to <code>ask</code> for interactive prompt.</td><td></td></tr>
+<tr><td><code>CB_ONLINE_ADDRESS</code></td><td>IP address or hostname for the internet connectivity check. Override for corporate proxies.</td><td><code>8.8.8.8</code></td></tr>
+<tr><td><code>CB_ONLINE_ADDRESS_PORT</code></td><td>Port for the connectivity check.</td><td><code>53</code></td></tr>
+<tr><td><code>CB_ONLINE_TIMEOUT</code></td><td>Timeout in seconds for the connectivity check.</td><td><code>2</code></td></tr>
+<tr><td><code>CB_INSTALL_ONLY_STABLE</code></td><td>Set to <code>false</code> to allow pre-release/draft versions during <code>cb-install</code>.</td><td><code>true</code></td></tr>
 </tbody>
 </table>
 
@@ -220,7 +273,7 @@ vuejs = Vue|projectName=-ui|projectComponentId|projectDescription|install=node|i
 
 <p>Available project types include: <code>java-application</code>, <code>java-library</code>, <code>config</code>, <code>script</code>, <code>openapi</code>, <code>quarkus</code>, <code>vuejs</code>, <code>nuxtjs</code>, <code>react</code>, <code>kubernetes-product</code>, <code>documentation</code>, <code>container</code>, and <code>organization-config</code>.</p>
 
-<p>For full details on how project types work and how to configure them, see the <a href="docs/project-wizard.html">Project Wizard documentation</a>.</p>
+<p>For full details on how project types work and how to configure them, see the <a href="project-wizard.html">Project Wizard documentation</a>.</p>
 
 <h2>Per-Project Java Version</h2>
 
@@ -254,7 +307,7 @@ vuejs = Vue|projectName=-ui|projectComponentId|projectDescription|install=node|i
 
 <p>For <code>cb --setenv</code>, only steps 1-2 are executed to set up tools in the current shell.
 For <code>cb --install &lt;package&gt;</code>, the tool is downloaded, extracted and linked into the <code>current/</code> directory.
-For <code>cb --new</code>, the <a href="docs/project-wizard.html">project wizard</a> is started instead.</p>
+For <code>cb --new</code>, the <a href="project-wizard.html">project wizard</a> is started instead.</p>
 
 <h2>Sample Output of <code>cb --version</code></h2>
 
@@ -283,6 +336,7 @@ toolarium common build 1.0.14
 <tr><td><code>conf/tool-version-installed.properties</code></td><td>Tracks currently installed tool versions.</td></tr>
 <tr><td><code>conf/project-types.properties</code></td><td>Project type definitions for <code>cb --new</code>.</td></tr>
 <tr><td><code>conf/product-types.properties</code></td><td>Product type definitions (optional).</td></tr>
+<tr><td><code>conf/dockterm-types.properties</code></td><td>Docker container types for <code>cb-dockterm</code>. Key = type name, value = Docker image.</td></tr>
 </tbody>
 </table>
 
@@ -290,7 +344,11 @@ toolarium common build 1.0.14
 
 <h3>Custom Hook Script</h3>
 
-<p>Set <code>CB_CUSTOM_SETTING</code> to point to a shell script that will be called at various lifecycle hooks: <code>start</code>, <code>build-start</code>, <code>build-end</code>, <code>install-start</code>, <code>install-end</code>, <code>setenv-start</code>, <code>setenv-end</code>, <code>error-end</code>, and more. See <code>$CB_HOME/bin/sample/cb-custom-sample.sh</code> for a template.</p>
+<p>Set <code>CB_CUSTOM_SETTING</code> to point to a shell script that will be called at various lifecycle hooks: <code>start</code>, <code>build-start</code>, <code>build-end</code>, <code>install-start</code>, <code>install-end</code>, <code>cleanup-start</code>, <code>cleanup-end</code>, <code>setenv-start</code>, <code>setenv-end</code>, <code>error-end</code>, and more. See the <a href="sample/">sample scripts</a> for complete templates:</p>
+<ul>
+<li><a href="sample/cb-custom-sample.sh"><code>cb-custom-sample.sh</code></a> / <a href="sample/cb-custom-sample.bat"><code>cb-custom-sample.bat</code></a> &mdash; fully commented samples with all hooks active</li>
+<li><a href="sample/cb-custom.sh"><code>cb-custom.sh</code></a> / <a href="sample/cb-custom.bat"><code>cb-custom.bat</code></a> &mdash; minimal templates ready to copy and customize</li>
+</ul>
 
 <h3>Custom Config Project</h3>
 
@@ -298,7 +356,27 @@ toolarium common build 1.0.14
 
 <p>Alternatively, add the git URL to the file <code>$HOME/.common-build/conf/.cb-custom-config</code>.</p>
 
-<p>For full details on setting up an organization config with custom tool versions, project types, product types, lifecycle hooks, and concrete examples, see the <a href="docs/organization-config.html">Organization Config documentation</a>.</p>
+<p>For full details on setting up an organization config with custom tool versions, project types, product types, lifecycle hooks, and concrete examples, see the <a href="organization-config.html">Organization Config documentation</a>.</p>
+
+<h2 id="nushell-support">Nushell Support</h2>
+
+<p>Common-build supports <a href="https://www.nushell.sh/">Nushell</a> as a first-class shell. The <code>--nushell</code> flag causes <code>cb --setenv</code> to output Nushell-compatible environment variable assignments instead of modifying the current process environment.</p>
+
+<h3>Manual usage</h3>
+<pre><code># Print Nushell env commands to stdout
+cb --setenv --nushell
+
+# Save and source in one step
+cb --setenv --nushell | save -f ~/.config/nushell/cb-tools.nu
+source ~/.config/nushell/cb-tools.nu</code></pre>
+
+<h3>Automatic setup via installer</h3>
+<p>When <code>cb-install</code> (or <code>cb-install.bat</code>) detects that Nushell is installed, it automatically:</p>
+<ol>
+<li>Creates <code>~/.config/nushell/cb-setenv.nu</code> with <code>CB_HOME</code> and <code>PATH</code> configuration.</li>
+<li>Adds a <code>source</code> line to <code>~/.config/nushell/env.nu</code> so the configuration is loaded on every Nushell startup.</li>
+</ol>
+<p>On subsequent updates (<code>cb --install cb</code>), the <code>cb-setenv.nu</code> file is regenerated with the updated <code>CB_HOME</code> path.</p>
 
 <hr>
 <p><small>GNU General Public License v3.0 &mdash; see <a href="http://www.gnu.org/licenses/">LICENSE</a> for details.</small></p>

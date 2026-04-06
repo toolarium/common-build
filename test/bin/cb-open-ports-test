@@ -1,0 +1,180 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-open-ports-test
+#
+# Tests for cb-open-ports. Requires Linux (the script is Linux-only).
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+OP="$SRC_ROOT/bin/cb-open-ports"
+PASS=0
+FAIL=0
+
+assertEquals() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (expected [$expected], got [$actual])"
+	fi
+}
+
+assertContains() {
+	local needle="$1" haystack="$2" msg="$3"
+	if echo "$haystack" | grep -q -- "$needle"; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (missing: $needle)"
+	fi
+}
+
+#########################################################################
+# tests
+#########################################################################
+test_help() {
+	echo "TEST: --help"
+	output=$("$OP" --help 2>&1)
+	assertContains "script to read all open ports" "$output" "help mentions purpose"
+	assertContains "h, --help" "$output" "help lists -h/--help"
+	assertContains " Suppress header" "$output" "help lists -q"
+	assertContains "l, --localhost" "$output" "help lists -l/--localhost"
+	assertContains "Defines the ouput path" "$output" "help lists -p"
+	assertContains "Defines the filename" "$output" "help lists -f"
+}
+
+test_invalid_arg() {
+	echo "TEST: invalid argument rejected"
+	output=$("$OP" --not-a-real-arg 2>&1)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit code 1 for unknown arg"
+	assertContains "Invalid parameter" "$output" "error message shown"
+}
+
+test_os_check() {
+	echo "TEST: OS detection"
+	os=$(uname -s 2>/dev/null)
+	case "$os" in
+		Linux*|Darwin*)
+			# on Linux and macOS the script should run
+			"$OP" -q >/dev/null 2>&1
+			echo "  ($os detected — script runs)"
+			;;
+		*)
+			output=$("$OP" 2>&1)
+			exitCode=$?
+			assertEquals "1" "$exitCode" "unsupported OS exits with 1"
+			assertContains "only supported on Linux and macOS" "$output" "error message about supported platforms"
+			;;
+	esac
+}
+
+test_header_present_by_default() {
+	echo "TEST: header emitted by default"
+	output=$("$OP" 2>/dev/null | head -1)
+	assertContains "PORT" "$output" "header contains PORT"
+	assertContains "PID" "$output" "header contains PID"
+}
+
+test_q_suppresses_header() {
+	echo "TEST: -q suppresses header"
+	output=$("$OP" -q 2>/dev/null | head -1)
+	case "$output" in
+		*PORT*PID*) FAIL=$((FAIL+1)); echo "  FAIL: -q should suppress header but got: $output" ;;
+		*) PASS=$((PASS+1)); echo "  PASS: -q suppresses header" ;;
+	esac
+}
+
+test_write_to_file() {
+	echo "TEST: -p writes to file"
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-op-test-$$")
+	mkdir -p "$tmpdir"
+	"$OP" -p "$tmpdir" -q >/dev/null 2>&1
+	if [ -f "$tmpdir/open-ports.dat" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: output file created"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: output file not created at $tmpdir/open-ports.dat"
+	fi
+	rm -rf "$tmpdir"
+}
+
+test_write_custom_filename() {
+	echo "TEST: -f custom filename"
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-op-test-$$")
+	mkdir -p "$tmpdir"
+	"$OP" -p "$tmpdir" -f "custom.txt" -q >/dev/null 2>&1
+	if [ -f "$tmpdir/custom.txt" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: custom file created"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: custom file not created at $tmpdir/custom.txt"
+	fi
+	rm -rf "$tmpdir"
+}
+
+test_nonexistent_path() {
+	echo "TEST: -p with nonexistent path"
+	output=$("$OP" -p /nonexistent/xyz/abc 2>&1)
+	assertContains "is not accessable" "$output" "error message for bad path"
+}
+
+test_localhost_flag() {
+	echo "TEST: -l includes localhost"
+	# -l should be accepted without error
+	output=$("$OP" -l -q 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with -l flag"
+}
+
+test_ignore_localhost_flag() {
+	echo "TEST: -i ignores localhost (default behavior)"
+	output=$("$OP" -i -q 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with -i flag"
+}
+
+test_localhost_combined_with_quiet() {
+	echo "TEST: --localhost -q combined"
+	output=$("$OP" --localhost -q 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with --localhost -q"
+}
+
+#########################################################################
+# main
+#########################################################################
+echo "Running cb-open-ports tests..."
+echo "Using: $OP"
+echo ""
+
+[ ! -x "$OP" ] && echo "ERROR: $OP not found or not executable" && exit 1
+
+test_help
+test_invalid_arg
+test_os_check
+
+# the following tests run on Linux and macOS (where the script is supported)
+case "$(uname -s 2>/dev/null)" in Linux*|Darwin*)
+	test_header_present_by_default
+	test_q_suppresses_header
+	test_write_to_file
+	test_write_custom_filename
+	test_nonexistent_path
+	test_localhost_flag
+	test_ignore_localhost_flag
+	test_localhost_combined_with_quiet
+	;; esac
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1

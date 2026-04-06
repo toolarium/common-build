@@ -1,0 +1,182 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-clean-files-test
+#
+# Tests for cb-clean-files.
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+# always use the source tree (ignore any pre-set CB_HOME)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+CLEAN_FILES="$SRC_ROOT/bin/cb-clean-files"
+TEST_DIR="/tmp/cb-clean-files-test-$$"
+PASS=0
+FAIL=0
+
+#########################################################################
+# assertion helpers
+#########################################################################
+assertEquals() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (expected [$expected], got [$actual])"
+	fi
+}
+
+assertFileExists() {
+	local file="$1" msg="$2"
+	if [ -f "$file" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (file missing: $file)"
+	fi
+}
+
+assertFileMissing() {
+	local file="$1" msg="$2"
+	if [ ! -e "$file" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (file still exists: $file)"
+	fi
+}
+
+#########################################################################
+# setup / teardown
+#########################################################################
+setup() {
+	rm -rf "$TEST_DIR"
+	mkdir -p "$TEST_DIR"
+	# create a file older than 5 days
+	touch -d "10 days ago" "$TEST_DIR/old-file.log" 2>/dev/null || touch -t "$(date -v-10d '+%Y%m%d0000' 2>/dev/null)" "$TEST_DIR/old-file.log" 2>/dev/null
+	# create a file 1 day old
+	touch -d "1 day ago" "$TEST_DIR/recent-file.log" 2>/dev/null || touch -t "$(date -v-1d '+%Y%m%d0000' 2>/dev/null)" "$TEST_DIR/recent-file.log" 2>/dev/null
+	# create a brand new file
+	touch "$TEST_DIR/new-file.log"
+	# create a subdirectory with a file (to verify non-recursion)
+	mkdir -p "$TEST_DIR/sub"
+	touch -d "10 days ago" "$TEST_DIR/sub/nested-old.log" 2>/dev/null || touch -t "$(date -v-10d '+%Y%m%d0000' 2>/dev/null)" "$TEST_DIR/sub/nested-old.log" 2>/dev/null
+}
+
+teardown() {
+	rm -rf "$TEST_DIR"
+}
+
+#########################################################################
+# tests
+#########################################################################
+test_help() {
+	echo "TEST: --help"
+	output=$("$CLEAN_FILES" --help 2>&1)
+	echo "$output" | grep -q "clean files"
+	assertEquals "0" "$?" "help output contains 'clean files'"
+}
+
+test_invalid_days() {
+	echo "TEST: invalid --days value"
+	"$CLEAN_FILES" --path "$TEST_DIR" --days abc 2>&1 | grep -q "Invalid --days"
+	assertEquals "0" "$?" "rejects non-numeric --days"
+}
+
+test_dangerous_path_home() {
+	echo "TEST: dangerous path (\$HOME) refused"
+	"$CLEAN_FILES" --path "$HOME" --days 1 2>&1 | grep -q "Refusing to clean dangerous path"
+	assertEquals "0" "$?" "refuses \$HOME"
+}
+
+test_dangerous_path_root() {
+	echo "TEST: dangerous path (/) refused"
+	"$CLEAN_FILES" --path "/" --days 1 2>&1 | grep -q "Refusing to clean dangerous path"
+	assertEquals "0" "$?" "refuses /"
+}
+
+test_dry_run_keeps_files() {
+	echo "TEST: --dry-run does not delete"
+	setup
+	output=$("$CLEAN_FILES" --path "$TEST_DIR" --days 5 --dry-run 2>&1)
+	echo "$output" | grep -q "DRY-RUN"
+	assertEquals "0" "$?" "dry-run output contains [DRY-RUN]"
+	assertFileExists "$TEST_DIR/old-file.log" "old file still exists after dry-run"
+	teardown
+}
+
+test_delete_older_than_days() {
+	echo "TEST: delete files older than N days"
+	setup
+	"$CLEAN_FILES" --path "$TEST_DIR" --days 5 --silent 2>&1 >/dev/null
+	assertFileMissing "$TEST_DIR/old-file.log" "old file deleted (>5 days)"
+	assertFileExists "$TEST_DIR/recent-file.log" "recent file kept (1 day)"
+	assertFileExists "$TEST_DIR/new-file.log" "new file kept"
+	teardown
+}
+
+test_non_recursive() {
+	echo "TEST: non-recursive (does not touch subdirectories)"
+	setup
+	"$CLEAN_FILES" --path "$TEST_DIR" --days 5 --silent 2>&1 >/dev/null
+	assertFileExists "$TEST_DIR/sub/nested-old.log" "nested file kept (non-recursive)"
+	teardown
+}
+
+test_pattern_filter() {
+	echo "TEST: --pattern filter"
+	setup
+	touch -d "10 days ago" "$TEST_DIR/old-file.txt" 2>/dev/null || touch -t "$(date -v-10d '+%Y%m%d0000' 2>/dev/null)" "$TEST_DIR/old-file.txt" 2>/dev/null
+	"$CLEAN_FILES" --path "$TEST_DIR" --pattern "*.log" --days 5 --silent 2>&1 >/dev/null
+	assertFileMissing "$TEST_DIR/old-file.log" "*.log deleted"
+	assertFileExists "$TEST_DIR/old-file.txt" "*.txt kept by pattern filter"
+	teardown
+}
+
+test_nonexistent_path() {
+	echo "TEST: nonexistent path handled"
+	output=$("$CLEAN_FILES" --path "/nonexistent/path/xyz" --days 1 2>&1)
+	echo "$output" | grep -q "don't exist\|Refusing"
+	assertEquals "0" "$?" "nonexistent path message"
+}
+
+test_count_reported() {
+	echo "TEST: deletion count reported"
+	setup
+	output=$("$CLEAN_FILES" --path "$TEST_DIR" --days 5 2>&1)
+	echo "$output" | grep -q "Deleted 1 file"
+	assertEquals "0" "$?" "count of 1 reported"
+	teardown
+}
+
+#########################################################################
+# main
+#########################################################################
+echo "Running cb-clean-files tests..."
+echo "Using: $CLEAN_FILES"
+echo ""
+
+[ ! -x "$CLEAN_FILES" ] && echo "ERROR: $CLEAN_FILES not found or not executable" && exit 1
+
+test_help
+test_invalid_days
+test_dangerous_path_home
+test_dangerous_path_root
+test_dry_run_keeps_files
+test_delete_older_than_days
+test_non_recursive
+test_pattern_filter
+test_nonexistent_path
+test_count_reported
+
+teardown
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1

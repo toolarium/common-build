@@ -2,556 +2,198 @@ name: CB Test
 
 on:
   workflow_dispatch:
+    inputs:
+      full_project_test:
+        description: 'Run full project build tests (slow)'
+        type: boolean
+        default: false
   push:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  schedule:
+    # Nightly full build test (03:00 UTC)
+    - cron: '0 3 * * *'
 
 jobs:
 
   #######################################################################
-  # Linux - core tests
+  # Linux / macOS - shell test scripts (test/bin/*)
+  #
+  # All tools are installed via cb --install into a temp sandbox that
+  # the test scripts create themselves — we do NOT install anything
+  # into the workspace, nor do we use external setup-java/setup-node
+  # actions.  This ensures that every test exercises the exact tool
+  # versions controlled by conf/tool-version-default.properties.
   #######################################################################
-  test-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set permissions
-      - name: Install common-build
-        run: |
-          chmod -R +x bin/
-          CB_HOME=$GITHUB_WORKSPACE
-          mkdir -p "$CB_HOME/current"
-          echo "CB_HOME=$CB_HOME" >> $GITHUB_ENV
-          echo "$CB_HOME/bin" >> $GITHUB_PATH
-
-      - name: Test --version
-        run: |
-          cb --version
-          cb --version | grep -q "toolarium common build"
-
-      - name: Test --help
-        run: |
-          cb --help
-          cb --help | grep -q "usage:"
-
-      - name: Test --packages
-        run: |
-          cb --packages
-          cb --packages | grep -q "Available packages"
-
-      - name: Test --setenv
-        run: cb --setenv
-
-      - name: Test --setenv --silent
-        run: |
-          output=$(cb --setenv --silent 2>&1)
-          if [ -n "$output" ]; then
-            echo "WARN: --setenv --silent produced output: $output"
-          fi
-
-      - name: Create a new project (Gradle)
-        run: |
-          mkdir -p /tmp/test-projects && cd /tmp/test-projects
-          cb --new 1 my-test-project my.rootpackage.name my my "The test project."
-          test -f /tmp/test-projects/my-test-project/build.gradle || test -f /tmp/test-projects/my-test-project/settings.gradle
-
-  #######################################################################
-  # Linux - package installation (matrix)
-  #######################################################################
-  test-linux-packages:
-    runs-on: ubuntu-latest
-    needs: test-linux
+  test-scripts-shell:
     strategy:
-      fail-fast: false
       matrix:
-        include:
-          - package: java
-            verify_current: true
-          - package: gradle
-            verify_current: true
-          - package: maven
-            verify_current: true
-          - package: node
-            verify_current: true
-          - package: ant
-            verify_current: true
-          - package: groovy
-            verify_current: true
-          - package: python
-            verify_current: true
-          - package: trivy
-            verify_current: true
-          - package: micronaut
-            verify_current: true
-          - package: sbt
-            verify_current: true
-          - package: btrace
-            verify_current: true
-          - package: jmeter
-            verify_current: true
-          - package: squirrel
-            verify_current: true
-          - package: gaiden
-            verify_current: true
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install common-build
-        run: |
-          chmod -R +x bin/
-          CB_HOME=$GITHUB_WORKSPACE
-          mkdir -p "$CB_HOME/current"
-          echo "CB_HOME=$CB_HOME" >> $GITHUB_ENV
-          echo "CB_DEVTOOLS=$(dirname $CB_HOME)" >> $GITHUB_ENV
-          echo "$CB_HOME/bin" >> $GITHUB_PATH
+      - name: Set executable permissions
+        run: chmod -R +x bin/ test/bin/
 
-      - name: Install ${{ matrix.package }}
-        run: |
-          cb --install ${{ matrix.package }} --default
+      - name: cb-test
+        run: test/bin/cb-test
 
-      - name: Verify ${{ matrix.package }} installed
-        run: |
-          if [ "${{ matrix.verify_current }}" = "true" ]; then
-            echo "Checking $CB_HOME/current/${{ matrix.package }}..."
-            test -d "$CB_HOME/current/${{ matrix.package }}" || test -L "$CB_HOME/current/${{ matrix.package }}"
-            echo "OK: ${{ matrix.package }} installed in current/"
-          fi
+      - name: cb-project-test (scaffold)
+        run: test/bin/cb-project-test
 
-      - name: Verify ${{ matrix.package }} in --setenv
-        if: matrix.verify_current
-        run: |
-          cb --setenv | grep -qi "${{ matrix.package }}"
+      - name: cb-project-test (full build)
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.full_project_test)
+        env:
+          CB_PROJECT_TEST_BUILD: '1'
+          CB_PROJECT_TEST_NETWORK: '1'
+        run: test/bin/cb-project-test
 
-  #######################################################################
-  # Linux - large package installation
-  #######################################################################
-  test-linux-packages-large:
-    runs-on: ubuntu-latest
-    needs: test-linux
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - package: eclipse
-            verify_dir: eclipse-
-          - package: intellij
-            verify_dir: ideaIC-
-          - package: visualvm
-            verify_dir: visualvm-
-          - package: flutter
-            verify_dir: flutter-
-          - package: vscode
-            verify_dir: vscode-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: cb-clean-files-test
+        run: test/bin/cb-clean-files-test
 
-      - name: Install common-build
-        run: |
-          chmod -R +x bin/
-          CB_HOME=$GITHUB_WORKSPACE
-          mkdir -p "$CB_HOME/current"
-          echo "CB_HOME=$CB_HOME" >> $GITHUB_ENV
-          echo "CB_DEVTOOLS=$(dirname $CB_HOME)" >> $GITHUB_ENV
-          echo "$CB_HOME/bin" >> $GITHUB_PATH
+      - name: cb-cleanup-test
+        run: test/bin/cb-cleanup-test
 
-      - name: Install ${{ matrix.package }}
-        run: |
-          cb --install ${{ matrix.package }}
+      - name: cb-filetail-test
+        run: test/bin/cb-filetail-test
 
-      - name: Verify ${{ matrix.package }} installed
-        run: |
-          echo "Checking for ${{ matrix.verify_dir }}* in $CB_DEVTOOLS..."
-          ls -d $CB_DEVTOOLS/${{ matrix.verify_dir }}* 2>/dev/null
-          test -n "$(ls -d $CB_DEVTOOLS/${{ matrix.verify_dir }}* 2>/dev/null)" || \
-            test -n "$(ls -d $CB_DEVTOOLS/*${{ matrix.package }}* 2>/dev/null)"
-          echo "OK: ${{ matrix.package }} installed"
+      - name: cb-json-test
+        run: test/bin/cb-json-test
+
+      - name: cb-hashcode-test
+        run: test/bin/cb-hashcode-test
+
+      - name: cb-open-ports-test
+        run: test/bin/cb-open-ports-test
+
+      - name: cb-dockterm-test
+        run: test/bin/cb-dockterm-test
+
+      - name: cb-meminfo-test
+        run: test/bin/cb-meminfo-test
+
+      - name: cb-read-version-test
+        run: test/bin/cb-read-version-test
+
+      - name: cb-lock-unlock-test
+        run: test/bin/cb-lock-unlock-test
+
+      - name: cb-update-custom-home-test
+        run: test/bin/cb-update-custom-home-test
+
+      - name: cb-how-to-test
+        run: test/bin/cb-how-to-test
+
+      - name: cb-version-filter-test
+        run: test/bin/cb-version-filter-test
+
+      - name: cb-install-test
+        run: test/bin/cb-install-test
+
+      - name: cb-install-e2e-test
+        env:
+          CB_INSTALL_TEST_E2E: '1'
+        run: test/bin/cb-install-e2e-test
+
 
   #######################################################################
-  # Linux - build integration test
+  # Windows - batch test scripts (test/bin/*.bat)
   #######################################################################
-  test-linux-build:
-    runs-on: ubuntu-latest
-    needs: test-linux
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set permissions
-      - name: Install common-build
-        run: |
-          chmod -R +x bin/
-          CB_HOME=$GITHUB_WORKSPACE
-          mkdir -p "$CB_HOME/current"
-          echo "CB_HOME=$CB_HOME" >> $GITHUB_ENV
-          echo "$CB_HOME/bin" >> $GITHUB_PATH
-
-      - name: Install java and gradle
-        run: |
-          cb --install java --default
-          cb --install gradle --default
-
-      - name: Verify tools via --setenv
-        run: |
-          output=$(cb --setenv 2>&1)
-          echo "$output"
-          echo "$output" | grep -q "Add java to path"
-          echo "$output" | grep -q "Add gradle to path"
-
-      - name: Create a new Gradle project
-        run: |
-          mkdir -p /tmp/test-projects && cd /tmp/test-projects
-          cb --new 1 my-test-project my.rootpackage.name my my "The test project."
-          test -d /tmp/test-projects/my-test-project
-          test -f /tmp/test-projects/my-test-project/build.gradle || test -f /tmp/test-projects/my-test-project/settings.gradle
-
-  #######################################################################
-  # macOS - core tests and packages
-  #######################################################################
-  test-macos:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install common-build
-        run: |
-          chmod -R +x bin/
-          CB_HOME=$GITHUB_WORKSPACE
-          mkdir -p "$CB_HOME/current"
-          echo "CB_HOME=$CB_HOME" >> $GITHUB_ENV
-          echo "CB_DEVTOOLS=$(dirname $CB_HOME)" >> $GITHUB_ENV
-          echo "$CB_HOME/bin" >> $GITHUB_PATH
-
-      - name: Test --version
-        run: |
-          cb --version
-          cb --version | grep -q "toolarium common build"
-
-      - name: Test --help
-        run: |
-          cb --help | grep -q "usage:"
-
-      - name: Test --packages
-        run: |
-          cb --packages | grep -q "Available packages"
-
-      - name: Test --setenv
-        run: |
-          cb --setenv
-
-      - name: Install java
-        run: |
-          cb --install java --default
-          test -d "$CB_HOME/current/java" || test -L "$CB_HOME/current/java"
-
-      - name: Install gradle
-        run: |
-          cb --install gradle --default
-          test -d "$CB_HOME/current/gradle" || test -L "$CB_HOME/current/gradle"
-
-      - name: Install maven
-        run: |
-          cb --install maven --default
-          test -d "$CB_HOME/current/maven" || test -L "$CB_HOME/current/maven"
-
-      - name: Install node
-        run: |
-          cb --install node --default
-          test -d "$CB_HOME/current/node" || test -L "$CB_HOME/current/node"
-
-      - name: Install ant
-        run: |
-          cb --install ant --default
-          test -d "$CB_HOME/current/ant" || test -L "$CB_HOME/current/ant"
-
-      - name: Install groovy
-        run: |
-          cb --install groovy --default
-          test -d "$CB_HOME/current/groovy" || test -L "$CB_HOME/current/groovy"
-
-      - name: Install trivy
-        run: |
-          cb --install trivy --default
-          test -d "$CB_HOME/current/trivy" || test -L "$CB_HOME/current/trivy"
-
-      - name: Install micronaut
-        run: |
-          cb --install micronaut --default
-          test -d "$CB_HOME/current/micronaut" || test -L "$CB_HOME/current/micronaut"
-
-      - name: Install sbt
-        run: |
-          cb --install sbt --default
-          test -d "$CB_HOME/current/sbt" || test -L "$CB_HOME/current/sbt"
-
-      - name: Verify --setenv adds installed tools
-        run: |
-          output=$(cb --setenv 2>&1)
-          echo "$output"
-          echo "$output" | grep -q "Add java to path"
-          echo "$output" | grep -q "Add gradle to path"
-          echo "$output" | grep -q "Add maven to path"
-          echo "$output" | grep -q "Add node to path"
-          echo "$output" | grep -q "Add trivy to path"
-
-      - name: Create a new Gradle project
-        run: |
-          mkdir -p /tmp/test-projects && cd /tmp/test-projects
-          cb --new 1 my-test-project my.rootpackage.name my my "The test project."
-          test -d /tmp/test-projects/my-test-project
-          test -f /tmp/test-projects/my-test-project/build.gradle || test -f /tmp/test-projects/my-test-project/settings.gradle
-
-  #######################################################################
-  # Windows - core tests
-  #######################################################################
-  test-windows:
+  test-scripts-windows:
     runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install common-build
+      - name: cb-test.bat
         shell: cmd
-        run: |
-          set "CB_HOME=%GITHUB_WORKSPACE%"
-          echo CB_HOME=%CB_HOME%>> %GITHUB_ENV%
-          echo %CB_HOME%\bin>> %GITHUB_PATH%
-          if not exist "%CB_HOME%\current" mkdir "%CB_HOME%\current"
+        run: test\bin\cb-test.bat
 
-      - name: Test --version
+      - name: cb-project-test.bat (scaffold)
         shell: cmd
-        run: |
-          call cb --version
-          call cb --version | findstr /C:"toolarium common build"
+        run: test\bin\cb-project-test.bat
 
-      - name: Test --help
+      - name: cb-project-test.bat (full build)
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.full_project_test)
         shell: cmd
-        run: |
-          call cb --help
-          call cb --help | findstr /C:"usage:"
+        env:
+          CB_PROJECT_TEST_BUILD: '1'
+          CB_PROJECT_TEST_NETWORK: '1'
+        run: test\bin\cb-project-test.bat
 
-      - name: Test --packages
+      - name: cb-clean-files-test.bat
         shell: cmd
-        run: |
-          call cb --packages
-          call cb --packages | findstr /C:"Available packages"
+        run: test\bin\cb-clean-files-test.bat
 
-      - name: Test --setenv
+      - name: cb-cleanup-test.bat
         shell: cmd
-        run: call cb --setenv
+        run: test\bin\cb-cleanup-test.bat
 
-      - name: Test --setenv --silent
+      - name: cb-filetail-test.bat
         shell: cmd
-        run: call cb --setenv --silent
+        run: test\bin\cb-filetail-test.bat
 
-      - name: Create a new project (Gradle)
+      - name: cb-copysymlink-test.bat
         shell: cmd
-        run: |
-          mkdir %TEMP%\test-projects
-          cd %TEMP%\test-projects
-          call cb --new 1 my-test-project my.rootpackage.name my my my-test-project
-          if not exist "%TEMP%\test-projects\my-test-project" exit /b 1
+        run: test\bin\cb-copysymlink-test.bat
 
-  #######################################################################
-  # Windows - package installation (matrix)
-  #######################################################################
-  test-windows-packages:
-    runs-on: windows-latest
-    needs: test-windows
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - package: java
-            verify: current\java
-          - package: gradle
-            verify: current\gradle
-          - package: maven
-            verify: current\maven
-          - package: node
-            verify: current\node
-          - package: ant
-            verify: current\ant
-          - package: groovy
-            verify: current\groovy
-          - package: trivy
-            verify: current\trivy
-          - package: micronaut
-            verify: current\micronaut
-          - package: sbt
-            verify: current\sbt
-          - package: btrace
-            verify: current\btrace
-          - package: jmeter
-            verify: current\jmeter
-          - package: squirrel
-            verify: current\squirrel
-          - package: gaiden
-            verify: current\gaiden
-          - package: python
-            verify: current\python
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install common-build
+      - name: cb-deltree-test.bat
         shell: cmd
-        run: |
-          set "CB_HOME=%GITHUB_WORKSPACE%"
-          echo CB_HOME=%CB_HOME%>> %GITHUB_ENV%
-          echo %CB_HOME%\bin>> %GITHUB_PATH%
-          if not exist "%CB_HOME%\current" mkdir "%CB_HOME%\current"
+        run: test\bin\cb-deltree-test.bat
 
-      - name: Install ${{ matrix.package }}
+      - name: cb-open-ports-test.bat
         shell: cmd
-        run: call cb --install ${{ matrix.package }} --default
+        run: test\bin\cb-open-ports-test.bat
 
-      - name: Verify ${{ matrix.package }} installed
+      - name: cb-dockterm-test.bat
         shell: cmd
-        run: |
-          if not exist "%CB_HOME%\${{ matrix.verify }}" (
-            echo FAILED: %CB_HOME%\${{ matrix.verify }} not found
-            exit /b 1
-          )
-          echo OK: ${{ matrix.package }} installed
+        run: test\bin\cb-dockterm-test.bat
 
-      - name: Verify ${{ matrix.package }} in --setenv
+      - name: cb-meminfo-test.bat
         shell: cmd
-        run: call cb --setenv | findstr /I /C:"${{ matrix.package }}"
+        run: test\bin\cb-meminfo-test.bat
 
-  #######################################################################
-  # Windows - Windows-only packages
-  #######################################################################
-  test-windows-packages-winonly:
-    runs-on: windows-latest
-    needs: test-windows
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - package: git
-            verify_devtools: git-
-          - package: npp
-            verify_devtools: npp-
-          - package: winmerge
-            verify_devtools: winmerge-
-          - package: multicommander
-            verify_devtools: multicommander-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install common-build
+      - name: cb-read-version-test.bat
         shell: cmd
-        run: |
-          set "CB_HOME=%GITHUB_WORKSPACE%"
-          set "CB_DEVTOOLS=%GITHUB_WORKSPACE%\.."
-          echo CB_HOME=%CB_HOME%>> %GITHUB_ENV%
-          echo CB_DEVTOOLS=%CB_DEVTOOLS%>> %GITHUB_ENV%
-          echo %CB_HOME%\bin>> %GITHUB_PATH%
-          if not exist "%CB_HOME%\current" mkdir "%CB_HOME%\current"
+        run: test\bin\cb-read-version-test.bat
 
-      - name: Install ${{ matrix.package }}
+      - name: cb-lock-unlock-test.bat
         shell: cmd
-        run: call cb --install ${{ matrix.package }} --default
+        run: test\bin\cb-lock-unlock-test.bat
 
-      - name: Verify ${{ matrix.package }} installed
+      - name: cb-update-custom-home-test.bat
         shell: cmd
-        run: |
-          dir "%CB_DEVTOOLS%\${{ matrix.verify_devtools }}*" >nul 2>nul
-          if %ERRORLEVEL% NEQ 0 (
-            echo FAILED: no ${{ matrix.verify_devtools }}* directory found in %CB_DEVTOOLS%
-            dir "%CB_DEVTOOLS%"
-            exit /b 1
-          )
-          echo OK: ${{ matrix.package }} installed
+        run: test\bin\cb-update-custom-home-test.bat
 
-  #######################################################################
-  # Windows - large packages
-  #######################################################################
-  test-windows-packages-large:
-    runs-on: windows-latest
-    needs: test-windows
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - package: eclipse
-            verify_devtools: eclipse-
-          - package: intellij
-            verify_devtools: ideaIC-
-          - package: visualvm
-            verify_devtools: visualvm-
-          - package: vscode
-            verify_devtools: VSCode
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install common-build
+      - name: cb-how-to-test.bat
         shell: cmd
-        run: |
-          set "CB_HOME=%GITHUB_WORKSPACE%"
-          set "CB_DEVTOOLS=%GITHUB_WORKSPACE%\.."
-          echo CB_HOME=%CB_HOME%>> %GITHUB_ENV%
-          echo CB_DEVTOOLS=%CB_DEVTOOLS%>> %GITHUB_ENV%
-          echo %CB_HOME%\bin>> %GITHUB_PATH%
-          if not exist "%CB_HOME%\current" mkdir "%CB_HOME%\current"
+        run: test\bin\cb-how-to-test.bat
 
-      - name: Install ${{ matrix.package }}
+      - name: cb-cleanpath-test.bat
         shell: cmd
-        run: call cb --install ${{ matrix.package }}
+        run: test\bin\cb-cleanpath-test.bat
 
-      - name: Verify ${{ matrix.package }} installed
+      - name: cb-timestamp-test.bat
         shell: cmd
-        run: |
-          dir "%CB_DEVTOOLS%\${{ matrix.verify_devtools }}*" >nul 2>nul
-          if %ERRORLEVEL% NEQ 0 (
-            echo FAILED: no ${{ matrix.verify_devtools }}* found in %CB_DEVTOOLS%
-            dir "%CB_DEVTOOLS%"
-            exit /b 1
-          )
-          echo OK: ${{ matrix.package }} installed
+        run: test\bin\cb-timestamp-test.bat
 
-  #######################################################################
-  # Windows - build integration test
-  #######################################################################
-  test-windows-build:
-    runs-on: windows-latest
-    needs: test-windows
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install common-build
+      - name: cb-download-test.bat
         shell: cmd
-        run: |
-          set "CB_HOME=%GITHUB_WORKSPACE%"
-          echo CB_HOME=%CB_HOME%>> %GITHUB_ENV%
-          echo %CB_HOME%\bin>> %GITHUB_PATH%
-          if not exist "%CB_HOME%\current" mkdir "%CB_HOME%\current"
+        run: test\bin\cb-download-test.bat
 
-      - name: Install java and gradle
+      - name: cb-version-filter-test.bat
         shell: cmd
-        run: |
-          call cb --install java --default
-          call cb --install gradle --default
+        run: test\bin\cb-version-filter-test.bat
 
-      - name: Verify --setenv adds installed tools
+      - name: cb-install-test.bat
         shell: cmd
-        run: |
-          call cb --setenv | findstr /C:"Add java to path"
-          call cb --setenv | findstr /C:"Add gradle to path"
+        run: test\bin\cb-install-test.bat
 
-      - name: Create a new Gradle project
+      - name: cb-install-e2e-test.bat
         shell: cmd
-        run: |
-          mkdir %TEMP%\test-projects
-          cd %TEMP%\test-projects
-          call cb --new 1 my-test-project my.rootpackage.name my my my-test-project
-          if not exist "%TEMP%\test-projects\my-test-project" exit /b 1
+        env:
+          CB_INSTALL_TEST_E2E: '1'
+        run: test\bin\cb-install-e2e-test.bat

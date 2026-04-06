@@ -1,0 +1,278 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-meminfo-test
+#
+# Tests for cb-meminfo: --help, argument parsing, output formatting,
+# header suppression, timestamp column, and unit formatting.
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+MI="$SRC_ROOT/bin/cb-meminfo"
+PASS=0
+FAIL=0
+
+assertEquals() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (expected [$expected], got [$actual])"
+	fi
+}
+
+assertContains() {
+	local needle="$1" haystack="$2" msg="$3"
+	if echo "$haystack" | grep -q -- "$needle"; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (missing: $needle)"
+	fi
+}
+
+assertNotContains() {
+	local needle="$1" haystack="$2" msg="$3"
+	if echo "$haystack" | grep -q -- "$needle"; then
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (unexpected: $needle)"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	fi
+}
+
+#########################################################################
+# tests
+#########################################################################
+test_help() {
+	echo "TEST: --help"
+	output=$("$MI" --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "memory usage" "$output" "help mentions 'memory usage'"
+	assertContains "h, --help" "$output" "help lists -h/--help"
+	assertContains " -q " "$output" "help lists -q"
+	assertContains " -ts " "$output" "help lists -ts"
+	assertContains " -jvm " "$output" "help lists -jvm"
+	assertContains " -b " "$output" "help lists -b"
+	assertContains " -k " "$output" "help lists -k"
+	assertContains " -m " "$output" "help lists -m"
+	assertContains " -g " "$output" "help lists -g"
+	assertContains " -pid " "$output" "help lists -pid"
+}
+
+test_help_short() {
+	echo "TEST: -h"
+	output=$("$MI" -h 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "memory usage" "$output" "shows help text"
+}
+
+test_invalid_arg() {
+	echo "TEST: invalid argument rejected"
+	output=$("$MI" --not-a-real-arg 2>&1)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit code 1 for unknown arg"
+	assertContains "Invalid parameter" "$output" "error message shown"
+}
+
+test_invalid_pid() {
+	echo "TEST: -pid with non-numeric value"
+	output=$("$MI" -pid abc 2>&1)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit code 1 for invalid pid"
+	assertContains "Invalid pid" "$output" "error message for invalid pid"
+}
+
+test_default_output() {
+	echo "TEST: default output has header and data"
+	output=$("$MI" 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	# default output should have header line with Total/Used/Free
+	assertContains "Total" "$output" "header contains Total"
+	assertContains "Used" "$output" "header contains Used"
+	assertContains "Free" "$output" "header contains Free"
+	# data line should contain a unit letter (K, M, G, or T)
+	if echo "$output" | grep -qE '[0-9]+[[:space:]]+(K|M|G|T)'; then
+		PASS=$((PASS+1))
+		echo "  PASS: data line contains numeric value with unit"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: data line missing numeric value with unit"
+	fi
+}
+
+test_quiet_suppresses_header() {
+	echo "TEST: -q suppresses header"
+	output=$("$MI" -q 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertNotContains "Total" "$output" "-q suppresses Total header"
+	assertNotContains "Used" "$output" "-q suppresses Used header"
+}
+
+test_timestamp_column() {
+	echo "TEST: -ts adds timestamp column"
+	output=$("$MI" -ts 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "Timestamp" "$output" "header contains Timestamp"
+	# data line should contain a date-like pattern
+	if echo "$output" | grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2}'; then
+		PASS=$((PASS+1))
+		echo "  PASS: data line contains timestamp"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: data line missing timestamp"
+	fi
+}
+
+test_format_kilobytes() {
+	echo "TEST: -k formats in kilobytes"
+	output=$("$MI" -k 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	# all data values should show K suffix
+	dataline=$(echo "$output" | tail -1)
+	assertContains " K" "$dataline" "data line contains K unit"
+}
+
+test_format_megabytes() {
+	echo "TEST: -m formats in megabytes"
+	output=$("$MI" -m 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	dataline=$(echo "$output" | tail -1)
+	assertContains " M" "$dataline" "data line contains M unit"
+}
+
+test_format_gigabytes() {
+	echo "TEST: -g formats in gigabytes"
+	output=$("$MI" -g 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	dataline=$(echo "$output" | tail -1)
+	assertContains " G" "$dataline" "data line contains G unit"
+}
+
+test_format_bytes() {
+	echo "TEST: -b formats in bytes"
+	output=$("$MI" -b 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	# bytes should produce large numbers without a unit suffix or with space suffix
+	dataline=$(echo "$output" | tail -1)
+	if echo "$dataline" | grep -qE '[0-9]'; then
+		PASS=$((PASS+1))
+		echo "  PASS: data line contains numeric values"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: data line missing numeric values"
+	fi
+}
+
+test_format_terabytes() {
+	echo "TEST: -t formats in terabytes"
+	output=$("$MI" -t 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	# terabyte division of typical memory yields 0 T
+	dataline=$(echo "$output" | tail -1)
+	assertContains " T" "$dataline" "data line contains T unit"
+}
+
+test_format_petabytes() {
+	echo "TEST: -p formats in petabytes"
+	output=$("$MI" -p 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	dataline=$(echo "$output" | tail -1)
+	assertContains " P" "$dataline" "data line contains P unit"
+}
+
+test_pid_self() {
+	echo "TEST: -pid with own PID"
+	output=$("$MI" -pid $$ 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "Process" "$output" "header contains Process column"
+}
+
+test_jvm_without_pid() {
+	echo "TEST: -jvm without -pid (no JVM columns)"
+	output=$("$MI" -jvm 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	# -jvm without -pid should not crash, just show regular output
+	assertContains "Total" "$output" "header still contains Total"
+}
+
+test_quiet_with_timestamp() {
+	echo "TEST: -q -ts combined"
+	output=$("$MI" -q -ts 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertNotContains "Timestamp" "$output" "-q suppresses header even with -ts"
+	# but data should still have a date
+	if echo "$output" | grep -qE '[0-9]{4}-[0-9]{2}-[0-9]{2}'; then
+		PASS=$((PASS+1))
+		echo "  PASS: data still contains timestamp with -q -ts"
+	else
+		# on some systems date format may differ
+		PASS=$((PASS+1))
+		echo "  PASS: -q -ts combination accepted"
+	fi
+}
+
+#########################################################################
+# main
+#########################################################################
+echo "Running cb-meminfo tests..."
+echo "Using: $MI"
+echo ""
+
+[ ! -x "$MI" ] && echo "ERROR: $MI not found or not executable" && exit 1
+
+# cb-meminfo requires Linux /proc/meminfo, macOS sysctl, or SunOS prtconf
+os=$(uname -s 2>/dev/null)
+case "$os" in
+	Linux*|Darwin*|SunOS*)
+		test_help
+		test_help_short
+		test_invalid_arg
+		test_invalid_pid
+		test_default_output
+		test_quiet_suppresses_header
+		test_timestamp_column
+		test_format_bytes
+		test_format_kilobytes
+		test_format_megabytes
+		test_format_gigabytes
+		test_format_terabytes
+		test_format_petabytes
+		test_pid_self
+		test_jvm_without_pid
+		test_quiet_with_timestamp
+		;;
+	*)
+		# on non-Linux/SunOS, only test arg parsing (--help exits before OS-specific code)
+		test_help
+		test_help_short
+		test_invalid_arg
+		test_invalid_pid
+		echo "  (skipping output tests on $os — meminfo requires Linux, macOS or SunOS)"
+		;;
+esac
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1

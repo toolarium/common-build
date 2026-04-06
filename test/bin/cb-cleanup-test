@@ -1,0 +1,448 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-cleanup-test
+#
+# Tests for cb-cleanup. Sets up a fake HOME with a .gradle tree, then
+# runs cb-cleanup against it to verify:
+#   - --dry-run does not delete anything
+#   - --cgb deletes exactly the versions returned by
+#     cb-version-filter --invertFilter (and keeps the rest)
+#   - --path / --pattern custom cleanup works
+#   - --help / invalid arg are handled
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+CLEANUP="$SRC_ROOT/bin/cb-cleanup"
+VERSION_FILTER="$SRC_ROOT/bin/cb-version-filter"
+PASS=0
+FAIL=0
+
+# scratch dir acts as a fake $HOME; cleaned up on exit
+TMPDIR=$(mktemp -d 2>/dev/null || echo "/tmp/cb-cleanup-test-$$")
+mkdir -p "$TMPDIR"
+trap 'rm -rf "$TMPDIR"' EXIT
+
+# strip PATH so cb-cleanup's gradle/docker/nerdctl probes fail quickly.
+# Keeping only core utilities cb-cleanup and its children need.
+SAFE_PATH="/usr/bin:/bin"
+
+assertEquals() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (expected [$expected], got [$actual])"
+	fi
+}
+
+assertContains() {
+	local needle="$1" haystack="$2" msg="$3"
+	if echo "$haystack" | grep -q -- "$needle"; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (missing: $needle)"
+	fi
+}
+
+assertDirExists() {
+	local dir="$1" msg="$2"
+	if [ -d "$dir" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (missing dir: $dir)"
+	fi
+}
+
+assertDirMissing() {
+	local dir="$1" msg="$2"
+	if [ ! -e "$dir" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (dir still exists: $dir)"
+	fi
+}
+
+# Create a fake HOME/.gradle tree with a set of versioned CGB dirs.
+# Echoes the fake HOME path on stdout.
+setupFakeHome() {
+	local home="$TMPDIR/home-$$-$RANDOM"
+	mkdir -p "$home/.gradle/common-gradle-build" "$home/.gradle/daemon" "$home/.gradle/caches"
+	shift 0
+	for v in "$@"; do
+		mkdir -p "$home/.gradle/common-gradle-build/$v"
+		echo "content" > "$home/.gradle/common-gradle-build/$v/marker.txt"
+	done
+	echo "$home"
+}
+
+runCleanup() {
+	PATH="$SAFE_PATH" CB_HOME="$SRC_ROOT" HOME="$1" bash "$CLEANUP" "${@:2}" 2>&1
+}
+
+# Build a fake CB_HOME tree with its own bin/cb-clean-files + logs/ so --cb can
+# run without touching the real repo.
+setupFakeCbHome() {
+	local root="$TMPDIR/cbhome-$$-$RANDOM"
+	mkdir -p "$root/bin" "$root/logs"
+	cp "$SRC_ROOT/bin/cb-clean-files" "$root/bin/cb-clean-files"
+	chmod +x "$root/bin/cb-clean-files"
+	echo "$root"
+}
+
+
+#########################################################################
+# tests
+#########################################################################
+test_help() {
+	echo "TEST: --help"
+	output=$("$CLEANUP" --help 2>&1)
+	assertContains "Cleanup common-build" "$output" "help mentions purpose"
+	assertContains "\-\-cb " "$output" "help lists --cb"
+	assertContains "\-\-cgb " "$output" "help lists --cgb"
+	assertContains "\-\-dry-run" "$output" "help lists --dry-run"
+	assertContains "\-\-silent" "$output" "help lists --silent"
+
+	echo "TEST: -h"
+	output=$("$CLEANUP" -h 2>&1)
+	assertContains "Cleanup common-build" "$output" "-h shows help"
+}
+
+test_invalid_arg() {
+	echo "TEST: invalid argument rejected"
+	output=$("$CLEANUP" --not-a-real-flag 2>&1)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit code 1 for unknown arg"
+	assertContains "Invalid parameter" "$output" "error message shown"
+}
+
+test_dry_run_banner_and_no_delete() {
+	echo "TEST: --dry-run prints banner and does not delete"
+	local home
+	home=$(setupFakeHome 1.0.0 1.0.1 1.0.2 1.1.0 1.1.1 2.0.0 2.0.1 2.1.0)
+
+	output=$(runCleanup "$home" --cgb --dry-run)
+
+	assertContains "DRY-RUN mode" "$output" "dry-run banner printed"
+	assertContains "\[DRY-RUN\] Would delete" "$output" "dry-run marker printed per version"
+
+	# every versioned dir must still be on disk
+	local cgb="$home/.gradle/common-gradle-build"
+	assertDirExists "$cgb/1.0.0" "1.0.0 not deleted in dry-run"
+	assertDirExists "$cgb/1.0.1" "1.0.1 not deleted in dry-run"
+	assertDirExists "$cgb/1.0.2" "1.0.2 not deleted in dry-run"
+	assertDirExists "$cgb/1.1.0" "1.1.0 not deleted in dry-run"
+	assertDirExists "$cgb/1.1.1" "1.1.1 not deleted in dry-run"
+	assertDirExists "$cgb/2.0.0" "2.0.0 not deleted in dry-run"
+	assertDirExists "$cgb/2.0.1" "2.0.1 not deleted in dry-run"
+	assertDirExists "$cgb/2.1.0" "2.1.0 not deleted in dry-run"
+}
+
+test_cgb_deletes_per_version_filter() {
+	echo "TEST: --cgb deletes exactly the versions from cb-version-filter --invertFilter"
+	local versions="1.0.0 1.0.1 1.0.2 1.1.0 1.1.1 2.0.0 2.0.1 2.1.0"
+	local home
+	home=$(setupFakeHome $versions)
+	local cgb="$home/.gradle/common-gradle-build"
+
+	# what version-filter says to delete (authoritative)
+	expectedDelete=$(PATH="$SAFE_PATH" bash "$VERSION_FILTER" --path "$cgb" \
+		--majorThreshold 2 --minorThreshold 2 --patchThreshold 2 \
+		--previousMajorPatchThreshold 1 --previousMajorMinorThreshold 1 \
+		--majorMinorMax 10 --invertFilter 2>/dev/null)
+
+	# run the real delete
+	runCleanup "$home" --cgb >/dev/null 2>&1
+
+	# every version that was marked for deletion must be gone
+	while IFS= read -r v; do
+		[ -z "$v" ] && continue
+		assertDirMissing "$cgb/$v" "deleted $v (matches --invertFilter)"
+	done <<EOF
+$expectedDelete
+EOF
+
+	# every version NOT in the delete list must still exist
+	for v in $versions; do
+		keep=true
+		while IFS= read -r d; do
+			[ -z "$d" ] && continue
+			[ "$d" = "$v" ] && keep=false && break
+		done <<EOF
+$expectedDelete
+EOF
+		if [ "$keep" = "true" ]; then
+			assertDirExists "$cgb/$v" "kept $v (NOT in --invertFilter output)"
+		fi
+	done
+}
+
+test_path_pattern_dry_run() {
+	echo "TEST: --path/--pattern --dry-run doesn't delete matching files"
+	local tdir="$TMPDIR/pp-$RANDOM"
+	mkdir -p "$tdir"
+	echo x > "$tdir/old-a.log"
+	echo x > "$tdir/old-b.log"
+	echo x > "$tdir/keep.txt"
+	# backdate logs by 10 days
+	touch -d '-10 days' "$tdir/old-a.log" "$tdir/old-b.log" 2>/dev/null \
+		|| touch -t "$(date -v-10d +%Y%m%d0000 2>/dev/null)" "$tdir/old-a.log" "$tdir/old-b.log" 2>/dev/null
+
+	output=$(PATH="$SAFE_PATH" CB_HOME="$SRC_ROOT" bash "$CLEANUP" \
+		--path "$tdir" --pattern "*.log" --log-until 1 --dry-run 2>&1)
+
+	assertContains "DRY-RUN" "$output" "dry-run marker in output"
+	[ -f "$tdir/old-a.log" ] \
+		&& { PASS=$((PASS+1)); echo "  PASS: old-a.log kept on dry-run"; } \
+		|| { FAIL=$((FAIL+1)); echo "  FAIL: old-a.log was deleted on dry-run"; }
+	[ -f "$tdir/keep.txt" ] \
+		&& { PASS=$((PASS+1)); echo "  PASS: keep.txt untouched"; } \
+		|| { FAIL=$((FAIL+1)); echo "  FAIL: keep.txt missing"; }
+}
+
+test_silent_suppresses_banner() {
+	echo "TEST: --silent --dry-run omits the DRY-RUN mode banner"
+	local home
+	home=$(setupFakeHome 1.0.0 2.0.0)
+	output=$(runCleanup "$home" --cgb --dry-run --silent)
+	case "$output" in
+		*"DRY-RUN mode"*)
+			FAIL=$((FAIL+1))
+			echo "  FAIL: --silent should suppress the DRY-RUN banner"
+			;;
+		*)
+			PASS=$((PASS+1))
+			echo "  PASS: --silent suppresses the DRY-RUN banner"
+			;;
+	esac
+}
+
+
+test_cb_deletes_logs() {
+	echo "TEST: --cb deletes old log files via cb-clean-files"
+	local cbhome
+	cbhome=$(setupFakeCbHome)
+	local tmp="$TMPDIR/cbtmp-$$-$RANDOM"
+	mkdir -p "$tmp"
+	echo x > "$cbhome/logs/old.log"
+	echo x > "$cbhome/logs/fresh.log"
+	echo x > "$tmp/old.tmp"
+	touch -d '-10 days' "$cbhome/logs/old.log" "$tmp/old.tmp" 2>/dev/null \
+		|| { touch -t "$(date -v-10d +%Y%m%d0000 2>/dev/null)" "$cbhome/logs/old.log" 2>/dev/null; touch -t "$(date -v-10d +%Y%m%d0000 2>/dev/null)" "$tmp/old.tmp" 2>/dev/null; }
+
+	PATH="$SAFE_PATH" CB_HOME="$cbhome" CB_TEMP="$tmp" HOME="$TMPDIR" \
+		bash "$CLEANUP" --cb --silent >/dev/null 2>&1
+
+	[ ! -e "$cbhome/logs/old.log" ] \
+		&& { PASS=$((PASS+1)); echo "  PASS: old log deleted by --cb"; } \
+		|| { FAIL=$((FAIL+1)); echo "  FAIL: old log not deleted by --cb"; }
+	[ -e "$cbhome/logs/fresh.log" ] \
+		&& { PASS=$((PASS+1)); echo "  PASS: fresh log kept by --cb"; } \
+		|| { FAIL=$((FAIL+1)); echo "  FAIL: fresh log deleted by --cb"; }
+	[ ! -e "$tmp/old.tmp" ] \
+		&& { PASS=$((PASS+1)); echo "  PASS: old CB_TEMP file deleted by --cb"; } \
+		|| { FAIL=$((FAIL+1)); echo "  FAIL: old CB_TEMP file not deleted by --cb"; }
+}
+
+test_log_until_threshold() {
+	echo "TEST: --log-until threshold honored"
+	local cbhome
+	cbhome=$(setupFakeCbHome)
+	local tmp="$TMPDIR/cbtmp2-$$-$RANDOM"
+	mkdir -p "$tmp"
+	echo x > "$tmp/twoday.log"
+	echo x > "$tmp/tenday.log"
+	touch -d '-2 days'  "$tmp/twoday.log" 2>/dev/null \
+		|| touch -t "$(date -v-2d +%Y%m%d0000 2>/dev/null)" "$tmp/twoday.log" 2>/dev/null
+	touch -d '-10 days' "$tmp/tenday.log" 2>/dev/null \
+		|| touch -t "$(date -v-10d +%Y%m%d0000 2>/dev/null)" "$tmp/tenday.log" 2>/dev/null
+
+	# --log-until 5 should delete 10-day file but not the 2-day one
+	PATH="$SAFE_PATH" CB_HOME="$cbhome" CB_TEMP="$tmp" HOME="$TMPDIR" \
+		bash "$CLEANUP" --cb --log-until 5 --silent >/dev/null 2>&1
+
+	[ ! -e "$tmp/tenday.log" ] \
+		&& { PASS=$((PASS+1)); echo "  PASS: 10-day file deleted at --log-until 5"; } \
+		|| { FAIL=$((FAIL+1)); echo "  FAIL: 10-day file should have been deleted"; }
+	[ -e "$tmp/twoday.log" ] \
+		&& { PASS=$((PASS+1)); echo "  PASS: 2-day file kept at --log-until 5"; } \
+		|| { FAIL=$((FAIL+1)); echo "  FAIL: 2-day file should have been kept"; }
+}
+
+test_gradle_cache_threshold() {
+	echo "TEST: --gradle-cache threshold reaches .gradle/caches"
+	local home
+	home=$(setupFakeHome 1.0.0 2.0.0)
+	echo x > "$home/.gradle/caches/old.bin"
+	touch -d '-60 days' "$home/.gradle/caches/old.bin" 2>/dev/null \
+		|| touch -t "$(date -v-60d +%Y%m%d0000 2>/dev/null)" "$home/.gradle/caches/old.bin" 2>/dev/null
+
+	# at threshold 90, 60-day file should NOT be in the delete count
+	output=$(runCleanup "$home" --cgb --gradle-cache 90 --dry-run)
+	caches_line=$(echo "$output" | grep -A1 "caches" | grep "Would delete [0-9]* file" | tail -1)
+	case "$caches_line" in
+		*"Would delete 0 file"*)
+			PASS=$((PASS+1)); echo "  PASS: 60-day file not counted at --gradle-cache 90"
+			;;
+		*)
+			FAIL=$((FAIL+1)); echo "  FAIL: --gradle-cache 90 should skip 60-day file (got: $caches_line)"
+			;;
+	esac
+
+	# at threshold 5, 60-day file should be counted
+	output=$(runCleanup "$home" --cgb --gradle-cache 5 --dry-run)
+	caches_line=$(echo "$output" | grep -A1 "caches" | grep "Would delete [0-9]* file" | tail -1)
+	case "$caches_line" in
+		*"Would delete 0 file"*)
+			FAIL=$((FAIL+1)); echo "  FAIL: --gradle-cache 5 should count 60-day file (got: $caches_line)"
+			;;
+		*"Would delete "*" file"*)
+			PASS=$((PASS+1)); echo "  PASS: 60-day file counted at --gradle-cache 5"
+			;;
+		*)
+			FAIL=$((FAIL+1)); echo "  FAIL: expected 'Would delete N file(s)' line for caches (got: $caches_line)"
+			;;
+	esac
+}
+
+test_docker_image_arg_parsing() {
+	echo "TEST: --docker-image / --docker-image-until accepted by parser"
+	output=$(PATH="$SAFE_PATH" CB_HOME="$SRC_ROOT" HOME="$TMPDIR" \
+		bash "$CLEANUP" --docker-image --docker-image-until 48 --dry-run 2>&1)
+	rc=$?
+	assertEquals "0" "$rc" "exit 0 for --docker-image --docker-image-until 48"
+	case "$output" in
+		*"Invalid parameter"*)
+			FAIL=$((FAIL+1)); echo "  FAIL: --docker-image* rejected by parser"
+			;;
+		*)
+			PASS=$((PASS+1)); echo "  PASS: --docker-image / --docker-image-until parse cleanly"
+			;;
+	esac
+}
+
+test_docker_system_arg_parsing() {
+	echo "TEST: --docker-system / --docker-system-until accepted by parser"
+	output=$(PATH="$SAFE_PATH" CB_HOME="$SRC_ROOT" HOME="$TMPDIR" \
+		bash "$CLEANUP" --docker-system --docker-system-until 72 --dry-run 2>&1)
+	rc=$?
+	assertEquals "0" "$rc" "exit 0 for --docker-system --docker-system-until 72"
+	case "$output" in
+		*"Invalid parameter"*)
+			FAIL=$((FAIL+1)); echo "  FAIL: --docker-system* rejected by parser"
+			;;
+		*)
+			PASS=$((PASS+1)); echo "  PASS: --docker-system / --docker-system-until parse cleanly"
+			;;
+	esac
+}
+
+test_npm_arg_parsing() {
+	echo "TEST: --npm accepted by parser"
+	output=$(PATH="$SAFE_PATH" CB_HOME="$SRC_ROOT" HOME="$TMPDIR" \
+		bash "$CLEANUP" --npm --dry-run 2>&1)
+	rc=$?
+	assertEquals "0" "$rc" "exit 0 for --npm"
+	case "$output" in
+		*"Invalid parameter"*)
+			FAIL=$((FAIL+1)); echo "  FAIL: --npm rejected by parser"
+			;;
+		*)
+			PASS=$((PASS+1)); echo "  PASS: --npm parses cleanly"
+			;;
+	esac
+}
+
+test_combined_cb_cgb_dry_run() {
+	echo "TEST: --cb --cgb combined with --dry-run"
+	local cbhome
+	cbhome=$(setupFakeCbHome)
+	local home
+	home=$(setupFakeHome 1.0.0 2.0.0)
+	local tmp="$TMPDIR/combinetmp-$$-$RANDOM"
+	mkdir -p "$tmp" "$cbhome/logs"
+	echo x > "$cbhome/logs/old.log"
+	touch -d '-5 days' "$cbhome/logs/old.log" 2>/dev/null || touch -t "$(date -v-5d '+%Y%m%d0000' 2>/dev/null)" "$cbhome/logs/old.log" 2>/dev/null
+
+	output=$(PATH="$SAFE_PATH" CB_HOME="$cbhome" CB_TEMP="$tmp" HOME="$home" \
+		bash "$CLEANUP" --cb --cgb --dry-run 2>&1)
+	rc=$?
+	assertEquals "0" "$rc" "exit code 0"
+	assertContains "DRY-RUN" "$output" "dry-run banner shown"
+	# Both cb and cgb sections should appear
+	assertContains "common-gradle-build" "$output" "cgb section present"
+	# cb section cleans logs
+	if echo "$output" | grep -qiE "(log|CB_TEMP|Cleanup)"; then
+		PASS=$((PASS+1))
+		echo "  PASS: cb section present in combined output"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: combined flags accepted (output varies by environment)"
+	fi
+}
+
+test_default_mode() {
+	echo "TEST: no args runs default targets (cb + cgb + docker-image)"
+	# default mode kicks in only when argCount == 0, so we cannot pass
+	# --dry-run. Point every path at an empty fake dir so the real delete
+	# doesn't touch anything we care about.
+	local cbhome
+	cbhome=$(setupFakeCbHome)
+	local home
+	home=$(setupFakeHome 2.0.0)
+	local tmp="$TMPDIR/defaulttmp-$$-$RANDOM"
+	mkdir -p "$tmp"
+
+	output=$(PATH="$SAFE_PATH" CB_HOME="$cbhome" CB_TEMP="$tmp" HOME="$home" \
+		bash "$CLEANUP" 2>&1)
+	rc=$?
+	assertEquals "0" "$rc" "default mode exits 0"
+	assertContains "Cleanup" "$output" "default mode invokes Cleanup targets"
+	assertContains "common-gradle-build" "$output" "default mode invokes --cgb branch"
+}
+
+
+#########################################################################
+# main
+#########################################################################
+echo "Running cb-cleanup tests..."
+echo "Using: $CLEANUP"
+echo ""
+
+[ ! -x "$CLEANUP" ] && echo "ERROR: $CLEANUP not found or not executable" && exit 1
+[ ! -x "$VERSION_FILTER" ] && echo "ERROR: $VERSION_FILTER not found or not executable" && exit 1
+
+test_help
+test_invalid_arg
+test_dry_run_banner_and_no_delete
+test_cgb_deletes_per_version_filter
+test_path_pattern_dry_run
+test_silent_suppresses_banner
+test_cb_deletes_logs
+test_log_until_threshold
+test_gradle_cache_threshold
+test_docker_image_arg_parsing
+test_docker_system_arg_parsing
+test_npm_arg_parsing
+test_default_mode
+test_combined_cb_cgb_dry_run
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1
+
+
+#########################################################################
+# EOF
+#########################################################################

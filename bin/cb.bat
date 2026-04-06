@@ -26,7 +26,7 @@
 
 set "CB_HOME_PREVIOUS=%CB_HOME%"
 setlocal EnableDelayedExpansion
-set CB_LINE=----------------------------------------------------------------------------------------
+set CB_LINE=------------------------------------------------------------------------------------------------------------------------
 set "CB_LINEHEADER=.: "
 set PN=%~nx0
 set "CB_SCRIPT_PATH=%~dp0"
@@ -43,15 +43,26 @@ if not defined CB_TEMP set "CB_TEMP=%TEMP%\cb"
 if not exist %CB_TEMP% mkdir "%CB_TEMP%" >nul 2>nul
 if not defined GIT_CLIENT set "GIT_CLIENT=git"
 
+:: fast-exit paths (help/version/packages) skip timestamp/powershell/findstr checks
+set "CB_FAST_EXIT="
+for %%p in (%*) do (
+  if "%%~p"=="-h"         set "CB_FAST_EXIT=true"
+  if "%%~p"=="--help"     set "CB_FAST_EXIT=true"
+  if "%%~p"=="-v"         set "CB_FAST_EXIT=true"
+  if "%%~p"=="--version"  set "CB_FAST_EXIT=true"
+  if "%%~p"=="--packages" set "CB_FAST_EXIT=true"
+)
+
+if ".%CB_FAST_EXIT%"==".true" goto :CB_SKIP_START_TIMESTAMP
 where powershell >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Please install powershell. & goto END_WITH_ERROR
-
-call :GET_TIMESTAMP CB_START_TIMESTAMP
+call "%CB_SCRIPT_PATH%include\timestamp.bat" CB_START_TIMESTAMP
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Started %CB_START_TIMESTAMP%.
 
 for %%I in (.) do set folderName=%%~nxI
 set "TITLE_NAME=CB ^| %folderName% - %CB_START_TIMESTAMP:~11%"
 title %TITLE_NAME%
+:CB_SKIP_START_TIMESTAMP
 if not defined CB_PACKAGE_URL (set "CB_PACKAGE_URL=")
 if not defined CB_INSTALL_USER_COMMIT (set "CB_INSTALL_USER_COMMIT=true")
 if not defined CB_USER (set "CB_USER=%USERNAME%")
@@ -86,9 +97,11 @@ set CB_SET_DEFAULT=false
 set "CB_CURRENT_PATH=%CB_HOME%\current" 
 if not exist %CB_CURRENT_PATH% (mkdir %CB_CURRENT_PATH% >nul 2>nul)
 
-:: be sure findstr works
+:: be sure findstr works (skip for fast-exit paths which don't use findstr)
+if ".%CB_FAST_EXIT%"==".true" goto :CB_SKIP_FINDSTR_CHECK
 findstr 2>nul
 if %ERRORLEVEL% EQU 9009 (SET "PATH=%PATH%;%SystemRoot%\System32\")
+:CB_SKIP_FINDSTR_CHECK
 
 
 :: read version
@@ -100,11 +113,14 @@ if .%1==.--verbose shift & set "CB_VERBOSE=true"
 if .%1==.--force shift & set "CB_INSTALL_OVERWRITE_DIST=true"
 if .%1==.--verbose shift & set "CB_VERBOSE=true"
 
-:: check connection (skip for --setenv to avoid expensive network calls)
+:: check connection (skip for --setenv and fast-exit paths to avoid expensive network calls)
 set "CB_OFFLINE="
 set "CB_SETENV_ONLY="
+set "CB_NUSHELL="
 if .%1==.--setenv set "CB_SETENV_ONLY=true"
+for %%a in (%*) do if "%%a"=="--nushell" set "CB_NUSHELL=true"
 if ".%CB_SETENV_ONLY%"==".true" goto :CB_SKIP_CONNECTION_CHECK
+if ".%CB_FAST_EXIT%"==".true" goto :CB_SKIP_CONNECTION_CHECK
 ping 8.8.8.8 -n 1 -w 1000 >nul 2>nul
 if errorlevel 1 set "CB_OFFLINE=true"
 :CB_SKIP_CONNECTION_CHECK
@@ -188,7 +204,8 @@ if .%1==.--new shift & goto PROJECT_WIZARD
 if .%1==.-exp shift & goto PROJECT_EXPLORE
 if .%1==.--explore shift & goto PROJECT_EXPLORE
 if .%1==.--packages shift & goto PACKAGES
-if .%1==.--setenv shift & goto SET_ENV
+if .%1==.--nushell shift & set "CB_NUSHELL=true" & goto CHECK_PARAMETER
+if .%1==.--setenv shift & if ".%CB_NUSHELL%"==".true" (goto SET_ENV_NUSHELL) else (goto SET_ENV)
 if .%1==.--install shift & goto INSTALL_CB
 if .%1==.--java goto SET_JAVA_PARAM
 if .%1==.--update goto UPDATE
@@ -209,7 +226,7 @@ goto CHECK_PARAMETER
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %PN% - common build v%CB_VERSION%
 echo usage: %PN% [OPTION]
-echo.
+echo\
 echo Overview of the available OPTIONs:
 echo  -h, --help           Show this help message.
 echo  -v, --version        Print the version information.
@@ -230,18 +247,19 @@ echo  --packages           Shows the supported packages.
 echo  -exp, --explore      Starts the file explorer with the current path.
 echo  --update             Updates the custom config and can be combined with force.
 echo  --setenv             Set all internal used environment variables.
-echo.
+echo  --nushell            When used with --setenv, output Nushell-compatible syntax.
+echo\
 echo Environment variable:
 echo  CB_DEVTOOLS          Defines the devtools directory, default c:\devtools.
 echo  CB_HOME              Defines the home environment, default %%CB_DEVTOOLS%%\cb.
-echo.
+echo\
 echo Special files:
 echo  .java-version        Can be used to refer to a specific java version, e.g. 11
-echo.
+echo\
 echo Customizing:
 echo  CB_CUSTOM_SETTING    The common build is flexible. You can define a script which
 echo                       that is called as a hook for all operations. You can find an
-echo                       example script in %%CB_HOME%%\bin\sample\cb-custom-sample.bat
+echo                       example script in %%CB_HOME%%\docs\sample\cb-custom-sample.bat
 echo  CB_CUSTOM_CONFIG     For complete customizing of the common build you can create 
 echo                       a custom config project. This can be done by cb --new (select 
 echo                       Common Config Home project). After customizing (see further 
@@ -254,7 +272,7 @@ echo                       -name] inside the home folder (Windows %USERPROFILE%,
 echo                       $HOME. Alternatively, instead of the environment variable, 
 echo                       a file .common-build\conf\%CB_CUSTOM_CONFIG_FILENAME% containing the
 echo                       git url can be used."
-echo.
+echo\
 echo  CB_PACKAGE_URL       To support software packages outside the common build, you 
 echo                       can define an URL that covers a directory of zip files.
 echo  CB_PACKAGE_USER      The user for accessing the CB_PACKAGE_URL.
@@ -269,7 +287,7 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %CB_LINE%
 echo toolarium common build %CB_VERSION%
-echo.
+echo\
 echo %CB_LINEHEADER%Installed tool versions:
 for /f "tokens=1,* delims=^=" %%i in ('type %CB_TOOL_VERSION_INSTALLED%') do (echo     -%%i: %%j)
 echo %CB_LINE%
@@ -321,7 +339,7 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %CB_LINE%
 echo toolarium common build %CB_VERSION%
-echo.
+echo\
 echo %CB_LINEHEADER%Available packages:
 for /f "tokens=1" %%i in ('dir /b %CB_SCRIPT_PATH%packages\') do (echo     -%%i)
 echo %CB_LINE%
@@ -377,11 +395,21 @@ echo %PATH% | findstr /C:"%GRADLE_HOME%\bin" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 set "PATH=%GRADLE_HOME%\bin;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add gradle to path (%GRADLE_HOME%\bin)
 
 :SET_ENV_JAVA
-if not exist %CB_CURRENT_PATH%\java goto :SET_ENV_PYTHON
+if not exist %CB_CURRENT_PATH%\java goto :SET_ENV_GRAALVM
 set "CB_JAVA_HOME=%CB_CURRENT_PATH%\java"
 set "JAVA_HOME=%CB_JAVA_HOME%"
 echo %PATH% | findstr /C:"%JAVA_HOME%\bin" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 set "PATH=%JAVA_HOME%\bin;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add java to path (%JAVA_HOME%\bin)
+
+:SET_ENV_GRAALVM
+if not exist %CB_CURRENT_PATH%\graalvm goto :SET_ENV_PYTHON
+if not defined GRAALVM_HOME if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Set graalvm home (GRAALVM_HOME=%CB_CURRENT_PATH%\graalvm)
+set "CB_GRAALVM_HOME=%CB_CURRENT_PATH%\graalvm"
+set "GRAALVM_HOME=%CB_GRAALVM_HOME%"
+if not exist "%CB_CURRENT_PATH%\vc.path" goto :SET_ENV_PYTHON
+set "CB_VC_ORIGINAL_DIR="
+set /p CB_VC_ORIGINAL_DIR=<"%CB_CURRENT_PATH%\vc.path"
+if defined CB_VC_ORIGINAL_DIR if exist "%CB_VC_ORIGINAL_DIR%\Auxiliary\Build\vcvars64.bat" call "%CB_VC_ORIGINAL_DIR%\Auxiliary\Build\vcvars64.bat" >nul 2>nul & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Initialized VC environment via vcvars64.bat
 
 :SET_ENV_PYTHON
 if not exist %CB_CURRENT_PATH%\python goto :SET_ENV_TRIVY
@@ -404,7 +432,76 @@ set CB_LINEHEADER=
 set CB_CURRENT_PATH=
 set CB_INSTALL_SILENT=
 set CB_CUSTOM_SETTING_SCRIPT=
-goto END
+set CB_START_TIMESTAMP=
+set CB_END_TIMESTAMP=
+set CB_VERBOSE=
+set CB_HOME_PREVIOUS=
+set CB_GIT_HOME=
+set CB_NODE_HOME=
+set CB_ANT_HOME=
+set CB_MAVEN_HOME=
+set CB_GRADLE_HOME=
+set CB_JAVA_HOME=
+set CB_GRAALVM_HOME=
+set CB_PYTHON_HOME=
+set CB_TRIVY_HOME=
+set CB_VC_ORIGINAL_DIR=
+goto SET_ENV_EXIT
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:SET_ENV_NUSHELL
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+endlocal & (
+  set "CB_CURRENT_PATH=%CB_CURRENT_PATH%"
+)
+
+if not exist %CB_CURRENT_PATH%\git goto :SET_NUSHELL_NODE
+echo $env.GIT_HOME = '%CB_CURRENT_PATH%\git'
+echo $env.PATH = ($env.PATH ^| prepend '%CB_CURRENT_PATH%\git\bin')
+
+:SET_NUSHELL_NODE
+if not exist %CB_CURRENT_PATH%\node goto :SET_NUSHELL_ANT
+echo $env.NODE_HOME = '%CB_CURRENT_PATH%\node'
+echo $env.PATH = ($env.PATH ^| prepend '%CB_CURRENT_PATH%\node')
+
+:SET_NUSHELL_ANT
+if not exist %CB_CURRENT_PATH%\ant goto :SET_NUSHELL_MAVEN
+echo $env.ANT_HOME = '%CB_CURRENT_PATH%\ant'
+echo $env.PATH = ($env.PATH ^| prepend '%CB_CURRENT_PATH%\ant\bin')
+
+:SET_NUSHELL_MAVEN
+if not exist %CB_CURRENT_PATH%\maven goto :SET_NUSHELL_GRADLE
+echo $env.MAVEN_HOME = '%CB_CURRENT_PATH%\maven'
+echo $env.PATH = ($env.PATH ^| prepend '%CB_CURRENT_PATH%\maven\bin')
+
+:SET_NUSHELL_GRADLE
+if not exist %CB_CURRENT_PATH%\gradle goto :SET_NUSHELL_JAVA
+echo $env.GRADLE_HOME = '%CB_CURRENT_PATH%\gradle'
+echo $env.PATH = ($env.PATH ^| prepend '%CB_CURRENT_PATH%\gradle\bin')
+
+:SET_NUSHELL_JAVA
+if not exist %CB_CURRENT_PATH%\java goto :SET_NUSHELL_GRAALVM
+echo $env.JAVA_HOME = '%CB_CURRENT_PATH%\java'
+echo $env.PATH = ($env.PATH ^| prepend '%CB_CURRENT_PATH%\java\bin')
+
+:SET_NUSHELL_GRAALVM
+if not exist %CB_CURRENT_PATH%\graalvm goto :SET_NUSHELL_PYTHON
+echo $env.GRAALVM_HOME = '%CB_CURRENT_PATH%\graalvm'
+
+:SET_NUSHELL_PYTHON
+if not exist %CB_CURRENT_PATH%\python goto :SET_NUSHELL_TRIVY
+echo $env.PYTHON_HOME = '%CB_CURRENT_PATH%\python'
+echo $env.PATH = ($env.PATH ^| prepend '%CB_CURRENT_PATH%\python')
+
+:SET_NUSHELL_TRIVY
+if not exist %CB_CURRENT_PATH%\trivy goto :SET_NUSHELL_END
+echo $env.TRIVY_HOME = '%CB_CURRENT_PATH%\trivy'
+echo $env.PATH = ($env.PATH ^| prepend '%CB_CURRENT_PATH%\trivy')
+
+:SET_NUSHELL_END
+set CB_CURRENT_PATH=
+goto SET_ENV_EXIT
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -441,8 +538,8 @@ if .%CB_INSTALL_OVERWRITE_DIST% == .true (del /f /q "%CB_CUSTOM_CONFIG_PATH%\*.t
 	del /f /q "%lastCheckPropertiesFile%" >nul 2>nul)
 
 :: if we have a timestamp wihtin same day then its fine
-call :GET_TIMESTAMP LAST_CHECK_TSP "yyyy-MM-ddTHH\\:mm\\:ss.fff+0000"
-call :GET_TIMESTAMP DATESTAMP "yyyyMMdd"
+call "%CB_SCRIPT_PATH%include\timestamp.bat" LAST_CHECK_TSP "yyyy-MM-ddTHH\:mm\:ss.fff+0000"
+call "%CB_SCRIPT_PATH%include\timestamp.bat" DATESTAMP "yyyyMMdd"
 set DATESTAMP=%DATESTAMP: =%
 :: for --setenv, read any available cached timestamp without modifying
 if ".%CB_SETENV_ONLY%"==".true" if exist "%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp" set /p CB_CUSTOM_CONFIG_VERSION=<"%CB_CUSTOM_CONFIG_PATH%\%DATESTAMP%.tsp"
@@ -1011,59 +1108,6 @@ goto :eof
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:GET_TIMESTAMP
-::"yyyy-MM-ddTHH\\:mm\\:ss.fff+0000"
-::"yyyyMMdd"
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-set "timestampFormat=yyyy-MM-dd HH:mm:ss.fff"
-if not .%2==. set "timestampFormat=%2"
-::for /f "tokens=1-2" %%a in ('powershell get-date -format "{%timestampFormat%}"') do ( set "%1=%%a %%b" )
-set "dateSeparator=" & set "timeSeparator=" & set "currentTime=" & set "timestampSeparator=" & set "mtimeSeparator=" & set "currentTimestamp="
-echo %timestampFormat% | findstr/C:"." > nul
-if %ERRORLEVEL% EQU 0 set "dateSeparator=."
-echo %timestampFormat% | findstr/C:"-" > nul
-if %ERRORLEVEL% EQU 0 set "dateSeparator=-"
-echo %timestampFormat% | findstr/C:"/" > nul
-if %ERRORLEVEL% EQU 0 set "dateSeparator=/"
-echo %timestampFormat% | findstr/C:":" > nul
-if %ERRORLEVEL% EQU 0 (set "timeSeparator=:" & set "mtimeSeparator=.")
-echo %timestampFormat% | findstr/C:"\\:" > nul
-if %ERRORLEVEL% EQU 0 set "timeSeparator=\:"
-
-set t=2&if "%date%z" LSS "A" set t=1
-for /f "skip=1 tokens=2-4 delims=(-)" %%A in ('echo/^|date') do (
-  for /f "tokens=%t%-4 delims=.-/ " %%J in ('date/t') do (
-    set "%%A=%%J" & set "%%B=%%K" & set "%%C=%%L")
-)
-set "currentDate=%yy%%dateSeparator%%mm%%dateSeparator%%dd%"
-::echo [%currentDate%]
-
-for /f "tokens=1-3 delims=1234567890 " %%a in ("%time%") do set "delims=%%a%%b%%c"
-for /f "tokens=1-4 delims=%delims%" %%G in ("%time%") do (set "hh=%%G" & set "min=%%H" & set "ss=%%I" & set "ms=%%J")
-set "hh=%hh: =%" 
-if 1%hh% LSS 20 Set "hh=0%hh%"
-echo %timestampFormat% | findstr/C:"H" > nul
-if %ERRORLEVEL% EQU 0 (set "currentTime=%hh%")
-echo %timestampFormat% | findstr/C:"m" > nul
-if %ERRORLEVEL% EQU 0 (set "currentTime=%currentTime%%timeSeparator%%min%")
-echo %timestampFormat% | findstr/C:"s" > nul
-if %ERRORLEVEL% EQU 0 (set "currentTime=%currentTime%%timeSeparator%%ss%")
-echo %timestampFormat% | findstr/C:"f" > nul
-if %ERRORLEVEL% EQU 0 (if not .%ms%==. set "currentTime=%currentTime%%mtimeSeparator%%ms%")
-::echo [%currentTime%]
-
-echo %timestampFormat% | findstr/C:" " > nul
-if %ERRORLEVEL% EQU 0 set "timestampSeparator= "
-echo %timestampFormat% | findstr/C:"T" > nul
-if %ERRORLEVEL% EQU 0 set "timestampSeparator=T"
-set "currentTimestamp=%currentDate%%timestampSeparator%%currentTime%"
-echo %timestampFormat% | findstr/C:"+0000" > nul
-if %ERRORLEVEL% EQU 0 set "currentTimestamp=%currentDate%%timestampSeparator%%currentTime%+0000"
-set "%1=%currentTimestamp%"
-goto :eof
-
-
-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :STRLEN
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 set "s=#!%~1!"
@@ -1097,8 +1141,11 @@ exit /b 1
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :END
 title %CD%
-call :GET_TIMESTAMP CB_END_TIMESTAMP
+if ".%CB_FAST_EXIT%"==".true" goto :CB_SKIP_END_TIMESTAMP
+call "%CB_SCRIPT_PATH%include\timestamp.bat" CB_END_TIMESTAMP
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Ended %CB_END_TIMESTAMP%.
+:CB_SKIP_END_TIMESTAMP
+:SET_ENV_EXIT
 
 if not .%CB_HOME_PREVIOUS% == .%CB_HOME% endlocal & (
   set "CB_LINE=%CB_LINE%"

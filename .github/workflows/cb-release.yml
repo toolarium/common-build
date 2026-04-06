@@ -1,0 +1,287 @@
+name: CB Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.1.0)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run — validate and build archives but do not tag or publish'
+        type: boolean
+        default: false
+
+jobs:
+
+  #######################################################################
+  # 1. Validate version and check tag does not exist
+  #######################################################################
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.parse.outputs.version }}
+      tag: ${{ steps.parse.outputs.tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for tag check
+
+      - name: Parse and validate version
+        id: parse
+        run: |
+          VERSION="${{ inputs.version }}"
+
+          # validate semver format (major.minor.patch with optional qualifier)
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+            echo "ERROR: Invalid version format '$VERSION'. Expected: major.minor.patch (e.g. 1.1.0)"
+            exit 1
+          fi
+
+          TAG="v$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION  Tag: $TAG"
+
+      - name: Check tag does not already exist
+        run: |
+          TAG="${{ steps.parse.outputs.tag }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "ERROR: Tag '$TAG' already exists. A released version cannot be reused."
+            echo "Existing tag points to: $(git rev-parse "$TAG")"
+            exit 1
+          fi
+          echo "OK: Tag '$TAG' does not exist yet."
+
+
+  #######################################################################
+  # 2. Run the full test suite (Linux + Windows)
+  #######################################################################
+  test-linux:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set executable permissions
+        run: chmod -R +x bin/ test/bin/
+
+      - name: cb-test
+        run: test/bin/cb-test
+
+      - name: cb-project-test (scaffold)
+        run: test/bin/cb-project-test
+
+      - name: cb-clean-files-test
+        run: test/bin/cb-clean-files-test
+
+      - name: cb-open-ports-test
+        run: test/bin/cb-open-ports-test
+
+      - name: cb-version-filter-test
+        run: test/bin/cb-version-filter-test
+
+      - name: cb-install-test
+        run: test/bin/cb-install-test
+
+      - name: cb-install-e2e-test
+        env:
+          CB_INSTALL_TEST_E2E: '1'
+        run: test/bin/cb-install-e2e-test
+
+  test-windows:
+    needs: validate
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: cb-test.bat
+        shell: cmd
+        run: test\bin\cb-test.bat
+
+      - name: cb-project-test.bat (scaffold)
+        shell: cmd
+        run: test\bin\cb-project-test.bat
+
+      - name: cb-clean-files-test.bat
+        shell: cmd
+        run: test\bin\cb-clean-files-test.bat
+
+      - name: cb-open-ports-test.bat
+        shell: cmd
+        run: test\bin\cb-open-ports-test.bat
+
+      - name: cb-version-filter-test.bat
+        shell: cmd
+        run: test\bin\cb-version-filter-test.bat
+
+      - name: cb-install-test.bat
+        shell: cmd
+        run: test\bin\cb-install-test.bat
+
+      - name: cb-install-e2e-test.bat
+        shell: cmd
+        env:
+          CB_INSTALL_TEST_E2E: '1'
+        run: test\bin\cb-install-e2e-test.bat
+
+
+  #######################################################################
+  # 3. Build release archives and publish
+  #######################################################################
+  release:
+    needs: [validate, test-linux, test-windows]
+    runs-on: ubuntu-latest
+    environment: release  # requires approval from authorized reviewers (configure in Settings → Environments)
+    permissions:
+      contents: write  # needed for creating tags and releases
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
+      TAG: ${{ needs.validate.outputs.tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update VERSION file
+        run: |
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          PATCH=$(echo "$VERSION" | cut -d. -f3 | cut -d- -f1)
+          QUALIFIER=$(echo "$VERSION" | grep -oP '(?<=-).+' || true)
+
+          cat > VERSION <<EOF
+          major.number        = $MAJOR
+          minor.number        = $MINOR
+          revision.number     = $PATCH
+          qualifier           = $QUALIFIER
+          EOF
+          # remove leading whitespace (heredoc indentation)
+          sed -i 's/^[[:space:]]*//' VERSION
+
+          echo "Updated VERSION:"
+          cat VERSION
+
+      - name: Verify CHANGELOG has an entry for this version
+        run: |
+          if ! grep -q "## \[$VERSION\]" CHANGELOG.md; then
+            echo "WARNING: No CHANGELOG.md entry found for [$VERSION]."
+            echo "Please ensure the changelog is up to date before the next release."
+          else
+            echo "OK: CHANGELOG.md contains entry for [$VERSION]."
+          fi
+
+      - name: Commit version bump
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git diff --cached --quiet && echo "VERSION already up to date" || \
+            git commit -m "Release $TAG"
+
+      - name: Create tag
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git tag -a "$TAG" -m "Release $TAG"
+          echo "Created tag: $TAG"
+
+      - name: Build release archives
+        run: |
+          ARCHIVE_NAME="toolarium-common-build-$TAG"
+          STAGING="/tmp/$ARCHIVE_NAME"
+
+          # copy everything except excluded paths
+          rsync -a --exclude='.git' \
+                   --exclude='.github' \
+                   --exclude='.claude' \
+                   --exclude='test' \
+                   --exclude='testdata' \
+                   --exclude='.gitattributes' \
+                   --exclude='.gitignore' \
+                   --exclude='CLAUDE.md' \
+                   --exclude='claude.resume' \
+                   --exclude='links.txt' \
+                   ./ "$STAGING/"
+
+          echo "Archive contents:"
+          find "$STAGING" -maxdepth 2 -type f | head -40
+          echo "..."
+
+          # create .tgz
+          tar -czf "/tmp/$ARCHIVE_NAME.tgz" -C /tmp "$ARCHIVE_NAME"
+          echo "Created: $ARCHIVE_NAME.tgz ($(du -h /tmp/$ARCHIVE_NAME.tgz | cut -f1))"
+
+          # create .zip
+          (cd /tmp && zip -r "$ARCHIVE_NAME.zip" "$ARCHIVE_NAME" -x '*.DS_Store')
+          echo "Created: $ARCHIVE_NAME.zip ($(du -h /tmp/$ARCHIVE_NAME.zip | cut -f1))"
+
+          # verify excluded files are NOT in the archives
+          echo ""
+          echo "Verifying exclusions in .tgz:"
+          for pattern in '.github/' 'test/' 'testdata/' '.gitattributes' '.gitignore' 'CLAUDE.md' '.claude/'; do
+            if tar -tzf "/tmp/$ARCHIVE_NAME.tgz" | grep -q "$pattern"; then
+              echo "  FAIL: $pattern found in archive!"
+              exit 1
+            else
+              echo "  OK: $pattern excluded"
+            fi
+          done
+
+          echo ""
+          echo "Verifying docs/ is INCLUDED in .tgz:"
+          if tar -tzf "/tmp/$ARCHIVE_NAME.tgz" | grep -q "docs/"; then
+            echo "  OK: docs/ present"
+          else
+            echo "  FAIL: docs/ missing from archive!"
+            exit 1
+          fi
+
+          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> "$GITHUB_ENV"
+
+      - name: Push tag
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git push origin HEAD
+          git push origin "$TAG"
+
+      - name: Create GitHub release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # extract changelog section for this version
+          NOTES=$(awk '/^## \['"$VERSION"'\]/{found=1; next} /^## \[/{if(found) exit} found{print}' CHANGELOG.md)
+
+          if [ -z "$NOTES" ]; then
+            NOTES="Release $TAG"
+          fi
+
+          gh release create "$TAG" \
+            --title "toolarium-common-build $TAG" \
+            --notes "$NOTES" \
+            "/tmp/$ARCHIVE_NAME.tgz#$ARCHIVE_NAME.tgz" \
+            "/tmp/$ARCHIVE_NAME.zip#$ARCHIVE_NAME.zip"
+
+          echo ""
+          echo "Release published: https://github.com/${{ github.repository }}/releases/tag/$TAG"
+
+      - name: Dry run summary
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "============================================="
+          echo "DRY RUN — no tag or release was created"
+          echo "============================================="
+          echo "Version:  $VERSION"
+          echo "Tag:      $TAG"
+          echo "Archives: /tmp/$ARCHIVE_NAME.tgz, /tmp/$ARCHIVE_NAME.zip"
+          echo ""
+          echo "Archive .tgz contents (first 30 entries):"
+          tar -tzf "/tmp/$ARCHIVE_NAME.tgz" | head -30
+          echo "..."
+          echo ""
+          echo "To publish for real, re-run this workflow with 'Dry run' unchecked."

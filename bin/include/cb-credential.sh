@@ -39,7 +39,11 @@ endWithError() {
 #########################################################################
 printCredentials() {
 	if [ "$RAW_CREDENTIAL" = "false" ]; then
-		echo "$GIT_USERNAME:$GIT_PASSWORD" | base64
+		if command -v base64 >/dev/null 2>&1; then
+			echo "$GIT_USERNAME:$GIT_PASSWORD" | base64
+		else
+			echo "${CB_LINEHEADER}Warning: base64 not found, cannot encode credentials." >&2
+		fi
 	else
 		echo "$CB_GIT_USERNAME_KEY=$GIT_USERNAME" 
 		echo "$CB_GIT_PASSWORD_KEY=$GIT_PASSWORD"

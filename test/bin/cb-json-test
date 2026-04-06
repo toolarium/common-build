@@ -1,0 +1,393 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-json-test
+#
+# Tests for the 'cb-json' command: --help, --format, --name, --value,
+# --filter and piped JSON processing.
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+PASS=0
+FAIL=0
+
+CB_JSON="$SRC_ROOT/bin/cb-json"
+
+#########################################################################
+# assertion helpers
+#########################################################################
+assertEquals() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (expected [$expected], got [$actual])"
+	fi
+}
+
+assertContains() {
+	local needle="$1" haystack="$2" msg="$3"
+	if echo "$haystack" | grep -q -- "$needle"; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (missing: $needle)"
+	fi
+}
+
+assertNotEmpty() {
+	local value="$1" msg="$2"
+	if [ -n "$value" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (output was empty)"
+	fi
+}
+
+#########################################################################
+# test data
+#########################################################################
+SIMPLE_JSON='{"name":"common-build","version":"1.0.0","active":true}'
+NESTED_JSON='{"project":{"name":"common-build","version":"1.0.0","config":{"debug":false,"timeout":30}}}'
+ARRAY_JSON='{"tools":[{"name":"java","version":"21"},{"name":"gradle","version":"8.5"},{"name":"node","version":"20"}]}'
+
+#########################################################################
+# tests
+#########################################################################
+test_help() {
+	echo "TEST: cb-json --help"
+	output=$("$CB_JSON" --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "usage:" "$output" "help contains 'usage:'"
+	assertContains "--format" "$output" "help lists --format"
+	assertContains "--name" "$output" "help lists --name"
+	assertContains "--value" "$output" "help lists --value"
+}
+
+test_help_short() {
+	echo "TEST: cb-json -h"
+	output=$("$CB_JSON" -h 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "usage:" "$output" "-h shows usage"
+}
+
+test_invalid_parameter() {
+	echo "TEST: cb-json with invalid parameter"
+	output=$("$CB_JSON" --invalid 2>&1)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit code 1 for invalid parameter"
+	assertContains "Invalid parameter" "$output" "reports invalid parameter"
+}
+
+test_format_simple() {
+	echo "TEST: cb-json --format with simple JSON"
+	output=$(echo "$SIMPLE_JSON" | "$CB_JSON" --format 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertNotEmpty "$output" "formatted output is not empty"
+	assertContains "name" "$output" "formatted output contains 'name'"
+	assertContains "common-build" "$output" "formatted output contains 'common-build'"
+}
+
+test_format_nested() {
+	echo "TEST: cb-json --format with nested JSON"
+	output=$(echo "$NESTED_JSON" | "$CB_JSON" --format 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertNotEmpty "$output" "formatted output is not empty"
+	assertContains "project" "$output" "formatted output contains 'project'"
+	assertContains "config" "$output" "formatted output contains 'config'"
+}
+
+test_format_array() {
+	echo "TEST: cb-json --format with array JSON"
+	output=$(echo "$ARRAY_JSON" | "$CB_JSON" --format 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertNotEmpty "$output" "formatted output is not empty"
+	assertContains "tools" "$output" "formatted output contains 'tools'"
+}
+
+test_format_empty_object() {
+	echo "TEST: cb-json --format with empty object"
+	output=$(echo '{}' | "$CB_JSON" --format 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+}
+
+test_name_simple_key() {
+	echo "TEST: cb-json --name extracts simple key"
+	output=$(echo "$SIMPLE_JSON" | "$CB_JSON" --name name 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "common-build" "$output" "extracted name contains 'common-build'"
+}
+
+test_name_version_key() {
+	echo "TEST: cb-json --name extracts version"
+	output=$(echo "$SIMPLE_JSON" | "$CB_JSON" --name version 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "1.0.0" "$output" "extracted version contains '1.0.0'"
+}
+
+test_name_nested_key() {
+	echo "TEST: cb-json --name with dot notation for nested key"
+	output=$(echo "$NESTED_JSON" | "$CB_JSON" --name project.name 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "common-build" "$output" "nested extraction contains 'common-build'"
+}
+
+test_name_deep_nested_key() {
+	echo "TEST: cb-json --name with deep dot notation"
+	output=$(echo "$NESTED_JSON" | "$CB_JSON" --name project.config.timeout 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "30" "$output" "deep nested extraction contains '30'"
+}
+
+test_name_nested_object() {
+	echo "TEST: cb-json --name extracts nested object"
+	output=$(echo "$NESTED_JSON" | "$CB_JSON" --name project.config 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "debug" "$output" "nested object contains 'debug'"
+	assertContains "timeout" "$output" "nested object contains 'timeout'"
+}
+
+test_value_simple() {
+	echo "TEST: cb-json --value --name extracts plain value"
+	output=$(echo "$SIMPLE_JSON" | "$CB_JSON" --value --name name 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "common-build" "$output" "value extraction contains 'common-build'"
+}
+
+test_value_version() {
+	echo "TEST: cb-json --value --name extracts version value"
+	output=$(echo "$SIMPLE_JSON" | "$CB_JSON" --value --name version 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "1.0.0" "$output" "value extraction contains '1.0.0'"
+}
+
+test_filter_does_not_crash() {
+	echo "TEST: cb-json --filter does not crash"
+	output=$(echo "$ARRAY_JSON" | "$CB_JSON" --name tools --filter name=java 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with --filter"
+}
+
+test_format_multiline_input() {
+	echo "TEST: cb-json --format with multiline JSON input"
+	multiline_json=$(cat <<'JSONEOF'
+{
+  "name": "test",
+  "items": [1, 2, 3]
+}
+JSONEOF
+)
+	output=$(echo "$multiline_json" | "$CB_JSON" --format 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "name" "$output" "multiline formatted output contains 'name'"
+	assertContains "items" "$output" "multiline formatted output contains 'items'"
+}
+
+test_no_arguments_formats() {
+	echo "TEST: cb-json with no arguments defaults to --format"
+	output=$(echo "$SIMPLE_JSON" | "$CB_JSON" 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertNotEmpty "$output" "default mode produces output"
+	assertContains "name" "$output" "default mode formats JSON"
+}
+
+#########################################################################
+# jq-specific tests (skipped when jq is not installed)
+#
+# cb-json resets JQ= on line 32 then re-detects on line 33, so we
+# cannot force the jq path via an env prefix. Instead we create a
+# patched copy (CB_JSON_JQ) that sets JQ=jq unconditionally, letting
+# us exercise the jq code path in isolation.
+#########################################################################
+HAS_JQ=false
+jq --help >/dev/null 2>&1 && HAS_JQ=true
+
+CB_JSON_JQ=""
+if [ "$HAS_JQ" = "true" ]; then
+	CB_JSON_JQ=$(mktemp 2>/dev/null || echo "/tmp/cb-json-jq-$$")
+	sed 's/^JQ=$/JQ=jq/' "$CB_JSON" > "$CB_JSON_JQ"
+	chmod +x "$CB_JSON_JQ"
+fi
+cleanup_jq_wrapper() {
+	[ -n "$CB_JSON_JQ" ] && [ -f "$CB_JSON_JQ" ] && rm -f "$CB_JSON_JQ" >/dev/null 2>&1
+}
+trap cleanup_jq_wrapper EXIT
+
+SKIP=0
+skipTest() {
+	SKIP=$((SKIP+1))
+	echo "  SKIP: $1 (jq not installed)"
+}
+
+test_jq_format_simple() {
+	echo "TEST: [jq] cb-json --format with simple JSON"
+	output=$(echo "$SIMPLE_JSON" | "$CB_JSON_JQ" --format 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "name" "$output" "jq formatted output contains 'name'"
+	assertContains "common-build" "$output" "jq formatted output contains 'common-build'"
+}
+
+test_jq_format_nested() {
+	echo "TEST: [jq] cb-json --format with nested JSON"
+	output=$(echo "$NESTED_JSON" | "$CB_JSON_JQ" --format 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "project" "$output" "jq formatted output contains 'project'"
+	assertContains "config" "$output" "jq formatted output contains 'config'"
+}
+
+test_jq_format_array() {
+	echo "TEST: [jq] cb-json --format with array JSON"
+	output=$(echo "$ARRAY_JSON" | "$CB_JSON_JQ" --format 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "tools" "$output" "jq formatted output contains 'tools'"
+	assertContains "java" "$output" "jq formatted output contains 'java'"
+}
+
+test_jq_format_empty_object() {
+	echo "TEST: [jq] cb-json --format with empty object"
+	output=$(echo '{}' | "$CB_JSON_JQ" --format 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "{}" "$output" "jq formats empty object"
+}
+
+test_jq_name_simple_key() {
+	echo "TEST: [jq] cb-json --name extracts simple key"
+	output=$(echo "$SIMPLE_JSON" | "$CB_JSON_JQ" --name name 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "common-build" "$output" "jq extracted name contains 'common-build'"
+}
+
+test_jq_name_nested_key() {
+	echo "TEST: [jq] cb-json --name with dot notation"
+	output=$(echo "$NESTED_JSON" | "$CB_JSON_JQ" --name project.name 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "common-build" "$output" "jq nested extraction contains 'common-build'"
+}
+
+test_jq_name_deep_nested_key() {
+	echo "TEST: [jq] cb-json --name with deep dot notation"
+	output=$(echo "$NESTED_JSON" | "$CB_JSON_JQ" --name project.config.timeout 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "30" "$output" "jq deep nested extraction contains '30'"
+}
+
+test_jq_value_simple() {
+	echo "TEST: [jq] cb-json --value --name extracts plain value"
+	output=$(echo "$SIMPLE_JSON" | "$CB_JSON_JQ" --value --name version 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "1.0.0" "$output" "jq value extraction contains '1.0.0'"
+}
+
+test_jq_format_multiline() {
+	echo "TEST: [jq] cb-json --format with multiline JSON"
+	multiline_json=$(cat <<'JSONEOF'
+{
+  "name": "test",
+  "items": [1, 2, 3]
+}
+JSONEOF
+)
+	output=$(echo "$multiline_json" | "$CB_JSON_JQ" --format 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "name" "$output" "jq multiline output contains 'name'"
+	assertContains "items" "$output" "jq multiline output contains 'items'"
+}
+
+test_jq_no_arguments_formats() {
+	echo "TEST: [jq] cb-json with no arguments defaults to --format"
+	output=$(echo "$SIMPLE_JSON" | "$CB_JSON_JQ" 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertNotEmpty "$output" "jq default mode produces output"
+	assertContains "name" "$output" "jq default mode formats JSON"
+}
+
+#########################################################################
+# main
+#########################################################################
+echo "Running cb-json tests..."
+echo "Using: $CB_JSON"
+echo "jq available: $HAS_JQ"
+echo ""
+
+[ ! -x "$CB_JSON" ] && echo "ERROR: $CB_JSON not found or not executable" && exit 1
+
+# grep/awk fallback tests
+test_help
+test_help_short
+test_invalid_parameter
+test_format_simple
+test_format_nested
+test_format_array
+test_format_empty_object
+test_name_simple_key
+test_name_version_key
+test_name_nested_key
+test_name_deep_nested_key
+test_name_nested_object
+test_value_simple
+test_value_version
+test_filter_does_not_crash
+test_format_multiline_input
+test_no_arguments_formats
+
+# jq code path tests
+if [ "$HAS_JQ" = "true" ]; then
+	test_jq_format_simple
+	test_jq_format_nested
+	test_jq_format_array
+	test_jq_format_empty_object
+	test_jq_name_simple_key
+	test_jq_name_nested_key
+	test_jq_name_deep_nested_key
+	test_jq_value_simple
+	test_jq_format_multiline
+	test_jq_no_arguments_formats
+else
+	skipTest "[jq] format simple"
+	skipTest "[jq] format nested"
+	skipTest "[jq] format array"
+	skipTest "[jq] format empty object"
+	skipTest "[jq] name simple key"
+	skipTest "[jq] name nested key"
+	skipTest "[jq] name deep nested key"
+	skipTest "[jq] value simple"
+	skipTest "[jq] format multiline"
+	skipTest "[jq] no arguments formats"
+fi
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed, $SKIP skipped"
+[ $FAIL -eq 0 ] && exit 0 || exit 1

@@ -103,12 +103,12 @@ echo %CB_LINEHEADER%Products:
 set /a count = 0 & for /f "tokens=1,* delims==" %%i in (%CB_PRODUCT_CONFIGFILE_TMPFILE%) do (set /a count += 1 & echo    [!count!] %%i)
 set productTypeId=1
 ::if %count% EQU 1 echo %CB_LINEHEADER%It belongs to [%productName%] & goto PRODUCT_SELECTED
-echo.
+echo\
 set /p productTypeId=%CB_LINEHEADER%Please select to which product it belongs [1]: 
 :VERIFY_PRODUCT_TYPE
 if .%productTypeId% == . set productTypeId=1
 set /a count = 0 & for /f "tokens=1,* delims==" %%i in (%CB_PRODUCT_CONFIGFILE_TMPFILE%) do (set /a count += 1 & if [!productTypeId!] == [!count!] (set "productName=%%i" & set "productConfiguration=%%j"))
-if ".%productName%"=="." echo %CB_LINEHEADER%Invalid input %productTypeId% & echo. & goto PRINT_PRODUCT_TYPES
+if ".%productName%"=="." echo %CB_LINEHEADER%Invalid input %productTypeId% & echo\ & goto PRINT_PRODUCT_TYPES
 :SET_PRODUCT_TYPE_PARAMETERS
 FOR /F "tokens=1,2 delims=^|" %%i in ("%productConfiguration%") do (set "productConfigItem=%%i"
 	FOR /F "tokens=1,2 delims=:" %%a in ("!productConfigItem!") do (set "key=%%a" & set "value=%%b" & set "!key!=!value!"))
@@ -135,7 +135,7 @@ set /a count = 0 & for /f "tokens=1,* delims== " %%i in (%CB_PROJECT_CONFIGFILE_
 ::	echo    [!count!] %%i    	!projectTypeName!)
 	echo    [!count!] !projectTypeName!)
 set projectTypeId=1
-echo.
+echo\
 set /p projectTypeId=%CB_LINEHEADER%Please choose the project type [1]: 
 :VERIFY_PROJECT_TYPE
 if .%projectTypeId% == . set projectTypeId=1
@@ -145,7 +145,7 @@ set /a count = 0 & for /f "tokens=1,* delims== " %%i in (%CB_PROJECT_CONFIGFILE_
 	if [!projectTypeId!] == [!count!] for /f "tokens=1,* delims=|" %%a in ("%%j") do set "projectTypeConfiguration=%%b")
 	
 if not .%projectType% == . if not .%projectName% == . set "projectName=" & echo %CB_LINEHEADER%Project type [%projectType%] & goto END_PROJECT_TYPES
-if .%projectType% == . echo %CB_LINEHEADER%Invalid input %projectTypeId% & echo. & goto PRINT_PROJECT_TYPES
+if .%projectType% == . echo %CB_LINEHEADER%Invalid input %projectTypeId% & echo\ & goto PRINT_PROJECT_TYPES
 ::echo %projectTypeId% %projectType% "%projectTypeConfiguration%"
 set "projectTypeConfiguration=|%projectTypeConfiguration%"
 :END_PROJECT_TYPES
@@ -252,7 +252,7 @@ FOR /F "tokens=1,2 delims=^|" %%i in ("%projectTypeConfigurationParameter%") do 
 FOR /F "tokens=1,2 delims=^=" %%i in ("%installPackages%") do ( set "installPackages=%%j" )
 set "projectTypeConfigurationParameter=%projectTypeConfigurationParameter:*|=%"
 if ".%installPackages%" == "." echo %CB_LINEHEADER%Invalid package dependency defined in %CB_PROJECT_CONFIGFILE%: %installPackages% & goto INSTALL_DEPENDENCY_END
-echo.
+echo\
 echo %CB_LINE%
 echo %CB_LINEHEADER%Check package dependencies...
 echo %CB_LINE%

@@ -1,0 +1,126 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-read-version-test
+#
+# Tests for bin/include/read-version.sh: version file parsing,
+# qualifier handling, missing file behavior.
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+PASS=0
+FAIL=0
+
+TMPDIR=$(mktemp -d 2>/dev/null || echo "/tmp/cb-read-version-test-$$")
+mkdir -p "$TMPDIR"
+trap 'rm -rf "$TMPDIR"' EXIT
+
+assertEquals() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (expected [$expected], got [$actual])"
+	fi
+}
+
+#########################################################################
+# tests
+#########################################################################
+test_read_version_basic() {
+	echo "TEST: read-version.sh parses version file"
+	local vf="$TMPDIR/VERSION-basic"
+	cat > "$vf" << 'EOF'
+major.number        = 2
+minor.number        = 3
+revision.number     = 4
+qualifier           =
+EOF
+	eval "$(. "$SRC_ROOT/bin/include/read-version.sh" "$vf" false 2>/dev/null && echo "VN=$versionNumber MJ=$majorNumber MN=$minorNumber RV=$revisionNumber QL=$qualifier")"
+	assertEquals "2" "$MJ" "major number is 2"
+	assertEquals "3" "$MN" "minor number is 3"
+	assertEquals "4" "$RV" "revision number is 4"
+	assertEquals "2.3.4" "$VN" "version number is 2.3.4"
+}
+
+test_read_version_with_qualifier() {
+	echo "TEST: read-version.sh includes qualifier when addQualifier=true"
+	local vf="$TMPDIR/VERSION-qual"
+	cat > "$vf" << 'EOF'
+major.number        = 1
+minor.number        = 0
+revision.number     = 0
+qualifier           = SNAPSHOT
+EOF
+	eval "$(. "$SRC_ROOT/bin/include/read-version.sh" "$vf" true 2>/dev/null && echo "VN=$versionNumber QL=$qualifier")"
+	assertEquals "SNAPSHOT" "$QL" "qualifier is SNAPSHOT"
+	assertEquals "1.0.0-SNAPSHOT" "$VN" "version includes qualifier"
+}
+
+test_read_version_without_qualifier() {
+	echo "TEST: read-version.sh excludes qualifier when addQualifier=false"
+	local vf="$TMPDIR/VERSION-noq"
+	cat > "$vf" << 'EOF'
+major.number        = 1
+minor.number        = 0
+revision.number     = 0
+qualifier           = SNAPSHOT
+EOF
+	eval "$(. "$SRC_ROOT/bin/include/read-version.sh" "$vf" false 2>/dev/null && echo "VN=$versionNumber")"
+	assertEquals "1.0.0" "$VN" "version excludes qualifier"
+}
+
+test_read_version_empty_qualifier() {
+	echo "TEST: read-version.sh with empty qualifier"
+	local vf="$TMPDIR/VERSION-emptyq"
+	cat > "$vf" << 'EOF'
+major.number        = 5
+minor.number        = 2
+revision.number     = 1
+qualifier           =
+EOF
+	eval "$(. "$SRC_ROOT/bin/include/read-version.sh" "$vf" 2>/dev/null && echo "VN=$versionNumber")"
+	assertEquals "5.2.1" "$VN" "version without qualifier"
+}
+
+test_read_version_missing_file() {
+	echo "TEST: read-version.sh exits 1 for missing file"
+	(. "$SRC_ROOT/bin/include/read-version.sh" "$TMPDIR/nonexistent" false 2>/dev/null)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit code 1 for missing file"
+}
+
+test_read_version_real_file() {
+	echo "TEST: read-version.sh parses actual VERSION file"
+	eval "$(. "$SRC_ROOT/bin/include/read-version.sh" "$SRC_ROOT/VERSION" false 2>/dev/null && echo "VN=$versionNumber MJ=$majorNumber")"
+	if [ -n "$VN" ] && [ -n "$MJ" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: parsed real VERSION file: $VN"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: could not parse real VERSION file"
+	fi
+}
+
+#########################################################################
+# main
+#########################################################################
+echo "Running cb-read-version tests..."
+echo "Using: $SRC_ROOT/bin/include/read-version.sh"
+echo ""
+
+test_read_version_basic
+test_read_version_with_qualifier
+test_read_version_without_qualifier
+test_read_version_empty_qualifier
+test_read_version_missing_file
+test_read_version_real_file
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1

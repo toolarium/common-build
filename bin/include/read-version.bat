@@ -27,10 +27,16 @@
 :: first parameter defines the versin file
 :: secomd parameter defines if the qualifier should be added or not (default true)
 if not exist "%~1" set "version.number=n/a" & goto :eof
-for /f "tokens=2 delims==" %%i in ('type "%~1"^|findstr /C:major.number') do ( set "major.number=%%i"  )
-for /f "tokens=2 delims==" %%i in ('type "%~1"^|findstr /C:minor.number') do ( set "minor.number=%%i"  )
-for /f "tokens=2 delims==" %%i in ('type "%~1"^|findstr /C:revision.number') do ( set "revision.number=%%i"  )
-for /f "tokens=2 delims==" %%i in ('type "%~1"^|findstr /C:qualifier') do ( set "qualifier=%%i"  )
+set "major.number="
+set "minor.number="
+set "revision.number="
+set "qualifier="
+for /f "usebackq eol=# tokens=1,2 delims== " %%a in ("%~1") do (
+  if /i "%%a"=="major.number"    set "major.number=%%b"
+  if /i "%%a"=="minor.number"    set "minor.number=%%b"
+  if /i "%%a"=="revision.number" set "revision.number=%%b"
+  if /i "%%a"=="qualifier"       set "qualifier=%%b"
+)
 
 :: trim
 if defined major.number set major.number=%major.number: =%

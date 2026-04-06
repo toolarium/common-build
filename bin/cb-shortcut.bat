@@ -141,7 +141,7 @@ goto END
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo %PN% - create shortcuts
 echo usage: %PN% [OPTION] shurtcut
-echo.
+echo\
 echo Overview of the available OPTIONs:
 echo  -h, --help                  Show this help message.
 echo  --verbose                   The verbose mode
@@ -151,7 +151,7 @@ echo  --command command           The shortcut command.
 echo  --icon icon                 The icon location.
 ::echo  --windowstyle sytle         The windows style (optional)
 echo  --workingdirectory wd       The working directory (optional)
-echo.
+echo\
 echo Samples:
 echo  -%PN% --command "cmd /c c:\devtools\eclipse-2020-06\bin\eclipse.bat" --icon c:\devtools\eclipse-2020-06\eclipse\eclipse.exe eclipse.lnk
 echo  -%PN% --command c:\devtools\eclipse-2020-06\bin\eclipse.bat --icon c:\devtools\eclipse-2020-06\eclipse\eclipse.exe eclipse.lnk

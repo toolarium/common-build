@@ -1,0 +1,151 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-install-test
+#
+# Tests for cb-install. Only tests the arg-parsing paths (--help, --version)
+# that exit before any network/filesystem operations.
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+INST="$SRC_ROOT/bin/cb-install"
+PASS=0
+FAIL=0
+
+assertEquals() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (expected [$expected], got [$actual])"
+	fi
+}
+
+assertContains() {
+	local needle="$1" haystack="$2" msg="$3"
+	if echo "$haystack" | grep -q -- "$needle"; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (missing: $needle)"
+	fi
+}
+
+#########################################################################
+# tests
+#########################################################################
+test_help_long() {
+	echo "TEST: --help"
+	output=$("$INST" --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "toolarium common build installer" "$output" "shows installer banner"
+	assertContains "usage:" "$output" "shows usage line"
+	assertContains "h, --help" "$output" "lists -h/--help"
+	assertContains "v, --version" "$output" "lists -v/--version"
+	assertContains "\--silent" "$output" "lists --silent"
+	assertContains "\--force" "$output" "lists --force"
+	assertContains "\--draft" "$output" "lists --draft"
+}
+
+test_help_short() {
+	echo "TEST: -h"
+	output=$("$INST" -h 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "usage:" "$output" "shows usage line"
+}
+
+test_version_long() {
+	echo "TEST: --version"
+	output=$("$INST" --version 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "toolarium common build installer" "$output" "shows version banner"
+}
+
+test_version_short() {
+	echo "TEST: -v"
+	output=$("$INST" -v 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "toolarium common build installer" "$output" "shows version banner"
+}
+
+test_silent_with_help() {
+	echo "TEST: --silent --help"
+	output=$("$INST" --silent --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "usage:" "$output" "--silent does not prevent --help"
+}
+
+test_force_with_help() {
+	echo "TEST: --force --help"
+	output=$("$INST" --force --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "usage:" "$output" "--force does not prevent --help"
+}
+
+test_draft_with_help() {
+	echo "TEST: --draft --help"
+	output=$("$INST" --draft --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "usage:" "$output" "--draft does not prevent --help"
+}
+
+test_combined_flags_with_help() {
+	echo "TEST: --silent --force --draft --help"
+	output=$("$INST" --silent --force --draft --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "usage:" "$output" "all flags combined do not break --help"
+}
+
+test_force_with_version() {
+	echo "TEST: --force --version"
+	output=$("$INST" --force --version 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "toolarium common build installer" "$output" "--force does not break --version"
+}
+
+test_draft_with_version() {
+	echo "TEST: --draft --version"
+	output=$("$INST" --draft --version 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "toolarium common build installer" "$output" "--draft does not break --version"
+}
+
+#########################################################################
+# main
+#########################################################################
+echo "Running cb-install tests..."
+echo "Using: $INST"
+echo ""
+
+[ ! -x "$INST" ] && echo "ERROR: $INST not found or not executable" && exit 1
+
+test_help_long
+test_help_short
+test_version_long
+test_version_short
+test_silent_with_help
+test_force_with_help
+test_draft_with_help
+test_combined_flags_with_help
+test_force_with_version
+test_draft_with_version
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1

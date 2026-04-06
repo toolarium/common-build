@@ -24,7 +24,7 @@
 #########################################################################
 
 
-CB_LINE="----------------------------------------------------------------------------------------"
+CB_LINE="------------------------------------------------------------------------------------------------------------------------"
 CB_LINEHEADER=".: "
 PN=$(basename "$0" 2>/dev/null)
 PN_FULL="$0"
@@ -157,16 +157,26 @@ endWithError() {
 	exit 1
 }
 
+# detect --setenv early so we can return (instead of exit) from a sourced script on fatal errors
+CB_SETENV_ONLY=""
+CB_NUSHELL=""
+for arg in "$@"; do
+	[ "$arg" = "--setenv" ] && CB_SETENV_ONLY=true
+	[ "$arg" = "--nushell" ] && CB_NUSHELL=true
+done
+
 if [ -z "$CB_HOME" ]; then
 	echo "$CB_LINE"
 	echo "${CB_LINEHEADER}Missing CB_HOME environment variable, please install with the cb-install."
 	echo "$CB_LINE"
+	[ "$CB_SETENV_ONLY" = "true" ] &&return 1 2>/dev/null || exit 1
 	endWithError
 fi
 if ! [ -n "$(existBinary find)" ]; then
 	echo "$CB_LINE"
 	echo "${CB_LINEHEADER}Missing package find, please install it before you continue."
 	echo "$CB_LINE"
+    [ "$CB_SETENV_ONLY" = "true" ] && return 1 2>/dev/null || exit 1
 	endWithError
 fi
 
@@ -456,6 +466,7 @@ printUsage() {
 	echo " -exp, --explore      Starts the file explorer with the current path."
 	echo " --update             Updates the custom config and can be combined with force."
 	echo " --setenv             Set all internal used environment variables."
+	echo " --nushell            When used with --setenv, output Nushell-compatible syntax."
 	echo ""
 	echo "Environment variable:"
 	echo " CB_DEVTOOLS          Defines the devtools directory, default \$HOME/devtools."
@@ -467,7 +478,7 @@ printUsage() {
 	echo "Customizing:"
 	echo " CB_CUSTOM_SETTING    The common build is flexible. You can define a script which"
 	echo "                      that is called as a hook for all operations. You can find an"
-	echo "                      example script in \$CB_HOME/bin/sample/cb-custom-sample.sh"
+	echo "                      example script in \$CB_HOME/docs/sample/cb-custom-sample.sh"
 	echo " CB_CUSTOM_CONFIG     For complete customizing of the common build you can create"
 	echo "                      a custom config project. This can be done by cb --new (select"	
 	echo "                      Common Config Home project). After customizing (see further "
@@ -600,43 +611,49 @@ setCBEnv() {
 		CB_NODE_HOME=$CB_CURRENT_PATH/node && NODE_HOME=$CB_NODE_HOME
 		[ -d "$CB_NODE_HOME/bin" ] && CB_NODE_BIN="$CB_NODE_HOME/bin" || CB_NODE_BIN="$CB_NODE_HOME"
 		[ -z "$(echo $PATH | grep $NODE_HOME)" ] && PATH="$CB_NODE_BIN:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add node to path ($CB_NODE_BIN)."
-		export CB_NODE_HOME NODE_HOME PATH
+		export NODE_HOME PATH
 	fi
 
 	if [ -d "$CB_CURRENT_PATH/ant" ]; then
 		CB_ANT_HOME=$CB_CURRENT_PATH/ant && ANT_HOME=$CB_ANT_HOME
 		[ -z "$(echo $PATH | grep $ANT_HOME/bin)" ] && PATH="$ANT_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add ant to path ($ANT_HOME/bin)."
-		export CB_ANT_HOME ANT_HOME PATH
+		export ANT_HOME PATH
 	fi
 
 	if [ -d "$CB_CURRENT_PATH/maven" ]; then
 		CB_MAVEN_HOME=$CB_CURRENT_PATH/maven && MAVEN_HOME=$CB_MAVEN_HOME
 		[ -z "$(echo $PATH | grep $MAVEN_HOME/bin)" ] && PATH="$MAVEN_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add maven to path ($MAVEN_HOME/bin)."
-		export CB_MAVEN_HOME MAVEN_HOME PATH
+		export MAVEN_HOME PATH
 	fi
 
 	if [ -d "$CB_CURRENT_PATH/gradle" ]; then
 		CB_GRADLE_HOME=$CB_CURRENT_PATH/gradle && GRADLE_HOME=$CB_GRADLE_HOME
 		[ -z "$(echo $PATH | grep $GRADLE_HOME/bin)" ] && PATH="$GRADLE_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add gradle to path ($GRADLE_HOME/bin)."
-		export CB_GRADLE_HOME GRADLE_HOME PATH
+		export GRADLE_HOME PATH
 	fi
 
 	if [ -d "$CB_CURRENT_PATH/java" ]; then
 		CB_JAVA_HOME=$CB_CURRENT_PATH/java && JAVA_HOME=$CB_JAVA_HOME
 		[ -z "$(echo $PATH | grep $JAVA_HOME/bin)" ] && PATH="$JAVA_HOME/bin:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add java to path ($JAVA_HOME/bin)."
-		export CB_JAVA_HOME JAVA_HOME PATH
+		export JAVA_HOME PATH
+	fi
+
+	if [ -d "$CB_CURRENT_PATH/graalvm" ]; then
+		[ -z "$GRAALVM_HOME" ] && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Set graalvm home (GRAALVM_HOME=$CB_CURRENT_PATH/graalvm)."
+		CB_GRAALVM_HOME=$CB_CURRENT_PATH/graalvm && GRAALVM_HOME=$CB_GRAALVM_HOME
+		export GRAALVM_HOME
 	fi
 
 	if [ -d "$CB_CURRENT_PATH/python" ]; then
 		CB_PYTHON_HOME=$CB_CURRENT_PATH/python && PYTHON_HOME=$CB_PYTHON_HOME
 		[ -z "$(echo $PATH | grep $PYTHON_HOME)" ] && PATH="$PYTHON_HOME:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add python to path ($PYTHON_HOME)."
-		export CB_PYTHON_HOME PYTHON_HOME PATH
+		export PYTHON_HOME PATH
 	fi
 
 	if [ -d "$CB_CURRENT_PATH/trivy" ]; then
 		CB_TRIVY_HOME=$CB_CURRENT_PATH/trivy && TRIVY_HOME=$CB_TRIVY_HOME
 		[ -z "$(echo $PATH | grep $TRIVY_HOME)" ] && PATH="$TRIVY_HOME:$PATH" && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add trivy to path ($TRIVY_HOME)."
-		export CB_TRIVY_HOME TRIVY_HOME PATH
+		export TRIVY_HOME PATH
 	fi
 
 	# custom setting script
@@ -648,6 +665,63 @@ setCBEnv() {
 	unset CB_LINEHEADER
 	unset CB_CUSTOM_SETTING_SCRIPT
 	unset CB_SETENV_ONLY
+	unset CB_NUSHELL
+}
+
+
+#########################################################################
+# setCBEnvNushell: output Nushell-compatible environment variable syntax
+#########################################################################
+setCBEnvNushell() {
+	shift
+	[ "$1" = "--silent" ] && shift
+	[ "$1" = "--nushell" ] && shift
+
+	if [ -d "$CB_CURRENT_PATH/git" ]; then
+		CB_GIT_BIN="$CB_CURRENT_PATH/git/bin"
+		echo "\$env.GIT_HOME = '$CB_CURRENT_PATH/git'"
+		echo "\$env.PATH = (\$env.PATH | prepend '$CB_GIT_BIN')"
+	fi
+
+	if [ -d "$CB_CURRENT_PATH/node" ]; then
+		[ -d "$CB_CURRENT_PATH/node/bin" ] && CB_NODE_BIN="$CB_CURRENT_PATH/node/bin" || CB_NODE_BIN="$CB_CURRENT_PATH/node"
+		echo "\$env.NODE_HOME = '$CB_CURRENT_PATH/node'"
+		echo "\$env.PATH = (\$env.PATH | prepend '$CB_NODE_BIN')"
+	fi
+
+	if [ -d "$CB_CURRENT_PATH/ant" ]; then
+		echo "\$env.ANT_HOME = '$CB_CURRENT_PATH/ant'"
+		echo "\$env.PATH = (\$env.PATH | prepend '$CB_CURRENT_PATH/ant/bin')"
+	fi
+
+	if [ -d "$CB_CURRENT_PATH/maven" ]; then
+		echo "\$env.MAVEN_HOME = '$CB_CURRENT_PATH/maven'"
+		echo "\$env.PATH = (\$env.PATH | prepend '$CB_CURRENT_PATH/maven/bin')"
+	fi
+
+	if [ -d "$CB_CURRENT_PATH/gradle" ]; then
+		echo "\$env.GRADLE_HOME = '$CB_CURRENT_PATH/gradle'"
+		echo "\$env.PATH = (\$env.PATH | prepend '$CB_CURRENT_PATH/gradle/bin')"
+	fi
+
+	if [ -d "$CB_CURRENT_PATH/java" ]; then
+		echo "\$env.JAVA_HOME = '$CB_CURRENT_PATH/java'"
+		echo "\$env.PATH = (\$env.PATH | prepend '$CB_CURRENT_PATH/java/bin')"
+	fi
+
+	if [ -d "$CB_CURRENT_PATH/graalvm" ]; then
+		echo "\$env.GRAALVM_HOME = '$CB_CURRENT_PATH/graalvm'"
+	fi
+
+	if [ -d "$CB_CURRENT_PATH/python" ]; then
+		echo "\$env.PYTHON_HOME = '$CB_CURRENT_PATH/python'"
+		echo "\$env.PATH = (\$env.PATH | prepend '$CB_CURRENT_PATH/python')"
+	fi
+
+	if [ -d "$CB_CURRENT_PATH/trivy" ]; then
+		echo "\$env.TRIVY_HOME = '$CB_CURRENT_PATH/trivy'"
+		echo "\$env.PATH = (\$env.PATH | prepend '$CB_CURRENT_PATH/trivy')"
+	fi
 }
 
 
@@ -844,7 +918,11 @@ verifyConfiguration() {
 	    GRADLE_PROPERTIES="$CB_WORKING_PATH/gradle.properties"
 		if [ -r "$GRADLE_PROPERTIES" ] && [ $(grep '\-XX:MaxPermSize=' "$GRADLE_PROPERTIES" | wc -l) -gt 0 ]; then
 			echo "${CB_LINEHEADER}Update ${GRADLE_PROPERTIES}..."
+			if [ "$CB_OS" = "mac" ]; then
+			sed -i '' 's/\-XX:MaxPermSize=/\-XX:MaxMetaspaceSize=/' "$GRADLE_PROPERTIES"
+		else
 			sed -i 's/\-XX:MaxPermSize=/\-XX:MaxMetaspaceSize=/' "$GRADLE_PROPERTIES"
+		fi
 			CB_BUILD_UPDATE="true"
 			export CB_BUILD_UPDATE
 		fi
@@ -1498,7 +1576,8 @@ do
 		-exp)		shift; exploreProject; exit 0;;
 		--explore)	shift; exploreProject; exit 0;;
 		--packages)	shift; printPackages "$@"; exit 0;;
-		--setenv)	CB_EXECUTE_BUILD=false; setCBEnv "$@"; unset errorCode;;
+		--nushell)	CB_NUSHELL=true;;
+		--setenv)	CB_EXECUTE_BUILD=false; if [ "$CB_NUSHELL" = "true" ]; then setCBEnvNushell "$@"; else setCBEnv "$@"; fi; CB_SETENV_ONLY=true; break;;
 		--install)	shift; installCb "$@"; [ -n "$errorCode" ] && exit $errorCode || exit 0;;
 		--java)		shift && echo $1 > $CB_JAVA_VERSION_FILE;;
 		--update)	updateCustomConfig; exit 0;;
@@ -1509,6 +1588,12 @@ done
 
 if [ -n "$CB_EXECUTE_BUILD" ] && [ "$CB_EXECUTE_BUILD" = "true" ]; then
 	commonBuild "$CB_PARAMETERS"
+fi
+
+# on --setenv: clean up all CB_* internal variables before returning (do not clean CB_HOME)
+if [ "$CB_SETENV_ONLY" = "true" ]; then
+	unset errorCode CB_START_TIMESTAMP CB_END_TIMESTAMP CB_VERBOSE CB_MACHINE CB_LINE CB_TEMP CB_LINEHEADER CB_OS CB_SETENV_ONLY CB_NUSHELL CB_WORKING_PATH CB_SCRIPT_PATH CB_INSTALL_SILENT CB_EXECUTE_BUILD CB_PARAMETERS CB_CURRENT_PATH CB_CUSTOM_SETTING_SCRIPT CB_NODE_HOME CB_NODE_BIN CB_ANT_HOME CB_MAVEN_HOME CB_GRADLE_HOME CB_JAVA_HOME CB_GRAALVM_HOME CB_PYTHON_HOME CB_TRIVY_HOME CB_INSTALL_USER_COMMIT CB_USER CB_PACKAGE_URL CB_PACKAGE_PASSWORD CB_DEVTOOLS_JAVA_PREFIX CB_INSTALL_OVERWRITE CB_CUSTOM_CONFIG_FILENAME OS_HOME
+	return 0 2>/dev/null || exit 0
 fi
 
 setTitle "$PWD"

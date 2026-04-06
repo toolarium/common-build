@@ -2,6 +2,8 @@
 
 The project wizard creates new projects interactively. It guides you through product selection, project type selection, and project-specific configuration.
 
+> Works hand in hand with its sister project [**common-gradle-build**](https://github.com/toolarium/common-gradle-build). For Gradle-based project types the wizard uses common-gradle-build to generate and build the project — they can be combined to get a complete development environment with tool management and build automation.
+
 ## Quick Start
 
 ```bash

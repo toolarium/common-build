@@ -1,0 +1,131 @@
+#!/bin/bash
+
+#########################################################################
+#
+# filetail.sh
+#
+# Copyright by toolarium, all rights reserved.
+#
+# This file is part of the toolarium common-build.
+#
+# The common-build is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The common-build is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Foobar. If not, see <http://www.gnu.org/licenses/>.
+#
+#########################################################################
+
+
+PN=$(basename "$0" 2>/dev/null)
+TAIL_CMD="tail"
+FILENAME=""
+SEARCH_PATTERN=""
+
+# SunOS ships a POSIX-conforming tail under /usr/xpg4
+if [ "SunOS" = "$(uname -s)" ]; then
+	TAIL_CMD="/usr/xpg4/bin/tail"
+fi
+
+
+#########################################################################
+# printUsage
+#########################################################################
+printUsage() {
+    echo "$PN - script to tail a file until a pattern in the output is found."
+	echo "usage: $PN [OPTION]"
+	echo ""
+	echo "Overview of the available OPTIONs:"
+	echo " -h, --help           Show this help message."
+	echo " -p [pattern]         Defines the pattern to stop if this occurs"
+	echo " -f [filename]        Defines the filename"
+	echo ""
+}
+
+
+#########################################################################
+# tail file
+#
+# When a pattern is given, tail runs in the background so we can kill it
+# explicitly the moment the pattern matches. Without an explicit kill,
+# 'tail -f' blocks in read() and does not notice SIGPIPE until the file
+# is written to again (the "last-line hang" of the previous version).
+#########################################################################
+tailFile() {
+	# no pattern: plain follow, user terminates with Ctrl-C
+	if [ -z "$SEARCH_PATTERN" ]; then
+		exec "$TAIL_CMD" -n +1 -f -- "$FILENAME"
+	fi
+
+	# run tail in background and read through a FIFO so we keep its PID
+	local fifo="${TMPDIR:-/tmp}/cb-filetail-$$"
+	rm -f "$fifo" 2>/dev/null
+	if ! mkfifo "$fifo" 2>/dev/null; then
+		echo "$PN: cannot create FIFO at $fifo" >&2
+		return 1
+	fi
+
+	"$TAIL_CMD" -n +1 -f -- "$FILENAME" > "$fifo" &
+	local tail_pid=$!
+	# ensure tail dies and the FIFO is removed on any exit path
+	trap 'kill "$tail_pid" 2>/dev/null; wait "$tail_pid" 2>/dev/null; rm -f "$fifo"' EXIT INT TERM
+
+	local line
+	while IFS= read -r line; do
+		printf '%s\n' "$line"
+		if echo "$line" | grep -q -- "$SEARCH_PATTERN"; then
+			break
+		fi
+	done < "$fifo"
+
+	kill "$tail_pid" 2>/dev/null
+	wait "$tail_pid" 2>/dev/null
+	rm -f "$fifo"
+	trap - EXIT INT TERM
+	return 0
+}
+
+
+#########################################################################
+# main
+#########################################################################
+# validate user parameters
+while [ $# -gt 0 ]; do
+    case "$1" in
+		-h|--help)	printUsage; exit 0;;
+        -f)     	shift; FILENAME="$1";;
+        -p)     	shift; SEARCH_PATTERN="$1";;
+		*) 			echo "Invalid parameter: $1"; echo ""; printUsage; exit 1;;
+    esac
+    shift
+done
+
+# validate required inputs
+if [ -z "$FILENAME" ]; then
+	echo "$PN: -f <filename> is required" >&2
+	echo "" >&2
+	printUsage >&2
+	exit 1
+fi
+if [ ! -e "$FILENAME" ]; then
+	echo "$PN: file not found: $FILENAME" >&2
+	exit 1
+fi
+if [ ! -r "$FILENAME" ]; then
+	echo "$PN: file not readable: $FILENAME" >&2
+	exit 1
+fi
+
+tailFile
+
+
+#########################################################################
+# EOF
+#########################################################################

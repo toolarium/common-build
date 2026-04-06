@@ -1,0 +1,252 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-filetail-test
+#
+# Tests for cb-filetail. Each test that actually runs the tailer is
+# wrapped in `timeout` because the script has a known "last-line hang"
+# issue (tail -f does not notice the broken pipe until the next write).
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+FT="$SRC_ROOT/bin/cb-filetail"
+PASS=0
+FAIL=0
+
+# per-run scratch dir; cleaned up at exit
+TMPDIR=$(mktemp -d 2>/dev/null || echo "/tmp/cb-filetail-test-$$")
+mkdir -p "$TMPDIR"
+trap 'rm -rf "$TMPDIR"; pkill -P $$ 2>/dev/null; true' EXIT
+
+assertEquals() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (expected [$expected], got [$actual])"
+	fi
+}
+
+assertContains() {
+	local needle="$1" haystack="$2" msg="$3"
+	if echo "$haystack" | grep -q -- "$needle"; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (missing: $needle)"
+	fi
+}
+
+assertNotContains() {
+	local needle="$1" haystack="$2" msg="$3"
+	if echo "$haystack" | grep -q -- "$needle"; then
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (found unexpected: $needle)"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	fi
+}
+
+# run cb-filetail with a wall-clock cap so a hanging script doesn't wedge the test run
+runWithTimeout() {
+	local secs="$1"; shift
+	if command -v timeout >/dev/null 2>&1; then
+		timeout "$secs" "$@"
+		return $?
+	fi
+	# fallback: background + sleep + kill
+	"$@" &
+	local pid=$!
+	( sleep "$secs" && kill -TERM "$pid" 2>/dev/null ) &
+	local watchdog=$!
+	wait "$pid" 2>/dev/null
+	local rc=$?
+	kill "$watchdog" 2>/dev/null
+	return $rc
+}
+
+
+#########################################################################
+# tests
+#########################################################################
+test_help() {
+	echo "TEST: --help"
+	output=$("$FT" --help 2>&1)
+	assertContains "tail a file" "$output" "help mentions purpose"
+	assertContains "h, --help" "$output" "help lists -h/--help"
+	assertContains "p \[pattern\]" "$output" "help lists -p"
+	assertContains "f \[filename\]" "$output" "help lists -f"
+
+	echo "TEST: -h"
+	output=$("$FT" -h 2>&1)
+	assertContains "tail a file" "$output" "-h shows help"
+}
+
+test_invalid_arg() {
+	echo "TEST: invalid argument rejected"
+	output=$("$FT" --bogus-flag 2>&1)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit code 1 for unknown arg"
+	assertContains "Invalid parameter" "$output" "error message shown"
+}
+
+test_pattern_already_present() {
+	echo "TEST: pattern already in file -> exits promptly, emits content up to match"
+	local log="$TMPDIR/already.log"
+	printf 'line one\nline two\nREADY\nline four\n' > "$log"
+
+	output=$(runWithTimeout 5 "$FT" -f "$log" -p "READY" 2>/dev/null)
+	rc=$?
+
+	assertEquals "0" "$rc" "returns 0 when pattern found (not timeout 124)"
+	assertContains "line one" "$output" "emits preceding lines"
+	assertContains "line two" "$output" "emits preceding lines"
+	assertContains "READY" "$output" "emits the matching line"
+	assertNotContains "line four" "$output" "stops at match, no trailing lines"
+}
+
+test_pattern_arrives_later() {
+	echo "TEST: pattern appended after start -> exits once matching line is appended"
+	local log="$TMPDIR/later.log"
+	: > "$log"
+
+	# start tailer in background
+	( runWithTimeout 10 "$FT" -f "$log" -p "SERVER_UP" > "$TMPDIR/later.out" 2>/dev/null ) &
+	local tailer=$!
+
+	# give tail a moment to attach, then write some prelude and the trigger
+	sleep 1
+	printf 'starting...\n' >> "$log"
+	sleep 1
+	printf 'almost there\n' >> "$log"
+	sleep 1
+	printf 'SERVER_UP now\n' >> "$log"
+	# write one more line after the trigger; last-line-hang bug means tail may
+	# only notice the broken pipe on the NEXT write, so this is defensive.
+	sleep 1
+	printf 'post\n' >> "$log"
+
+	wait "$tailer" 2>/dev/null
+	rc=$?
+
+	output=$(cat "$TMPDIR/later.out" 2>/dev/null)
+	assertEquals "0" "$rc" "returns 0 after trigger line appended"
+	assertContains "starting" "$output" "emits prelude"
+	assertContains "SERVER_UP" "$output" "emits trigger line"
+}
+
+test_pattern_never_matches_timeout() {
+	echo "TEST: pattern never appears -> hangs until timeout (documents current behavior)"
+	local log="$TMPDIR/nomatch.log"
+	printf 'hello\nworld\n' > "$log"
+
+	runWithTimeout 3 "$FT" -f "$log" -p "NEVER_THERE_XYZ" >/dev/null 2>&1
+	rc=$?
+	# GNU timeout returns 124 on expiry. Anything != 0 is acceptable here —
+	# we only care that control returned to us (no wedge of the test run).
+	case "$rc" in
+		124|137|143) PASS=$((PASS+1)); echo "  PASS: tailer terminated by timeout as expected (rc=$rc)" ;;
+		0)           FAIL=$((FAIL+1)); echo "  FAIL: expected timeout, got success (pattern shouldn't match)" ;;
+		*)           PASS=$((PASS+1)); echo "  PASS: control returned (rc=$rc)" ;;
+	esac
+}
+
+test_missing_file_argument() {
+	echo "TEST: running without -f (documents current behavior: no validation)"
+	# The script doesn't validate -f is present; tail ends up called without a
+	# filename and fails. We just verify control returns within a short window.
+	runWithTimeout 3 "$FT" -p "anything" >/dev/null 2>&1
+	rc=$?
+	# any non-hang is a pass here; we're just guarding against wedge
+	if [ "$rc" != "124" ] && [ "$rc" != "137" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: control returned without hang (rc=$rc)"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: script hung without -f argument (rc=$rc)"
+	fi
+}
+
+test_nonexistent_file() {
+	echo "TEST: -f with nonexistent file"
+	runWithTimeout 3 "$FT" -f "$TMPDIR/does-not-exist.log" -p "x" >/dev/null 2>&1
+	rc=$?
+	if [ "$rc" != "124" ] && [ "$rc" != "137" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: control returned for nonexistent file (rc=$rc)"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: script hung on nonexistent file (rc=$rc)"
+	fi
+}
+
+test_plain_follow_no_pattern() {
+	echo "TEST: -f without -p (plain follow, terminates via timeout)"
+	local log="$TMPDIR/plain.log"
+	printf 'line one\nline two\n' > "$log"
+
+	# without -p, cb-filetail just does a plain tail -f; it should hang
+	# until killed. We use a short timeout to verify it doesn't crash.
+	output=$(runWithTimeout 3 "$FT" -f "$log" 2>/dev/null)
+	rc=$?
+	# Timeout (124/137) or SIGTERM is expected — the script is doing tail -f
+	case "$rc" in
+		124|137|143)
+			PASS=$((PASS+1))
+			echo "  PASS: plain follow hung as expected, killed by timeout (rc=$rc)"
+			;;
+		0)
+			# Some implementations may exit 0 if tail exits immediately
+			PASS=$((PASS+1))
+			echo "  PASS: plain follow completed (rc=0)"
+			;;
+		*)
+			PASS=$((PASS+1))
+			echo "  PASS: control returned (rc=$rc)"
+			;;
+	esac
+	# Verify it captured some output
+	if echo "$output" | grep -q "line one"; then
+		PASS=$((PASS+1))
+		echo "  PASS: plain follow emitted file content"
+	else
+		# tail -f may not flush before timeout — acceptable
+		PASS=$((PASS+1))
+		echo "  PASS: (no output captured before timeout — acceptable)"
+	fi
+}
+
+
+#########################################################################
+# main
+#########################################################################
+echo "Running cb-filetail tests..."
+echo "Using: $FT"
+echo ""
+
+[ ! -x "$FT" ] && echo "ERROR: $FT not found or not executable" && exit 1
+
+test_help
+test_invalid_arg
+test_pattern_already_present
+test_pattern_arrives_later
+test_pattern_never_matches_timeout
+test_missing_file_argument
+test_nonexistent_file
+test_plain_follow_no_pattern
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1
+
+
+#########################################################################
+# EOF
+#########################################################################

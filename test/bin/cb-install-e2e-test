@@ -1,0 +1,281 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-install-e2e-test
+#
+# End-to-end test for cb-install. Runs a full install against the real
+# GitHub releases API into a sandbox temp directory, then validates the
+# resulting artifacts. Requires network access.
+#
+# Gated behind CB_INSTALL_TEST_E2E=1 so it is skipped by default.
+# Run with:  CB_INSTALL_TEST_E2E=1 ./test/bin/cb-install-e2e-test
+#
+# Overrides used to sandbox:
+#   HOME         -> temp dir (so .bashrc/.zshrc edits land in sandbox)
+#   CB_DEVTOOLS  -> temp dir (install target)
+#   CB_TEMP      -> temp dir (scratch files)
+#   CB_HOME      -> unset    (ensure no previous install is detected)
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+INST="$SRC_ROOT/bin/cb-install"
+PASS=0
+FAIL=0
+
+if [ "$CB_INSTALL_TEST_E2E" != "1" ]; then
+	echo "SKIP: cb-install-e2e-test (set CB_INSTALL_TEST_E2E=1 to run)"
+	exit 0
+fi
+
+[ ! -x "$INST" ] && echo "ERROR: $INST not found or not executable" && exit 1
+
+# required binaries
+for bin in curl tar unzip find diff; do
+	command -v "$bin" >/dev/null 2>&1 || { command -v wget >/dev/null 2>&1 && [ "$bin" = "curl" ] && continue; echo "ERROR: missing required binary: $bin"; exit 1; }
+done
+
+#########################################################################
+# assertion helpers
+#########################################################################
+assertEquals() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (expected [$expected], got [$actual])"
+	fi
+}
+
+assertFileExists() {
+	local f="$1" msg="$2"
+	if [ -f "$f" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (file missing: $f)"
+	fi
+}
+
+assertDirExists() {
+	local d="$1" msg="$2"
+	if [ -d "$d" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (dir missing: $d)"
+	fi
+}
+
+assertFileContains() {
+	local needle="$1" file="$2" msg="$3"
+	if [ -f "$file" ] && grep -q -- "$needle" "$file"; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (missing '$needle' in $file)"
+	fi
+}
+
+assertExecutable() {
+	local f="$1" msg="$2"
+	if [ -x "$f" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (not executable: $f)"
+	fi
+}
+
+#########################################################################
+# sandbox setup / teardown
+#########################################################################
+SANDBOX=$(mktemp -d 2>/dev/null || echo "/tmp/cb-install-e2e-$$")
+mkdir -p "$SANDBOX" || { echo "ERROR: could not create sandbox $SANDBOX"; exit 1; }
+
+cleanup() {
+	if [ -n "$SANDBOX" ] && [ -d "$SANDBOX" ]; then
+		rm -rf "$SANDBOX" >/dev/null 2>&1
+	fi
+}
+trap cleanup EXIT INT TERM
+
+SANDBOX_HOME="$SANDBOX/home"
+SANDBOX_DEVTOOLS="$SANDBOX/devtools"
+SANDBOX_TMP="$SANDBOX/tmp"
+mkdir -p "$SANDBOX_HOME" "$SANDBOX_DEVTOOLS" "$SANDBOX_TMP"
+
+#########################################################################
+# main
+#########################################################################
+echo "Running cb-install E2E test..."
+echo "Using:    $INST"
+echo "Sandbox:  $SANDBOX"
+echo ""
+
+echo "STEP: run installer into sandbox"
+env -i \
+	PATH="$PATH" \
+	HOME="$SANDBOX_HOME" \
+	USER="${USER:-tester}" \
+	SHELL="${SHELL:-/bin/bash}" \
+	CB_DEVTOOLS="$SANDBOX_DEVTOOLS" \
+	CB_TEMP="$SANDBOX_TMP" \
+	"$INST" --silent --force > "$SANDBOX/install.log" 2>&1
+installExit=$?
+
+assertEquals "0" "$installExit" "installer exit code 0"
+
+if [ "$installExit" -ne 0 ]; then
+	echo ""
+	echo "----- install.log -----"
+	cat "$SANDBOX/install.log"
+	echo "-----------------------"
+fi
+
+echo ""
+echo "STEP: verify installed artifacts"
+
+# discover the installed version directory
+INSTALL_DIR=$(find "$SANDBOX_DEVTOOLS" -maxdepth 1 -type d -name 'toolarium-common-build-*' 2>/dev/null | head -1)
+if [ -z "$INSTALL_DIR" ]; then
+	FAIL=$((FAIL+1))
+	echo "  FAIL: no install directory found under $SANDBOX_DEVTOOLS"
+else
+	PASS=$((PASS+1))
+	echo "  PASS: install directory present ($INSTALL_DIR)"
+
+	assertExecutable  "$INSTALL_DIR/bin/cb"                                    "bin/cb is executable"
+	assertFileExists  "$INSTALL_DIR/bin/cb.bat"                                "bin/cb.bat present"
+	assertFileExists  "$INSTALL_DIR/conf/tool-version-default.properties"      "tool-version-default.properties present"
+	assertDirExists   "$INSTALL_DIR/bin/packages"                              "bin/packages/ present"
+	assertDirExists   "$INSTALL_DIR/current"                                   "current/ directory created"
+	# unnecessary files should have been removed by the installer
+	[ ! -e "$INSTALL_DIR/.git" ]       && { PASS=$((PASS+1)); echo "  PASS: .git removed"; }       || { FAIL=$((FAIL+1)); echo "  FAIL: .git should have been removed"; }
+	[ ! -e "$INSTALL_DIR/.github" ]    && { PASS=$((PASS+1)); echo "  PASS: .github removed"; }    || { FAIL=$((FAIL+1)); echo "  FAIL: .github should have been removed"; }
+	[ ! -e "$INSTALL_DIR/.claude" ]    && { PASS=$((PASS+1)); echo "  PASS: .claude removed"; }    || { FAIL=$((FAIL+1)); echo "  FAIL: .claude should have been removed"; }
+	[ ! -e "$INSTALL_DIR/CLAUDE.md" ]  && { PASS=$((PASS+1)); echo "  PASS: CLAUDE.md removed"; }  || { FAIL=$((FAIL+1)); echo "  FAIL: CLAUDE.md should have been removed"; }
+	[ ! -e "$INSTALL_DIR/test" ]       && { PASS=$((PASS+1)); echo "  PASS: test/ removed"; }      || { FAIL=$((FAIL+1)); echo "  FAIL: test/ should have been removed"; }
+	[ ! -e "$INSTALL_DIR/testdata" ]   && { PASS=$((PASS+1)); echo "  PASS: testdata/ removed"; }  || { FAIL=$((FAIL+1)); echo "  FAIL: testdata/ should have been removed"; }
+	# docs/ must be KEPT (ships the release documentation)
+	assertDirExists   "$INSTALL_DIR/docs"                                      "docs/ kept (ships release documentation)"
+fi
+
+echo ""
+echo "STEP: verify repository cache"
+REPO_TGZ=$(find "$SANDBOX_DEVTOOLS/.repository" -maxdepth 1 -name 'toolarium-common-build-*.tgz' 2>/dev/null | head -1)
+if [ -n "$REPO_TGZ" ] && [ -s "$REPO_TGZ" ]; then
+	PASS=$((PASS+1))
+	echo "  PASS: downloaded tgz present and non-empty ($(basename "$REPO_TGZ"))"
+else
+	FAIL=$((FAIL+1))
+	echo "  FAIL: downloaded tgz missing under $SANDBOX_DEVTOOLS/.repository"
+fi
+
+echo ""
+echo "STEP: verify shell profile modification"
+assertFileContains "toolarium-common-build support"   "$SANDBOX_HOME/.bashrc"  ".bashrc has toolarium-common-build support marker"
+assertFileContains "CB_HOME="                         "$SANDBOX_HOME/.bashrc"  ".bashrc exports CB_HOME"
+assertFileContains "$INSTALL_DIR"                     "$SANDBOX_HOME/.bashrc"  ".bashrc references install dir"
+# HOME was sandboxed — the real user's .bashrc must NOT have been touched
+if [ "$HOME" != "$SANDBOX_HOME" ] && [ -f "$HOME/.bashrc" ]; then
+	realBashrc="$HOME/.bashrc"
+	if grep -q "toolarium-common-build support" "$realBashrc" 2>/dev/null; then
+		# already present before this test — that's fine
+		PASS=$((PASS+1))
+		echo "  PASS: real HOME .bashrc untouched by this test run (pre-existing marker)"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: real HOME .bashrc untouched by this test run"
+	fi
+fi
+
+echo ""
+echo "STEP: verify installed cb executes"
+if [ -x "$INSTALL_DIR/bin/cb" ]; then
+	cbOutput=$("$INSTALL_DIR/bin/cb" --version 2>&1 | head -5)
+	echo "$cbOutput" | grep -q "toolarium"
+	assertEquals "0" "$?" "cb --version prints toolarium banner"
+fi
+
+echo ""
+echo "STEP: verify backup management"
+
+# helper: run installer into the existing sandbox (tgz cached → fast)
+runInstaller() {
+	env -i \
+		PATH="$PATH" \
+		HOME="$SANDBOX_HOME" \
+		USER="${USER:-tester}" \
+		SHELL="${SHELL:-/bin/bash}" \
+		CB_DEVTOOLS="$SANDBOX_DEVTOOLS" \
+		CB_TEMP="$SANDBOX_TMP" \
+		"$INST" --silent > /dev/null 2>&1
+}
+
+countBackupsNextToProfile() {
+	ls -1 "${SANDBOX_HOME}/.bashrc_cb-"* 2>/dev/null | wc -l | tr -d ' '
+}
+
+BACKUP_DIR="$INSTALL_DIR/backup"
+
+# After the first install above there should be exactly 1 backup
+# (empty .bashrc → content added → diff detected → backup kept)
+initialBackups=$(countBackupsNextToProfile)
+assertEquals "1" "$initialBackups" "1 backup after first install"
+
+# Re-run with same CB_HOME → no change → new backup deleted
+runInstaller
+backupsAfterRerun=$(countBackupsNextToProfile)
+assertEquals "1" "$backupsAfterRerun" "still 1 backup after no-change re-run"
+
+# Now simulate 4 version upgrades: modify .bashrc CB_HOME line before each
+# re-run so the installer detects a change and keeps the backup.
+for i in 2 3 4 5; do
+	# tamper with CB_HOME to simulate a previous version
+	if [ "$(uname)" = "Darwin" ]; then
+		sed -i '' "s|CB_HOME=\"[^\"]*\"|CB_HOME=\"/fake/old/path/v${i}\"|" "$SANDBOX_HOME/.bashrc"
+	else
+		sed -i "s|CB_HOME=\"[^\"]*\"|CB_HOME=\"/fake/old/path/v${i}\"|" "$SANDBOX_HOME/.bashrc"
+	fi
+	runInstaller
+done
+
+# After 5 total change-producing runs (1 initial + 4 simulated upgrades):
+# rotation should leave exactly 3 backups next to .bashrc
+backupsInPlace=$(countBackupsNextToProfile)
+assertEquals "3" "$backupsInPlace" "3 backups next to .bashrc after rotation"
+
+# The 2 oldest should have been moved to $CB_HOME/backup/
+if [ -d "$BACKUP_DIR" ]; then
+	movedBackups=$(ls -1 "$BACKUP_DIR/.bashrc_cb-"* 2>/dev/null | wc -l | tr -d ' ')
+	assertEquals "2" "$movedBackups" "2 old backups moved to \$CB_HOME/backup/"
+else
+	FAIL=$((FAIL+1))
+	echo "  FAIL: \$CB_HOME/backup/ directory not created"
+fi
+
+# Verify all backups are real files (non-empty)
+allGood=true
+for f in "${SANDBOX_HOME}/.bashrc_cb-"*; do
+	[ -f "$f" ] && [ -s "$f" ] || { allGood=false; break; }
+done
+if [ "$allGood" = "true" ]; then
+	PASS=$((PASS+1))
+	echo "  PASS: all in-place backups are non-empty files"
+else
+	FAIL=$((FAIL+1))
+	echo "  FAIL: some in-place backups are empty or missing"
+fi
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1

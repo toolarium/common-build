@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>common-build — Testing</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; line-height: 1.6; max-width: 960px; margin: 0 auto; padding: 2rem; color: #24292e; }
+  h1 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+  h2 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; margin-top: 1.5em; }
+  h3 { margin-top: 1.2em; }
+  code { background: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-size: 85%; }
+  pre { background: #f6f8fa; padding: 1em; border-radius: 6px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #dfe2e5; padding: 6px 13px; text-align: left; }
+  th { background: #f6f8fa; font-weight: 600; }
+  tr:nth-child(even) { background: #f6f8fa; }
+  a { color: #0366d6; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<h1>Testing</h1>
+
+<p>This document describes how common-build is tested, the design decisions behind the test architecture, and how to run the tests locally or in CI.</p>
+
+
+<h2>Design principles</h2>
+
+<h3>1. Tool versions are controlled by common-build itself</h3>
+
+<p>All tools (Java, Gradle, Node, etc.) are installed via <code>cb --install &lt;tool&gt;</code> into the test sandbox. This guarantees that tests exercise the <strong>exact versions</strong> from <code>conf/tool-version-default.properties</code> &mdash; the same versions real users get. External GitHub Actions like <code>setup-java</code>, <code>setup-node</code>, or <code>setup-gradle</code> are intentionally <strong>not</strong> used, because version mismatches between an externally provided tool and the version cb expects can mask real incompatibilities. If a download URL breaks or a version is misconfigured, the CI test catches it.</p>
+
+<h3>2. The project working tree is never polluted</h3>
+
+<p>Every test creates a temporary <code>CB_HOME</code> sandbox under <code>$TMPDIR</code> / <code>%TEMP%</code>. Source files (<code>bin/</code>, <code>conf/</code>, <code>VERSION</code>) are symlinked or junction-linked into the sandbox. Downloaded tools and generated projects live exclusively in the temp directory and are cleaned up automatically when the test finishes. The repository's <code>current/</code>, <code>.repository/</code>, and working tree remain untouched.</p>
+
+<h3>3. Tests are gated for practical CI times</h3>
+
+<p>Scaffolding tests (fast, ~5 min) run on every push/PR on Linux, macOS, and Windows. Full build tests (slow, ~20&ndash;30 min) run only on a nightly schedule or via manual workflow dispatch. This keeps PR feedback fast while ensuring comprehensive coverage overnight.</p>
+
+
+<h2>Test scripts</h2>
+
+<p>All test scripts live in <code>test/bin/</code> with cross-platform pairs (shell + <code>.bat</code>).</p>
+
+<table>
+<thead><tr><th>Script</th><th>What it tests</th></tr></thead>
+<tbody>
+<tr><td><code>cb-test</code></td><td>Core <code>cb</code> options: <code>--version</code>, <code>--help</code>, <code>--packages</code>, <code>--setenv</code>, <code>--setenv --silent</code></td></tr>
+<tr><td><code>cb-project-test</code></td><td>Project scaffolding (<code>cb --new</code>) for all 13 project types, plus optional build verification (<code>cb</code> in project dir)</td></tr>
+<tr><td><code>cb-clean-files-test</code></td><td><code>cb-clean-files</code> utility: help output, dangerous-path rejection, age-based deletion, dry-run, pattern filter</td></tr>
+<tr><td><code>cb-open-ports-test</code></td><td><code>cb-open-ports</code> utility: help output, invalid args, header display, quiet mode, file output</td></tr>
+<tr><td><code>cb-version-filter-test</code></td><td><code>cb-version-filter</code> utility: semver filtering logic</td></tr>
+<tr><td><code>cb-install-test</code></td><td><code>cb-install</code> bootstrap installer: <code>--help</code> and <code>--version</code> output validation</td></tr>
+<tr><td><code>cb-install-e2e-test</code></td><td>End-to-end <code>cb-install</code>: downloads a real release from GitHub into a sandbox, verifies artifacts, shell-profile modification, cleanup rules (<code>.git</code>, <code>test/</code> removed; <code>docs/</code> kept)</td></tr>
+<tr><td><code>cb-filetail-test</code></td><td><code>cb-filetail</code> utility tests</td></tr>
+</tbody>
+</table>
+
+
+<h2>How the sandbox works</h2>
+
+<pre><code>$TMPDIR/cb-project-home-XXXX/        &larr; temp CB_HOME
+&#9500;&#9472;&#9472; bin/      &rarr; symlink to repo/bin/
+&#9500;&#9472;&#9472; conf/     &rarr; symlink to repo/conf/
+&#9500;&#9472;&#9472; VERSION   &rarr; symlink to repo/VERSION
+&#9492;&#9472;&#9472; current/
+    &#9500;&#9472;&#9472; java/   &rarr; installed via cb --install java
+    &#9500;&#9472;&#9472; gradle/ &rarr; installed via cb --install gradle
+    &#9492;&#9472;&#9472; node/   &rarr; installed via cb --install node (when NETWORK=1)
+</code></pre>
+
+<p>When <code>cb --new</code> or <code>cb</code> (build) runs inside this sandbox, all downloads and tool extractions land under the temp <code>current/</code> directory. The repository is never modified.</p>
+
+
+<h2>cb-project-test in detail</h2>
+
+<h3>Project-type groups</h3>
+
+<table>
+<thead><tr><th>Group</th><th>Types</th><th>Tools needed</th><th>Default gate</th></tr></thead>
+<tbody>
+<tr><td><strong>A &mdash; Gradle + Java</strong></td><td>java-application, java-library, openapi, quarkus</td><td>java, gradle</td><td>always (scaffold)</td></tr>
+<tr><td><strong>B &mdash; Gradle-only</strong></td><td>config, script, kubernetes-product, documentation, container, organization-config</td><td>gradle (+ java for wizard)</td><td>always (scaffold)</td></tr>
+<tr><td><strong>C &mdash; Node</strong></td><td>vuejs, nuxtjs, react</td><td>node + network (npx/npm)</td><td><code>CB_PROJECT_TEST_NETWORK=1</code></td></tr>
+</tbody>
+</table>
+
+<h3>Two-phase testing</h3>
+
+<p><strong>Phase 1 &mdash; Scaffold</strong> (always runs):<br>
+Invokes <code>cb --new &lt;typeId&gt; &lt;name&gt; &lt;args&gt;</code> for each project type and verifies:</p>
+<ul>
+<li>Project directory was created</li>
+<li>At least one scaffold file is present (<code>build.gradle</code>, <code>settings.gradle</code>, <code>README.md</code>, or <code>package.json</code>)</li>
+</ul>
+
+<p><strong>Phase 2 &mdash; Build</strong> (gated by <code>CB_PROJECT_TEST_BUILD=1</code>):<br>
+Invokes <code>cb</code> (no arguments) in the created project directory and verifies:</p>
+<ul>
+<li>Build exits with code 0</li>
+<li>On failure, the last 10 lines of the build log are printed for diagnosis</li>
+</ul>
+
+<h3>Tool resolution order</h3>
+
+<p>For each tool (java, gradle, node):</p>
+<ol>
+<li><strong><code>CB_EXTERNAL_&lt;TOOL&gt;_HOME</code></strong> environment variable &mdash; link an existing install</li>
+<li><strong>Auto-detect</strong> from <code>c:\devtools\toolarium-common-build-*\current\&lt;tool&gt;</code> (Windows local convention)</li>
+<li><strong><code>cb --install &lt;tool&gt; --default</code></strong> into the sandbox &mdash; ensures the version from <code>tool-version-default.properties</code> is used</li>
+</ol>
+
+<p>In CI, step 3 is what always runs (no external tools pre-installed). Locally, steps 1 or 2 save time by reusing an existing installation.</p>
+
+
+<h2>Running tests locally</h2>
+
+<h3>Quick run (scaffold-only, no build)</h3>
+
+<pre><code># Linux / macOS / git-bash
+bash test/bin/cb-project-test
+
+# Windows
+test\bin\cb-project-test.bat
+</code></pre>
+
+<p>If Java is not available locally and cannot be auto-detected, the test skips with a message.</p>
+
+<h3>With build verification</h3>
+
+<pre><code>CB_PROJECT_TEST_BUILD=1 bash test/bin/cb-project-test
+</code></pre>
+
+<p>This installs Java and Gradle into the sandbox (if not already linked) and runs <code>cb</code> in each scaffolded project.</p>
+
+<h3>Including Node-based project types</h3>
+
+<pre><code>CB_PROJECT_TEST_BUILD=1 CB_PROJECT_TEST_NETWORK=1 bash test/bin/cb-project-test
+</code></pre>
+
+<p>Adds Group C (vuejs, nuxtjs, react). Node is installed via <code>cb --install node --default</code> into the sandbox.</p>
+
+<h3>Pointing at existing tool installations (skip download)</h3>
+
+<pre><code>CB_EXTERNAL_JAVA_HOME=/path/to/java \
+CB_EXTERNAL_GRADLE_HOME=/path/to/gradle \
+CB_PROJECT_TEST_BUILD=1 \
+bash test/bin/cb-project-test
+</code></pre>
+
+As example:
+
+<pre><code>CB_EXTERNAL_JAVA_HOME=/c/devtools/jdk-21.0.2+13 \
+CB_EXTERNAL_GRADLE_HOME=/c/devtools/gradle-8.13 \
+CB_PROJECT_TEST_BUILD=1 \
+bash test/bin/cb-project-test
+</code></pre>
+<h3>Running all tests</h3>
+
+<pre><code># Shell
+bash test/bin/cb-test
+bash test/bin/cb-project-test
+bash test/bin/cb-clean-files-test
+bash test/bin/cb-open-ports-test
+bash test/bin/cb-version-filter-test
+bash test/bin/cb-install-test
+CB_INSTALL_TEST_E2E=1 bash test/bin/cb-install-e2e-test
+
+# Windows (cmd)
+test\bin\cb-test.bat
+test\bin\cb-project-test.bat
+test\bin\cb-clean-files-test.bat
+test\bin\cb-open-ports-test.bat
+test\bin\cb-version-filter-test.bat
+test\bin\cb-install-test.bat
+set CB_INSTALL_TEST_E2E=1 &amp;&amp; test\bin\cb-install-e2e-test.bat
+</code></pre>
+
+
+<h2>CI (GitHub Actions)</h2>
+
+<p>The workflow <code>.github/workflows/cb-test.yml</code> runs on every push/PR to <code>master</code> and on a nightly schedule. Shell tests run on both Linux and macOS (via matrix), batch tests run on Windows.</p>
+
+<h3>Push / PR triggers</h3>
+
+<p>Fast tests only:</p>
+<ul>
+<li><code>cb-test</code> &mdash; core command options</li>
+<li><code>cb-project-test</code> &mdash; scaffold-only (no build phase)</li>
+<li><code>cb-clean-files-test</code>, <code>cb-open-ports-test</code>, <code>cb-version-filter-test</code> &mdash; utility tests</li>
+<li><code>cb-install-test</code> &mdash; installer help/version</li>
+<li><code>cb-install-e2e-test</code> &mdash; full installer download into sandbox</li>
+</ul>
+
+<h3>Nightly / manual dispatch</h3>
+
+<p>In addition to the above:</p>
+<ul>
+<li><code>cb-project-test</code> with <code>CB_PROJECT_TEST_BUILD=1</code> and <code>CB_PROJECT_TEST_NETWORK=1</code> &mdash; full build verification for all 13 project types including Node-based ones</li>
+</ul>
+
+<p>To trigger manually, go to <strong>Actions &rarr; CB Test &rarr; Run workflow</strong> and check <strong>&ldquo;Run full project build tests&rdquo;</strong>.</p>
+
+
+<h2>Release workflow</h2>
+
+<p>The workflow <code>.github/workflows/cb-release.yml</code> automates version releases. It is triggered <strong>manually only</strong> via <code>workflow_dispatch</code>.</p>
+
+<h3>Steps</h3>
+
+<ol>
+<li><strong>Validate</strong> &mdash; checks that the version string is valid semver and the tag <code>v&lt;version&gt;</code> does not already exist. A tag that has been used cannot be reused.</li>
+<li><strong>Test (Linux + Windows)</strong> &mdash; runs the full test suite on both platforms. If any test fails, the release is aborted.</li>
+<li><strong>Release</strong> &mdash; on success:
+<ul>
+<li>Updates the <code>VERSION</code> file with the new version numbers</li>
+<li>Commits the version bump</li>
+<li>Creates an annotated git tag <code>v&lt;version&gt;</code></li>
+<li>Builds <code>.tgz</code> and <code>.zip</code> archives <strong>excluding</strong>: <code>.github/</code>, <code>test/</code>, <code>.gitattributes</code>, <code>.gitignore</code>, (but <strong>including</strong> <code>docs/</code>)</li>
+<li>Verifies the archive contents (excluded files absent, <code>docs/</code> present)</li>
+<li>Pushes the tag and creates a GitHub release with the archives and changelog notes</li>
+</ul></li>
+</ol>
+
+<h3>Usage</h3>
+
+<p>Go to <strong>Actions &rarr; CB Release &rarr; Run workflow</strong>:</p>
+<ul>
+<li><strong>version</strong>: the release version, e.g. <code>1.1.0</code></li>
+<li><strong>dry_run</strong>: check this to validate + build archives without tagging or publishing</li>
+</ul>
+
+<h3>Dry run</h3>
+
+<p>Always do a dry run first. It runs all tests, builds the archives, and shows their contents &mdash; but creates no tag and publishes no release. This lets you verify everything before committing.</p>
+
+
+<h2>Environment variable reference</h2>
+
+<table>
+<thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td><code>CB_PROJECT_TEST_BUILD</code></td><td>(unset)</td><td>Set to <code>1</code> to enable build phase (run <code>cb</code> in each project)</td></tr>
+<tr><td><code>CB_PROJECT_TEST_NETWORK</code></td><td>(unset)</td><td>Set to <code>1</code> to include Group C (vuejs, nuxtjs, react)</td></tr>
+<tr><td><code>CB_INSTALL_TEST_E2E</code></td><td>(unset)</td><td>Set to <code>1</code> to run the end-to-end installer test</td></tr>
+<tr><td><code>CB_EXTERNAL_JAVA_HOME</code></td><td>(auto-detect)</td><td>Path to an existing Java installation to link into sandbox</td></tr>
+<tr><td><code>CB_EXTERNAL_GRADLE_HOME</code></td><td>(auto-detect)</td><td>Path to an existing Gradle installation to link into sandbox</td></tr>
+<tr><td><code>CB_EXTERNAL_NODE_HOME</code></td><td>(auto-detect)</td><td>Path to an existing Node installation to link into sandbox</td></tr>
+<tr><td><code>CB_INSTALL_NO_PERSIST</code></td><td>(unset)</td><td>Set to <code>true</code> to prevent <code>cb-install.bat</code> from writing to user registry (used by E2E test)</td></tr>
+</tbody>
+</table>
+
+</body>
+</html>

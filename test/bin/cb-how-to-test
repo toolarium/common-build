@@ -1,0 +1,116 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-how-to-test
+#
+# Tests for bin/include/how-to.sh.
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+HOWTO="$SRC_ROOT/bin/include/how-to.sh"
+PASS=0
+FAIL=0
+
+assertEquals() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (expected [$expected], got [$actual])"
+	fi
+}
+
+assertContains() {
+	local needle="$1" haystack="$2" msg="$3"
+	if echo "$haystack" | grep -qi -- "$needle"; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (missing: $needle)"
+	fi
+}
+
+#########################################################################
+# tests
+#########################################################################
+test_exits_zero() {
+	echo "TEST: exits with code 0"
+	bash "$HOWTO" >/dev/null 2>&1
+	assertEquals "0" "$?" "exit code 0"
+}
+
+test_produces_output() {
+	echo "TEST: produces non-empty output"
+	output=$(bash "$HOWTO" 2>&1)
+	if [ -n "$output" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: output is non-empty"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: output is empty"
+	fi
+}
+
+test_mentions_create_project() {
+	echo "TEST: mentions creating a new project"
+	output=$(bash "$HOWTO" 2>&1)
+	assertContains "cb --new" "$output" "mentions cb --new"
+}
+
+test_mentions_install() {
+	echo "TEST: mentions installing software"
+	output=$(bash "$HOWTO" 2>&1)
+	assertContains "cb --install" "$output" "mentions cb --install"
+}
+
+test_mentions_packages() {
+	echo "TEST: mentions listing packages"
+	output=$(bash "$HOWTO" 2>&1)
+	assertContains "cb --packages" "$output" "mentions cb --packages"
+}
+
+test_mentions_setenv() {
+	echo "TEST: mentions setenv"
+	output=$(bash "$HOWTO" 2>&1)
+	assertContains "cb --setenv" "$output" "mentions cb --setenv"
+}
+
+test_mentions_github() {
+	echo "TEST: mentions GitHub URL"
+	output=$(bash "$HOWTO" 2>&1)
+	assertContains "github.com/toolarium/common-build" "$output" "mentions GitHub URL"
+}
+
+test_mentions_cb_home() {
+	echo "TEST: mentions CB_HOME"
+	output=$(bash "$HOWTO" 2>&1)
+	assertContains "CB_HOME" "$output" "mentions CB_HOME"
+}
+
+#########################################################################
+# main
+#########################################################################
+echo "Running how-to.sh tests..."
+echo "Using: $HOWTO"
+echo ""
+
+[ ! -r "$HOWTO" ] && echo "ERROR: $HOWTO not found" && exit 1
+
+test_exits_zero
+test_produces_output
+test_mentions_create_project
+test_mentions_install
+test_mentions_packages
+test_mentions_setenv
+test_mentions_github
+test_mentions_cb_home
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1

@@ -1,0 +1,404 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-cleanup - Cleanup common-build atrefacts.
+#
+# Copyright by toolarium, all rights reserved.
+#
+# This file is part of the toolarium common-build.
+#
+# The common-build is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The common-build is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Foobar. If not, see <http://www.gnu.org/licenses/>.
+#
+#########################################################################
+
+PN=$(basename "$0" 2>/dev/null)
+DOCKER_IMAGE_CLEAN_UNTIL=24
+DOCKER_SYSTEM_CLEAN_UNTIL=72
+CLEAN_LOG_UNTIL_DAYS=1
+GRADLE_CACHE_LAST_ACCESS_DAYS=30
+CGB_NUMBER_OF_RELEASE_TO_KEEP=2
+
+CB_LINE="------------------------------------------------------------------------------------------------------------------------"
+CB_LINEHEADER=".: "
+
+# detect the platform (needed by existBinary)
+CB_OS="$(uname | tr '[:upper:]' '[:lower:]')"
+CB_OS=$(echo "$CB_OS" | awk '{print substr($0, 0, 7)}')
+case $CB_OS in
+	'linux') CB_OS="linux";;
+	'freebsd') CB_OS="freebsd";;
+	'windows') CB_OS="windows";;
+	'mac') CB_OS="mac";;
+	'darwin') CB_OS="mac";;
+	'sunos') CB_OS="solaris";;
+	'cygwin') CB_OS="cygwin";;
+	'cygwin_') CB_OS="cygwin";;
+	'mingw32') CB_OS="cygwin";;
+	'mingw64') CB_OS="cygwin";;
+	'aix') CB_OS="aix";;
+	*) ;;
+esac
+
+#########################################################################
+# existBinary
+#########################################################################
+CB_HAS_WHEREIS=
+CB_HAS_WHICH=
+existBinary() {
+	if [ -z "$CB_HAS_WHEREIS" ]; then
+		eval whereis whereis >/dev/null 2>&1
+		[ $? -eq 0 ] && CB_HAS_WHEREIS=true || CB_HAS_WHEREIS=false
+	fi
+	if [ "$CB_HAS_WHEREIS" = "false" ]; then
+		if [ -z "$CB_HAS_WHICH" ]; then
+			which which >/dev/null 2>&1
+			[ $? -eq 0 ] && CB_HAS_WHICH=true || CB_HAS_WHICH=false
+		fi
+		if [ "$CB_HAS_WHICH" = "false" ]; then
+			echo "${CB_LINEHEADER}Can not find which nor whereis command!"
+			return 1
+		fi
+	fi
+
+	if [ "$CB_HAS_WHEREIS" = "true" ]; then
+		if [ "$CB_OS" = "mac" ]; then
+			result=$(whereis "$1" 2>/dev/null | awk '{print $2}')
+		else
+			result=$(whereis -b "$1" 2>/dev/null | awk '{print $2}')
+		fi
+		[ "$2" = "true" ] || result="${result##*.exe}"
+
+		[ -n "$result" ] && echo "$result"
+		[ -n "$result" ] && return 0 || return 1
+	else
+		result=$(which "$1" 2>/dev/null)
+		[ "$2" = "true" ] || result="${result##*.exe}"
+		[ -n "$result" ] && echo "$result"
+		[ $? -eq 0 ] && return 0 || return 1
+	fi
+}
+
+[ -z "$CB_HOME" ] && echo "$CB_LINE" &&  echo "${CB_LINEHEADER}Missing CB_HOME environment variable, please install with the cb-install." && echo "$CB_LINE" && exit 1
+! [ -n "$(existBinary find)" ] && echo "$CB_LINE" &&  echo "${CB_LINEHEADER}Missing package find, please install it before you continue." && echo "$CB_LINE" &&  exit 1
+
+
+#########################################################################
+# deleteDir — remove a file or directory, honoring CB_DRY_RUN
+#########################################################################
+deleteDir() {
+	local target="$1"
+	[ -z "$target" ] && return 0
+	[ ! -e "$target" ] && return 0
+	if [ "$CB_DRY_RUN" = "true" ]; then
+		echo "${CB_LINEHEADER}[DRY-RUN] Would delete $target"
+	else
+		[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Delete $target"
+		rm -rf -- "$target"
+	fi
+}
+
+
+#########################################################################
+# list files and directories sorted by date:
+# - first parameter the path
+# - second parameter the number of newest entries to skip 
+# see https://askubuntu.com/questions/806471/delete-all-directories-except-the-most-recent
+#########################################################################
+listSortedByDate() {
+	skipNr="0"; listDir="."
+	[ $# -gt 0 ] && listDir="$1"
+	[ $# -gt 1 ] && skipNr="$2"
+	[ -x "$listDir" ] && ls -tr "$listDir" | awk -v n="$skipNr" 'NR>n'
+}
+
+
+#########################################################################
+# list directories sorted by date: 
+# - first parameter the path
+# - second parameter the number of newest entries to skip 
+#########################################################################
+listDirSortedByDate() {
+	skipNr="0"; listDir="."
+	[ $# -gt 0 ] && listDir="$1"
+	[ $# -gt 1 ] && skipNr="$2"
+
+	listDir="$(echo "${listDir%%/}")/"
+	[ -x "$listDir" ] && for i in $(cd "$listDir"; ls -dtr */ 2>/dev/null | awk -v n="$skipNr" 'NR>n'); do echo "${listDir}${i}"; done
+}
+
+
+#########################################################################
+# cleanupCommonBuild
+#########################################################################
+cleanupCommonBuild() {
+	[ -z "$CB_DEVTOOLS_NAME" ] && CB_DEVTOOLS_NAME=devtools
+	[ -z "$CB_DEVTOOLS" ] && CB_DEVTOOLS="$HOME/$CB_DEVTOOLS_NAME"
+	[ "$CB_OS" = "cygwin" ] && CB_DEVTOOLS=$(cygpath "$CB_DEVTOOLS")
+
+	CB_LOGS=$CB_HOME/logs
+	[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Cleanup $CB_LOGS..."
+	"$CB_HOME/bin/cb-clean-files" $DRY_RUN_FLAG --days $CLEAN_LOG_UNTIL_DAYS --pattern "*" --path "$CB_LOGS" > $CB_OUT
+
+	! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb-$USER"
+	[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Cleanup $CB_TEMP..."
+	"$CB_HOME/bin/cb-clean-files" $DRY_RUN_FLAG --days $CLEAN_LOG_UNTIL_DAYS --pattern "*" --path "$CB_TEMP" > $CB_OUT
+
+	# TODO
+	#CB_TOOL_VERSION_DEFAULT="$CB_HOME/conf/tool-version-default.properties"
+	#CB_TOOL_VERSION_INSTALLED="$CB_HOME/conf/tool-version-installed.properties"
+	#CB_DEV_REPOSITORY=$CB_DEVTOOLS/.repository
+}
+
+
+#########################################################################
+# cleanupCommonGradleBuild
+#########################################################################
+cleanupCommonGradleBuild() {
+	# stop gradle daemon
+	eval gradle --version >/dev/null 2>&1
+	[ $? -eq 0 ] && ([ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Stop gradle daemon..."; eval gradle --stop >/dev/null 2>&1)
+
+	! [ -n "$CGB_TEMP" ] && CGB_TEMP="/tmp/cgb-$USER"
+	[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Cleanup $CGB_TEMP..."
+	"$CB_HOME/bin/cb-clean-files" $DRY_RUN_FLAG --days $CLEAN_LOG_UNTIL_DAYS --pattern "*" --path "$CGB_TEMP" > $CB_OUT
+
+	# remove old daemon folders except last one and it's log files
+	[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Cleanup $HOME/.gradle/daemon..."
+	if [ -d "$HOME/.gradle/daemon" ]; then
+		(cd "$HOME/.gradle/daemon" && ls -1t 2>/dev/null | tail -n +2) | while IFS= read -r d; do
+			[ -n "$d" ] && deleteDir "$HOME/.gradle/daemon/$d"
+		done
+	fi
+	"$CB_HOME/bin/cb-clean-files" $DRY_RUN_FLAG --days $CLEAN_LOG_UNTIL_DAYS --pattern "*" --path "$HOME/.gradle/daemon" > $CB_OUT
+	[ "$CB_DRY_RUN" = "false" ] && find "$HOME/.gradle/daemon" -mindepth 1 -type d -empty -exec rmdir {} + 2>/dev/null
+
+	# cleanup common gradle releases: use cb-version-filter --invertFilter to
+	# get the list of version directories to delete (the ones NOT to keep).
+	CGB_RELEASE_DIR="$HOME/.gradle/common-gradle-build"
+	if [ -d "$CGB_RELEASE_DIR" ]; then
+		[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Cleanup old common-gradle-build releases in $CGB_RELEASE_DIR..."
+		toDelete=$("$CB_HOME/bin/cb-version-filter" --path "$CGB_RELEASE_DIR" \
+			--majorThreshold 2 --minorThreshold 2 --patchThreshold 2 \
+			--previousMajorPatchThreshold 1 --previousMajorMinorThreshold 1 \
+			--majorMinorMax 10 --invertFilter 2>/dev/null)
+		if [ -n "$toDelete" ]; then
+			while IFS= read -r v; do
+				[ -z "$v" ] && continue
+				deleteDir "$CGB_RELEASE_DIR/$v"
+			done <<EOF
+$toDelete
+EOF
+		else
+			[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}No common-gradle-build versions to delete."
+		fi
+	fi
+
+	# cleanup cache — see gradle https://www.baeldung.com/gradle-build-cache
+	! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb-$USER"
+	[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Cleanup $CB_TEMP..."
+	"$CB_HOME/bin/cb-clean-files" $DRY_RUN_FLAG --days $GRADLE_CACHE_LAST_ACCESS_DAYS --pattern "*" --path "$HOME/.gradle/caches" > $CB_OUT
+	[ "$CB_DRY_RUN" = "false" ] && find "$HOME/.gradle/caches" -mindepth 1 -type d -empty -exec rmdir {} + 2>/dev/null
+}
+
+
+#########################################################################
+# Detect docker support
+# see https://www.baeldung.com/ops/docker-remove-dangling-unused-images
+#########################################################################
+dockerSupport() {
+	eval nerdctl info >/dev/null 2>&1				
+	if [ $? -eq 0 ]; then
+		[ $? -eq 0 ] && CB_DOCKER_CMD="nerdctl"
+	else 
+		eval docker info >/dev/null 2>&1				
+		[ $? -eq 0 ] && CB_DOCKER_CMD="docker"
+	fi
+}
+
+
+#########################################################################
+# Prune docker images
+#########################################################################
+dockerImagePrune() {
+	if [ -n "$CB_DOCKER_CMD" ]; then
+		[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Docker image prune (until ${DOCKER_IMAGE_CLEAN_UNTIL}H)..."
+		eval $CB_DOCKER_CMD image prune -f -a --filter "until=${DOCKER_IMAGE_CLEAN_UNTIL}H" > $CB_OUT 2>&1
+		[ $? -eq 0 ] && return 0 || return 1
+	fi
+	return 0
+}
+
+
+#########################################################################
+# Prune docker system images
+#########################################################################
+dockerSystemPrune() {
+	if [ -n "$CB_DOCKER_CMD" ]; then
+		[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Docker system prune (until ${DOCKER_SYSTEM_CLEAN_UNTIL}H)..."
+		eval $CB_DOCKER_CMD system prune -f -a --filter "until=${DOCKER_SYSTEM_CLEAN_UNTIL}H" > $CB_OUT 2>&1
+		[ $? -eq 0 ] && return 0 || return 1
+	fi
+	return 0
+}
+
+
+#########################################################################
+# Cleanup npm
+# see https://coder-coder.com/npm-clear-cache/ or https://docs.npmjs.com/cli/v7/commands/npm-cache
+#########################################################################
+cleanupNpm() {
+	eval npm --version >/dev/null 2>&1
+	if [ $? -eq 0 ]; then
+		[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Cleanup npm cache..."
+		npm cache clean --force > $CB_OUT 2>&1
+		npm cache verify > $CB_OUT 2>&1
+		npx browserslist@latest --update-db > $CB_OUT 2>&1
+	fi
+}
+
+
+#########################################################################
+# printUsage
+#########################################################################
+printUsage() {
+	CB_DOCKER_CMD_INFO="$CB_DOCKER_CMD"
+	[ -z "$CB_DOCKER_CMD_INFO" ] && CB_DOCKER_CMD_INFO=docker
+
+	echo "$PN - Cleanup common-build atrefacts"
+	echo "usage: $PN [OPTION]..."
+	echo ""
+	echo "Runs one or more cleanup targets. Without any"
+	echo "arguments it runs --cb, --cgb and --docker-image."
+	echo ""
+	echo "Targets:"
+	echo " --cb                         Clean common-build: \$CB_HOME/logs, \$CB_TEMP"
+	echo " --cgb                        Clean common-gradle-build: stop gradle daemon,"
+	echo "                              \$CGB_TEMP, ~/.gradle/daemon (keep newest),"
+	echo "                              ~/.gradle/common-gradle-build, ~/.gradle/caches"
+	echo " --docker-image               $CB_DOCKER_CMD_INFO image prune (until $DOCKER_IMAGE_CLEAN_UNTIL hours)"
+	echo " --docker-system              $CB_DOCKER_CMD_INFO system prune (until $DOCKER_SYSTEM_CLEAN_UNTIL hours)"
+	echo " --npm                        npm cache clean + verify + browserslist update"
+	echo " --path <dir>                 Custom cleanup: top-level files under <dir>"
+	echo " --pattern <glob>             Glob pattern for --path (default: all files)"
+	echo ""
+	echo "Thresholds:"
+	echo " --log-until <n>              Days to keep logs/temp files (default $CLEAN_LOG_UNTIL_DAYS)"
+	echo " --gradle-cache <n>           Days since last access for gradle cache (default $GRADLE_CACHE_LAST_ACCESS_DAYS)"
+	echo " --docker-image-until <h>     $CB_DOCKER_CMD_INFO image prune age in hours (default $DOCKER_IMAGE_CLEAN_UNTIL)"
+	echo " --docker-system-until <h>    $CB_DOCKER_CMD_INFO system prune age in hours (default $DOCKER_SYSTEM_CLEAN_UNTIL)"
+	echo ""
+	echo "Misc:"
+	echo " -h, --help                   Show this help message."
+	echo " --silent                     Suppress informational output."
+	echo " --dry-run                    Show what would be deleted without touching anything."
+	echo ""
+	echo "Examples:"
+	echo " Default cleanup (cb + cgb + docker-image):"
+	echo " cb-cleanup"
+	echo ""
+	echo " Delete gradle worker files in /tmp:"
+	echo " cb-cleanup --path /tmp --pattern gradle-worker*"
+}
+
+
+#########################################################################
+# main
+#########################################################################
+enableCleanupCommonBuild=0
+enableCleanupCommonGradleBuild=0
+enableDockerImagePrune=0
+enableDockerSystemPrune=0
+enableCleanupNpm=0
+CB_SILENT=false
+CB_DRY_RUN=false
+DRY_RUN_FLAG=""
+CB_DOCKER_CMD=
+argCount=$#
+dockerSupport
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		-h) 					printUsage; exit 0;;
+		--help) 				printUsage; exit 0;;
+		--silent)				CB_SILENT=true;;
+		--dry-run)				CB_DRY_RUN=true;;
+		--cb) 					enableCleanupCommonBuild=1;;
+		--cgb) 					enableCleanupCommonGradleBuild=1;;
+		--docker-image)			enableDockerImagePrune=1;;
+		--docker-image-until) 	shift; DOCKER_IMAGE_CLEAN_UNTIL="$1";;
+		--docker-system)		enableDockerSystemPrune=1;;
+		--docker-system-until) 	shift; DOCKER_SYSTEM_CLEAN_UNTIL="$1";;
+		--npm) 					enableCleanupNpm=1;;
+		--log-until)			shift; CLEAN_LOG_UNTIL_DAYS="$1";;
+		--gradle-cache) 		shift; GRADLE_CACHE_LAST_ACCESS_DAYS="$1";;
+		--path)					shift; CB_CLEAN_PATH="$1";;
+		--pattern)				shift; CB_CLEAN_PATTERN="$1";;
+		*) 						echo "Invalid parameter: $1"; echo ""; printUsage; exit 1;;
+	esac
+	shift
+done
+
+# redirect target for noisy tool output (honors --silent)
+CB_OUT=/dev/stdout
+[ "$CB_SILENT" = "true" ] && CB_OUT=/dev/null
+[ "$CB_DRY_RUN" = "true" ] && DRY_RUN_FLAG="--dry-run"
+[ "$CB_DRY_RUN" = "true" ] && [ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}[DRY-RUN mode — no files will be deleted]"
+
+if [ $argCount -eq 0 ] && [ -z "$CB_CLEAN_PATH" ]; then
+	enableCleanupCommonBuild=1
+	enableCleanupCommonGradleBuild=1
+	enableDockerImagePrune=1
+	enableDockerSystemPrune=0
+	enableCleanupNpm=0
+fi
+
+# resolve custom setting script if not already set (e.g. via cb --setenv)
+if [ -z "$CB_CUSTOM_SETTING_SCRIPT" ] && [ -n "$CB_CUSTOM_RUNTIME_CONFIG_PATH" ] && [ -r "$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.sh" ]; then
+	CB_CUSTOM_SETTING_SCRIPT="$CB_CUSTOM_RUNTIME_CONFIG_PATH/bin/cb-custom.sh"
+elif [ -z "$CB_CUSTOM_SETTING_SCRIPT" ] && [ -n "$CB_CUSTOM_SETTING" ] && [ -r "$CB_CUSTOM_SETTING" ]; then
+	CB_CUSTOM_SETTING_SCRIPT="$CB_CUSTOM_SETTING"
+fi
+
+# custom setting script
+[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT cleanup-start $*" 2>/dev/null
+
+[ $enableCleanupCommonBuild -eq 1 ] && cleanupCommonBuild
+[ $enableCleanupCommonGradleBuild -eq 1 ] && cleanupCommonGradleBuild
+[ $enableDockerImagePrune -eq 1 ] && dockerImagePrune
+[ $enableDockerSystemPrune -eq 1 ] && dockerSystemPrune
+[ $enableCleanupNpm -eq 1 ] && cleanupNpm
+
+# --path / --pattern: delete matching files under the given path (uses cb-clean-files)
+if [ -n "$CB_CLEAN_PATH" ] || [ -n "$CB_CLEAN_PATTERN" ]; then
+	[ -z "$CB_CLEAN_PATH" ] && CB_CLEAN_PATH="."
+	[ -z "$CB_CLEAN_PATTERN" ] && CB_CLEAN_PATTERN="*"
+	if [ ! -d "$CB_CLEAN_PATH" ]; then
+		[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Path $CB_CLEAN_PATH does not exist."
+	else
+		[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Cleanup $CB_CLEAN_PATH (pattern: $CB_CLEAN_PATTERN)..."
+		SILENT_FLAG=""
+		[ "$CB_SILENT" = "true" ] && SILENT_FLAG="--silent"
+		"$CB_HOME/bin/cb-clean-files" $SILENT_FLAG $DRY_RUN_FLAG --path "$CB_CLEAN_PATH" --pattern "$CB_CLEAN_PATTERN" --days $CLEAN_LOG_UNTIL_DAYS
+	fi
+fi
+
+
+# custom setting script
+[ -n "$CB_CUSTOM_SETTING_SCRIPT" ] && eval ". $CB_CUSTOM_SETTING_SCRIPT cleanup-end $*" 2>/dev/null
+
+
+#########################################################################
+#  EOF
+#########################################################################

@@ -30,7 +30,7 @@
 #[ -z "`echo $OSTYPE | sed 's/cygwin.*//'`" ] && CLASSSEP=";" || CLASSSEP=":"
 
 # define parameters
-CB_LINE="----------------------------------------------------------------------------------------"
+CB_LINE="------------------------------------------------------------------------------------------------------------------------"
 CB_LINEHEADER=".: "
 PN=$(basename "$0")
 #REL_PROG_PATH="${0%/*}"
@@ -348,16 +348,46 @@ updateShellInitialisation() {
 		fi
 
 		if [ -n "$CB_DEVTOOLS_INITIALISATION_CMD" ]; then
-			shellResult=$(cat "$shellProfile" | grep 'toolarium-common-build devtools support')
-			if [ -z "$shellResult" ]; then
+			devtoolsMarker="# toolarium-common-build devtools support"
+			if grep -Fxq "$CB_DEVTOOLS_INITIALISATION_CMD" "$shellProfile" 2>/dev/null; then
+				: # already up-to-date
+			elif grep -Fxq "$devtoolsMarker" "$shellProfile" 2>/dev/null; then
+				newFileName="${shellProfile}_cb-new"
+				rm -f "$newFileName" >/dev/null 2>&1
+				[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Update devtools initialisation in $shellProfile"
+				awk -v marker="$devtoolsMarker" -v cmd="$CB_DEVTOOLS_INITIALISATION_CMD" '
+					replace_next { print cmd; replace_next=0; next }
+					{ print }
+					$0 == marker { replace_next=1 }
+				' "$shellProfile" > "$newFileName"
+				chmod --reference="$shellProfile" "$newFileName" >/dev/null 2>&1
+				chmod +r+w "$newFileName" >/dev/null 2>&1
+				mv -f "$newFileName" "$shellProfile" >/dev/null 2>&1
+			else
+				[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add devtools initialisation to $shellProfile"
 				echo "" >> "$shellProfile"
-				echo "# toolarium-common-build devtools support" >> "$shellProfile"
+				echo "$devtoolsMarker" >> "$shellProfile"
 				echo "$CB_DEVTOOLS_INITIALISATION_CMD" >> "$shellProfile"
 			fi
 		fi
 		
 		if ! [ -n "$(diff "$backupFileName" "$shellProfile" 2>/dev/null)" ]; then
+			# no change — remove the backup entirely
 			rm -f "$backupFileName" >/dev/null 2>&1
+		else
+			# change detected — keep the 3 most recent backups in place,
+			# move any older ones to $CB_HOME/backup/
+			backupDir="$CB_HOME/backup"
+			! [ -d "$backupDir" ] && mkdir -p "$backupDir" >/dev/null 2>&1
+
+			# list all backups for this profile, newest first; skip the 3
+			# most recent and move the rest
+			oldBackups=$(ls -1t "${shellProfile}_cb-"* 2>/dev/null | tail -n +4)
+			if [ -n "$oldBackups" ]; then
+				echo "$oldBackups" | while IFS= read -r f; do
+					[ -n "$f" ] && mv -f "$f" "$backupDir/" >/dev/null 2>&1
+				done
+			fi
 		fi
 	else
 		echo "${CB_LINEHEADER}Can not set CB_HOME in $shellProfile, it's write protected."
@@ -405,6 +435,7 @@ fi
 
 HTTP_REQUEST_CLI=$(checkHttpRequestCLI)
 ! [ -n "$HTTP_REQUEST_CLI" ] && installationFailed "Either curl or wget is required, please install it before you continue!" && exit 1
+! [ -n "$(existBinary tar)" ] && installationFailed "Missing package tar, please install it before you continue!" && exit 1
 ! [ -n "$(existBinary unzip)" ] && installationFailed "Missing package unzip, please install it before you continue!" && exit 1
 ! [ -n "$(existBinary find)" ] && echo "${CB_LINEHEADER}Missing package find, please install it before you continue!" && exit 1
 ! [ -n "$(existBinary diff)" ] && echo "${CB_LINEHEADER}Missing package diff, please install it before you continue!" && exit 1
@@ -460,14 +491,16 @@ if ! [ -r "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	tarContentName=$(find "$CB_DEV_REPOSITORY" -type d -name 'toolarium-common-build-*' -print 2>/dev/null)
 	mv "$tarContentName" "$CB_DEVTOOLS/$CB_VERSION_NAME" >/dev/null 2>&1
 
-	# remove unecessary files
+	# remove unecessary files (keep docs/ - it ships the release documentation)
 	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/.gitattributes" >/dev/null 2>&1
 	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/.gitignore" >/dev/null 2>&1
 	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/README.md" >/dev/null 2>&1
+	rm "$CB_DEVTOOLS/$CB_VERSION_NAME/CLAUDE.md" >/dev/null 2>&1
 	rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME/.git" >/dev/null 2>&1
 	rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME/.github" >/dev/null 2>&1
-	rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME/docs" >/dev/null 2>&1
+	rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME/.claude" >/dev/null 2>&1
 	rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME/testdata" >/dev/null 2>&1
+	rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME/test" >/dev/null 2>&1
 	rm -rf "$CB_DEVTOOLS/$CB_VERSION_NAME/bin/testing" >/dev/null 2>&1
 
 	# be sure we have proper permissions
@@ -490,7 +523,7 @@ if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	export CB_HOME="$CB_DEVTOOLS/$CB_VERSION_NAME"
 	export PATH="$CB_HOME/bin:$PATH"
 	CB_SHELL_INITIALISATION_CMD="export CB_HOME=\"$CB_HOME\" && export PATH=\"\$CB_HOME/bin:\$PATH\""
-	CB_DEVTOOLS_INITIALISATION_CMD="export PATH=\"\${PATH}:\$(cb --setenv|sed 's/^.*(//;s/).*//g'|xargs|sed 's/ /:/g')\""
+	CB_DEVTOOLS_INITIALISATION_CMD="source cb --setenv > /dev/null"
 	[ -n "$(existBinary bash)" ] && updateShellInitialisation "$HOME/.bashrc"
 	[ -n "$(existBinary ash)" ] && updateShellInitialisation "$HOME/.ashrc"
 	[ -n "$(existBinary zsh)" ] && updateShellInitialisation "$HOME/.zshrc"
@@ -504,6 +537,33 @@ if ! [ "$CB_HOME" = "$CB_DEVTOOLS/$CB_VERSION_NAME" ]; then
 	    #CB_DEVTOOLS_INITIALISATION_CMD="export PATH=\"\${PATH}:\$(cb --setenv|sed 's/^.*(//;s/).*//g'|xargs|sed 's/ /:/g')\""
 		CB_DEVTOOLS_INITIALISATION_CMD=""
 		updateShellInitialisation "$HOME/.config/fish/config.fish"
+	fi
+
+	if [ -n "$(existBinary nu)" ]; then
+		if ! [ -d "$HOME/.config/nushell/" ]; then
+			mkdir -p "$HOME/.config/nushell/" >/dev/null 2>&1
+			chmod -R 750 "$HOME/.config" >/dev/null 2>&1
+		fi
+
+		nuHelperFile="$HOME/.config/nushell/cb-setenv.nu"
+		[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Create Nushell helper $nuHelperFile"
+		cat > "$nuHelperFile" <<NUEOF
+# toolarium-common-build support (auto-generated, do not edit)
+\$env.CB_HOME = '$CB_HOME'
+\$env.PATH = (\$env.PATH | prepend '$CB_HOME/bin')
+NUEOF
+		chmod +r "$nuHelperFile" >/dev/null 2>&1
+
+		envNuFile="$HOME/.config/nushell/env.nu"
+		! [ -f "$envNuFile" ] && touch "$envNuFile" >/dev/null 2>&1
+		if [ -w "$envNuFile" ]; then
+			if ! grep -q 'cb-setenv.nu' "$envNuFile" 2>/dev/null; then
+				[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add source line to $envNuFile"
+				echo "" >> "$envNuFile"
+				echo "# toolarium-common-build support" >> "$envNuFile"
+				echo "source ~/.config/nushell/cb-setenv.nu" >> "$envNuFile"
+			fi
+		fi
 	fi
 
 	# take over symbol link and config

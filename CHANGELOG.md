@@ -5,15 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.14] - 2026-03-30
+## [1.1.0] - 2026-04-06
+### Added
+- GraalVM Community Edition support (`bin/packages/graalvm/graalvm.bat` and `graalvm.sh`) with platform-specific downloads for Windows, Linux and macOS. Default version: 21.0.2.
+- Added GraalVM to PATH and `GRAALVM_HOME` configuration in `cb --setenv` for both shell and Windows batch.
+- Automatic installation of Visual Studio 2022 Build Tools with C++ workload on Windows when installing GraalVM, required for Native Image compilation.
+- Nushell support: `cb --setenv --nushell` outputs Nushell-compatible environment variable syntax (`$env.VAR = ...`). Installer (`cb-install`) auto-detects Nushell and creates `~/.config/nushell/cb-setenv.nu` with a source line in `env.nu`.
+- New utility scripts (cross-platform, shell + `.bat`):
+  - `cb-dockterm` — open an interactive terminal inside a running Docker container (types configurable via `conf/dockterm-types.properties`).
+  - `cb-meminfo` — print host memory usage information.
+  - `cb-open-ports` — list all open TCP/UDP ports with optional filter arguments.
+  - `cb-version-filter` — filter semver version lists by major-version and previous-major patch thresholds (stdin, file or `--path`).
+  - `cb-cleanup` — cleanup common-build artifacts (caches, temp directories, stale downloads). Calls `cleanup-start` / `cleanup-end` lifecycle hooks if a custom hook script is configured.
+  - `cb-filetail` — follow/tail a file with optional grep filtering, cross-platform.
+- Corresponding tests under `test/bin/` for `cb-test` (core cb options), `cb-project-test` (all 13 project types with optional build verification), `cb-clean-files`, `cb-open-ports`, `cb-version-filter`, `cb-dockterm`, `cb-meminfo`, `cb-cleanup`, `cb-filetail`, `cb-copysymlink`, `cb-deltree`, `cb-timestamp`, `cb-download`, `cb-update-custom-home` (mock git repo), `cb-read-version`, `cb-lock-unlock`, `cb-install` (help/version), and `cb-install-e2e` (end-to-end install with backup management verification).
+- `CB_INSTALL_NO_PERSIST` environment variable for `cb-install.bat` to prevent writing to user registry (`setx`) during automated testing.
+- Utility Scripts section in README and `docs/index.html` documenting all standalone helper scripts.
+- New documentation: [Testing](TESTING.md) and `docs/testing.html` with full description of test architecture, sandbox isolation, gated CI strategy, environment variables, and local/CI usage.
+- GitHub Actions workflow `cb-test.yml` for automated cross-platform test execution (Linux + Windows) with nightly full build matrix.
+- GitHub Actions workflow `cb-release.yml` for manual release publishing with version validation, full test gate, archive building (excluding dev files), and GitHub release creation. Requires environment approval. Supports dry-run mode. Tags are immutable — a released version cannot be reused.
 ### Changed
+- `cb-install` backup management: shell profile backups (`.bashrc`, `.zshrc`, etc.) now keep the 3 most recent backups next to the profile file and move older backups to `$CB_HOME/backup/`. Backups are deleted when no change was made.
+- `cb-install` / `cb-install.bat` post-extraction cleanup now removes `test/` directories while keeping `docs/` (ships release documentation).
+- `cb-meminfo` now supports macOS (uses `sysctl` for total memory, `ps` for process memory).
+- `cb-open-ports` now supports macOS (uses `lsof` instead of `netstat`).
+- Improved macOS compatibility across shell scripts: replaced GNU-specific `sed -i`, `stat -c`, `[[ ]]`, `=~`, `find -delete`, and `od -d` with portable alternatives.
+- CI workflow `cb-test.yml` now runs shell tests on both Linux and macOS via matrix strategy.
+- Replaced old `cb-test.yml` workflow (renamed to `cb-test-installation.yml`, disabled) with the new test-script-based `cb-test.yml`.
 - Significantly improved `cb --setenv` / `cb.bat --setenv` performance by skipping all network operations (internet ping, host connection check, git fetch/clone) and using only cached custom config data. This makes `. cb --setenv` suitable for shell initialization without noticeable delay.
 - Added quick check in `update-cb-custom-home.sh` and `.bat` that compares the `VERSION` file against the remote before performing a full clone. If VERSION is unchanged, the update is skipped entirely, avoiding the expensive `git clone` on every daily check.
 - Rewrote README with improved introduction, key features overview, and links to new documentation pages.
 - New documentation: [Project Wizard](docs/project-wizard.md) with full syntax reference for `project-types.properties`, `product-types.properties`, parameter substitution tokens, and all available project types.
 - New documentation: [Organization Config](docs/organization-config.md) covering custom config setup, `.cb-custom-config` file, lifecycle hooks, concrete hook script examples for both Linux/Mac and Windows, and environment variables.
+- Moved sample scripts from `bin/sample/` to `docs/sample/` and linked from README, organization-config and index.html documentation.
 
 ### Fixed
+- Fixed `exit` → `return` in cb-custom sample validation hooks (`cb-custom-sample.sh`, `cb-custom.sh`) — `exit` inside a sourced script terminates the calling shell.
+- Fixed `del` → `rm -f` in `cb-custom-sample.sh` (`customNewProjectEnd`).
+- Fixed unquoted `$*` → `"$@"` in cb-custom sample/template shell scripts to handle arguments with spaces correctly.
+- Changed cb-custom unknown-parameter handler to silently succeed instead of printing an error, for forward compatibility with new hooks.
 - `cb --verbose --setenv` and `cb --force --setenv` now correctly apply the fast `--setenv` path on both Linux/Mac and Windows. Previously, prefixed arguments like `--verbose` or `--force` prevented the `--setenv` optimization from being detected.
 - Fixed `update-cb-custom-home` quick check to use `git -C` with the correct repository path instead of relying on the current working directory.
 - Fixed `update-cb-custom-home` quick check to gracefully skip on first-ever run when no local clone exists yet.

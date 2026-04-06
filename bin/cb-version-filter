@@ -1,0 +1,336 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-version-filter
+#
+# Copyright by toolarium, all rights reserved.
+#
+# This file is part of the toolarium common-build.
+#
+# The common-build is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The common-build is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Foobar. If not, see <http://www.gnu.org/licenses/>.
+#
+#########################################################################
+
+
+PN=$(basename "$0" 2>/dev/null)
+PN_BASE="${PN%*.sh}"
+
+#########################################################################
+
+# Semver: 1.2.4
+SEMVER_REGEXP="^((0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)+$"
+
+# Semver as list: 1.2.4, 1.4.5
+SEMVER_LIST_REGEXP="^(((0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?)+(,( )?)?)*$"
+
+# Semver or Major.Minor Semver: 1.2
+SEMVER_LIGHT_REGEXP="^((0|[1-9]\d*)\.(0|[1-9]\d*)(\.(0|[1-9]\d*))?(-((0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?)?$"
+
+# Semver or Major.Minor Semver as list: 1.2, 1.2.5
+SEMVER_LIGHT_LIST_REGEXP="^(((0|[1-9]\d*)\.(0|[1-9]\d*)(\.(0|[1-9]\d*))?(-((0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?)?(,( )?)?)*$"
+
+#########################################################################
+
+versionDir=""
+selectDirectories='ls -d */ | xargs -l basename'
+invertFilter="false"
+majorVersionThreshold=2
+minorVersionThreshold=0
+patchVersionThreshold=0
+previousMajorMinorThreshold=0
+previousMajorPatchThreshold=0
+majorMinorMax=0
+
+
+#########################################################################
+# printUsage
+#########################################################################
+printUsage() {
+    echo "$PN - Script to filter version numbers. It expect a list of version number in semver style, e.g. 2.1.3."
+	echo "                       In case there is no input piped nothing will be done. The path parameter allows to" 
+    echo "                       search in a specific folder for directories with version numbers."
+	echo ""
+	echo "usage: $PN [OPTION]"
+	echo ""
+	echo "Overview of the available OPTIONs:"
+	echo " -h, --help                           Show this help message."
+	echo " --verbose                            Verbose mode."
+	echo " --majorThreshold <num>               Defines the major version number threshold, default $majorVersionThreshold."
+	echo " --minorThreshold <num>               Defines the minor version number threshold, default $minorVersionThreshold."
+	echo " --patchThreshold <num>               Defines the patch version number threshold, default $patchVersionThreshold."
+	echo " --previousMajorMinorThreshold <num>  Defines the minor version number threshold of previous major version, default $previousMajorMinorThreshold."
+	echo " --previousMajorPatchThreshold <num>  Defines the patch version number threshold of previous major version, default $previousMajorPatchThreshold."
+	echo " --majorMinorMax <num>                Defines the max number of major / minor versions."
+	echo " --invertFilter                       Invert the filter: the filtered version are that one which should be ignored."
+	echo " --path [path]                        Defines the path where the filter reads directories with version numbers (no prefix nor appendix)."
+	echo ""
+	echo "Examples"
+	echo "# result should contain max 2 major numbers with max 2 minor and max 2 patch versions. The minor and patch versions are limited to 1 of previous major versions:"
+	echo "#> cat myfile | $PN --majorThreshold 2"
+	echo ""
+	echo "# result should contain max 2 major numbers with max 2 minor and max 2 patch versions. The minor versions is limited to 1 of previous major versions and patch versions to 2:"
+	echo "#> cat myfile | $PN --majorThreshold 2 --previousMajorPatchThreshold 2"
+	echo ""
+	echo "# result should contain max 2 major numbers with max 2 minor and max 2 patch versions. The minor versions is limited to 1 of previous major versions and patch versions to 2:"
+	echo "#> echo \"2.2.1 2.2.0 2.1.2 2.1.1 2.1.0 1.3.4 1.3.3 1.2.1 1.2.0 \" | $PN --majorThreshold 2 --previousMajorPatchThreshold 2"
+	echo ""
+	echo "# result list up the versions to skip: 2.1.0 1.2.1 1.2.0"
+	echo "#> echo \"2.2.1 2.2.0 2.1.2 2.1.1 2.1.0 1.3.4 1.3.3 1.2.1 1.2.0 \" | $PN --majorThreshold 2 --previousMajorPatchThreshold 2 --invertFilter"
+	echo ""
+	echo "# read all directories of test directory with versions and result should contain max 2 major, max 2 minor and max 2 patch versions. The minor versions is limited to 1 of previous major versions and patch versions to 2. It returns the versions to skip:"
+	echo "#> $PN --path test --majorThreshold 2 --previousMajorPatchThreshold 2 --invertFilter"
+	echo ""
+}
+
+
+
+#########################################################################
+# log verbose
+#########################################################################
+logVerbose() {
+    [ "$verbose" = "true" ] && echo "$@" >&2
+    return 0
+}
+
+
+#########################################################################
+# read directories
+#########################################################################
+readDirectories() {
+    eval $selectDirectories 2>/dev/null
+}
+
+
+#################################################################################################################
+# Parse semver
+#################################################################################################################
+parseSemVer() {
+    ! [ -n "$1" ] && return
+
+	VERSION="${1#[vV]}"
+	VERSION_MAJOR="${VERSION%%.*}"
+	VERSION_MINOR_PATCH="${VERSION#*.}"
+	VERSION_MINOR="${VERSION_MINOR_PATCH%%.*}"
+	VERSION_PATCH_PRE_RELEASE="${VERSION_MINOR_PATCH#*.}"
+	VERSION_PATCH="${VERSION_PATCH_PRE_RELEASE%%[-+]*}"
+	VERSION_PRE_RELEASE=""
+
+	case "$VERSION" in
+		*-*)
+			VERSION_PRE_RELEASE="${VERSION#*-}"
+			VERSION_PRE_RELEASE="${VERSION_PRE_RELEASE%%+*}"
+			;;
+	esac
+
+	#echo "Version: ${VERSION}"
+	#echo "Version [major]: ${VERSION_MAJOR}"
+	#echo "Version [minor]: ${VERSION_MINOR}"
+	#echo "Version [patch]: ${VERSION_PATCH}"
+	#echo "Version [pre-release]: ${VERSION_PRE_RELEASE}"
+}
+
+
+#################################################################################################################
+# Version filter
+#################################################################################################################
+versionFilter() {
+    [ $# -eq 0 ] || [ -z "$1" ] && logVerbose "==>No versions to filter, give up!" && return
+
+    logVerbose "Filter versions..."
+	versions=$(echo "$@" | grep -E "[0-9]+\.[0-9]+\.[0-9]+(-.*)?" | sort -Vr)
+	invalidVersions=$(echo "$@" | grep -E -v "[0-9]+\.[0-9]+\.[0-9]+(-.*)?")
+	logVerbose "Invalid versions: ["$invalidVersions"]"
+
+	majorVersionCount=0
+	minorVersionCount=0
+	patchVersionCount=0
+	previousMajor=
+	previousMinor=
+	#previousPatch=
+	filteredVersions=""
+	versionsToIgnore=""
+	majorMinorCount=0
+	
+    overflow=false
+    # loop over all directories
+    for versionName in $versions; do
+        logVerbose "  Process directory $versionName..."
+		parseSemVer "$versionName"
+
+		if [ "$overflow" = "true" ]; then
+			versionsToIgnore="$versionsToIgnore;$versionName"
+			continue
+		fi
+
+		if [ -n "$previousMajor" ]; then
+			if [ "$previousMajor" -eq "$VERSION_MAJOR" ]; then
+				if [ -n "$previousMinor" ]; then
+					if [ "$previousMinor" -eq "$VERSION_MINOR" ]; then
+						if [ $patchVersionThreshold -gt $patchVersionCount ]; then
+							#previousPatch=$VERSION_PATCH
+							patchVersionCount=$((patchVersionCount+1))
+							filteredVersions="$filteredVersions;$versionName"
+						else 
+							versionsToIgnore="$versionsToIgnore;$versionName"
+						fi
+					else
+						if [ $minorVersionThreshold -gt 0 ]; then
+							if [ $minorVersionThreshold -gt $minorVersionCount ]; then
+								previousMinor=$VERSION_MINOR
+								minorVersionCount=$((minorVersionCount+1))
+								majorMinorCount=$((majorMinorCount+1))
+								patchVersionCount=1
+								filteredVersions="$filteredVersions;$versionName"
+							else 
+								versionsToIgnore="$versionsToIgnore;$versionName"
+							fi
+						else
+							previousMinor=$VERSION_MINOR
+							minorVersionCount=$((minorVersionCount+1))
+							majorMinorCount=$((majorMinorCount+1))
+							patchVersionCount=1
+							filteredVersions="$filteredVersions;$versionName"
+						fi
+					fi
+				else
+					previousMinor=$VERSION_MINOR
+					minorVersionCount=$((minorVersionCount+1))
+					majorMinorCount=$((majorMinorCount+1))
+					#previousPatch=$VERSION_PATCH
+					patchVersionCount=1
+					filteredVersions="$filteredVersions;$versionName"
+				fi
+			else
+				if [ $majorVersionThreshold -gt 0 ]; then
+					if [ $majorVersionThreshold -gt $majorVersionCount ]; then
+						previousMajor=$VERSION_MAJOR
+						majorVersionCount=$((majorVersionCount+1))
+						majorMinorCount=$((majorMinorCount+1))
+						previousMinor=$VERSION_MINOR
+						#previousPatch=$VERSION_PATCH
+						minorVersionCount=1
+						patchVersionCount=1
+						filteredVersions="$filteredVersions;$versionName"
+					else 
+						versionsToIgnore="$versionsToIgnore;$versionName"
+					fi
+				else
+					previousMajor=$VERSION_MAJOR
+					majorVersionCount=$((majorVersionCount+1))
+					majorMinorCount=$((majorMinorCount+1))				
+					previousMinor=$VERSION_MINOR
+					#previousPatch=$VERSION_PATCH
+					minorVersionCount=1
+					patchVersionCount=1
+					filteredVersions="$filteredVersions;$versionName"
+				fi
+			fi
+		else
+			previousMajor=$VERSION_MAJOR
+			majorVersionCount=$((majorVersionCount+1))
+			majorMinorCount=$((majorMinorCount+1))
+			previousMinor=$VERSION_MINOR
+			minorVersionCount=1
+			#previousPatch=$VERSION_PATCH
+			patchVersionCount=1
+
+			if [ $majorVersionThreshold -gt 0 ]; then
+				if [ $majorVersionThreshold -ge $majorVersionCount ]; then
+					filteredVersions="$filteredVersions;$versionName"
+				else 
+					versionsToIgnore="$versionsToIgnore;$versionName"
+				fi
+			else 
+				filteredVersions="$filteredVersions;$versionName"
+			fi
+		fi
+		
+		if [ $majorVersionCount -gt 1 ]; then
+			minorVersionThreshold=$previousMajorMinorThreshold
+			patchVersionThreshold=$previousMajorPatchThreshold
+		fi
+		
+		if [ $majorMinorMax -gt 0 ]; then
+			if [ $majorMinorCount -gt $majorMinorMax ]; then
+				# move the just-kept cap-breaking version to ignored
+				lastKept="${filteredVersions##*;}"
+				filteredVersions="${filteredVersions%;*}"
+				versionsToIgnore="$versionsToIgnore;$lastKept"
+				overflow=true
+				[ "$invertFilter" = "false" ] && break
+			fi
+		fi
+    done
+
+	filteredVersions=$(echo $filteredVersions | sed 's/^;//;s/;/\n/g')
+	versionsToIgnore=$(echo $versionsToIgnore | sed 's/^;//;s/;/\n/g')
+	[ "$invertFilter" = "false" ] && echo "$filteredVersions"
+	[ "$invertFilter" = "true" ] && echo "$versionsToIgnore"
+}
+
+
+#########################################################################
+# main
+#########################################################################
+# validate user parameters
+while [ $# -gt 0 ]; do
+    case "$1" in
+		-h)			   		printUsage; exit 0;;
+		--help)		   		printUsage; exit 0;;
+        --verbose)     		verbose="true";;
+		--majorThreshold) 	[ -n "$2" ] && majorVersionThreshold=$2; shift;;
+		--minorThreshold) 	[ -n "$2" ] && minorVersionThreshold=$2;previousMajorMinorThreshold=$2;minorAutoCopied=true; shift;;
+		--patchThreshold) 	[ -n "$2" ] && patchVersionThreshold=$2;previousMajorPatchThreshold=$2; shift;;
+		--previousMajorMinorThreshold) 	[ -n "$2" ] && previousMajorMinorThreshold=$2;minorAutoCopied=false; shift;;
+		--previousMajorPatchThreshold) 	[ -n "$2" ] && previousMajorPatchThreshold=$2; shift;;
+		--majorMinorMax) 	[ -n "$2" ] && majorMinorMax=$2; shift;;
+		--invertFilter)     invertFilter="true";;
+        --path)        		[ -n "$2" ] && versionDir=$2; shift;;
+		-*) 		   		echo "Invalid parameter: $1"; echo ""; printUsage; exit 1;;
+        *)             		echo "Invalid parameter: $1"; echo ""; printUsage; exit 1;;
+    esac
+    shift
+done
+
+# In invert mode, tighten auto-copied previousMajorMinorThreshold by 1
+# so that "older major" slots fill up sooner and more versions fall into
+# the discarded set. Only applies when the value was auto-copied from
+# --minorThreshold (not explicitly set via --previousMajorMinorThreshold).
+if [ "$invertFilter" = "true" ] && [ "$minorAutoCopied" = "true" ] && [ "$previousMajorMinorThreshold" -gt 1 ]; then
+	previousMajorMinorThreshold=$((previousMajorMinorThreshold - 1))
+fi
+
+if [ -n "$versionDir" ]; then
+	if [ -d "$versionDir" ]; then
+		readVersions=$(cd "$versionDir" && logVerbose "Filter versions in directory $(pwd)..." && readDirectories)
+		versionFilter "$readVersions"
+	else
+		logVerbose "==>Could not found version numbers to filter, give up!" && exit 1
+	fi
+elif [ ! -t 0 ]; then
+	readVersions=""
+    while IFS= read line; do
+        readVersions="$readVersions;$line"
+    done
+	readVersions=$(echo $readVersions | sed 's/ /;/g;s/^;//;s/;/\n/g' | sort -Vr)
+	logVerbose "Read from input: " $readVersions
+	versionFilter "$readVersions"
+else
+	logVerbose "==>Could not found version numbers to filter, give up!" && exit 1
+fi
+
+#########################################################################
+# EOF
+#########################################################################

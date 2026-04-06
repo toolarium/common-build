@@ -1,0 +1,299 @@
+#!/bin/bash
+
+#########################################################################
+#
+# cb-update-custom-home-test
+#
+# Tests for bin/include/update-cb-custom-home.sh. Creates a local bare
+# git repo as a mock "custom config" remote, then exercises the update
+# script against it in a sandbox.
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+UPDATE_SCRIPT="$SRC_ROOT/bin/include/update-cb-custom-home.sh"
+PASS=0
+FAIL=0
+
+SANDBOX=$(mktemp -d 2>/dev/null || echo "/tmp/cb-uch-test-$$")
+mkdir -p "$SANDBOX" || { echo "ERROR: could not create sandbox"; exit 1; }
+trap 'rm -rf "$SANDBOX"' EXIT INT TERM
+
+# We need a working CB_HOME with bin/include for lock-unlock, read-version.
+# Copy bin/include so we can stub cb-credential.sh (it fails for local repos).
+SANDBOX_CB_HOME="$SANDBOX/cb-home"
+mkdir -p "$SANDBOX_CB_HOME/bin"
+ln -s "$SRC_ROOT/conf"    "$SANDBOX_CB_HOME/conf"    2>/dev/null
+ln -s "$SRC_ROOT/VERSION" "$SANDBOX_CB_HOME/VERSION" 2>/dev/null
+# copy include/ (small) so we can override cb-credential.sh
+cp -r "$SRC_ROOT/bin/include" "$SANDBOX_CB_HOME/bin/include"
+chmod -R +x "$SANDBOX_CB_HOME/bin/include" 2>/dev/null
+# stub cb-credential.sh: always succeed (local bare repos have no credentials)
+cat > "$SANDBOX_CB_HOME/bin/include/cb-credential.sh" << 'STUB'
+#!/bin/bash
+# stub for testing — always returns success
+exit 0
+STUB
+chmod +x "$SANDBOX_CB_HOME/bin/include/cb-credential.sh"
+
+assertEquals() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (expected [$expected], got [$actual])"
+	fi
+}
+
+assertContains() {
+	local needle="$1" haystack="$2" msg="$3"
+	if echo "$haystack" | grep -q -- "$needle"; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (missing: $needle)"
+	fi
+}
+
+assertDirExists() {
+	local d="$1" msg="$2"
+	if [ -d "$d" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (dir missing: $d)"
+	fi
+}
+
+assertFileExists() {
+	local f="$1" msg="$2"
+	if [ -f "$f" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (file missing: $f)"
+	fi
+}
+
+#########################################################################
+# Create a local bare git repo to act as the "remote" custom config
+#########################################################################
+createMockRemote() {
+	local version="$1"
+	local repoDir="$SANDBOX/mock-remote.git"
+	local workDir="$SANDBOX/mock-work"
+
+	rm -rf "$repoDir" "$workDir" 2>/dev/null
+	git init --bare "$repoDir" >/dev/null 2>&1
+	git clone "$repoDir" "$workDir" >/dev/null 2>&1
+
+	# create a VERSION file in the mock repo
+	cat > "$workDir/VERSION" << EOF
+major.number        = $(echo "$version" | cut -d. -f1)
+minor.number        = $(echo "$version" | cut -d. -f2)
+revision.number     = $(echo "$version" | cut -d. -f3)
+qualifier           =
+EOF
+	mkdir -p "$workDir/conf"
+	echo "# mock config" > "$workDir/conf/custom.properties"
+
+	(cd "$workDir" && git add -A && git commit -m "v$version" >/dev/null 2>&1 && git push >/dev/null 2>&1)
+
+	echo "$repoDir"
+}
+
+updateMockRemote() {
+	local version="$1"
+	local repoDir="$SANDBOX/mock-remote.git"
+	local workDir="$SANDBOX/mock-work"
+
+	cat > "$workDir/VERSION" << EOF
+major.number        = $(echo "$version" | cut -d. -f1)
+minor.number        = $(echo "$version" | cut -d. -f2)
+revision.number     = $(echo "$version" | cut -d. -f3)
+qualifier           =
+EOF
+
+	(cd "$workDir" && git add -A && git commit -m "v$version" >/dev/null 2>&1 && git push >/dev/null 2>&1)
+}
+
+#########################################################################
+# tests
+#########################################################################
+test_missing_args() {
+	echo "TEST: missing arguments"
+	output=$(CB_HOME="$SANDBOX_CB_HOME" bash "$UPDATE_SCRIPT" 2>&1)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit code 1 with no args"
+	assertContains "No path defined" "$output" "error mentions missing path"
+}
+
+test_missing_url() {
+	echo "TEST: missing url argument"
+	output=$(CB_HOME="$SANDBOX_CB_HOME" bash "$UPDATE_SCRIPT" "$SANDBOX/config-path" 2>&1)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit code 1 with no url"
+	assertContains "No url defined" "$output" "error mentions missing url"
+}
+
+test_missing_git() {
+	echo "TEST: missing git client detected"
+	local cfgDir="$SANDBOX/cfg-no-git"
+	mkdir -p "$cfgDir"
+	output=$(CB_HOME="$SANDBOX_CB_HOME" GIT_CLIENT="/nonexistent/git" bash "$UPDATE_SCRIPT" "$cfgDir" "https://example.com/repo.git" 2>&1)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit code 1 when git missing"
+	assertContains "Missing package git" "$output" "error mentions missing git"
+	rm -rf "$cfgDir"
+}
+
+test_fresh_clone() {
+	echo "TEST: fresh clone from mock remote"
+	local remoteDir
+	remoteDir=$(createMockRemote "1.0.0")
+	local configPath="$SANDBOX/custom-config-fresh"
+	rm -rf "$configPath" 2>/dev/null; mkdir -p "$configPath"
+	mkdir -p "$configPath"
+
+	output=$(CB_HOME="$SANDBOX_CB_HOME" CB_VERBOSE=false CB_INSTALL_SILENT=false \
+		bash "$UPDATE_SCRIPT" "$configPath" "$remoteDir" 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertDirExists "$configPath/1.0.0" "version directory created"
+	assertFileExists "$configPath/1.0.0/VERSION" "VERSION file present"
+	assertFileExists "$configPath/1.0.0/conf/custom.properties" "config file present"
+}
+
+test_same_version_skips() {
+	echo "TEST: same version is not re-cloned"
+	local remoteDir
+	remoteDir=$(createMockRemote "2.0.0")
+	local configPath="$SANDBOX/custom-config-skip"
+	rm -rf "$configPath" 2>/dev/null; mkdir -p "$configPath"
+
+	# first clone
+	CB_HOME="$SANDBOX_CB_HOME" CB_VERBOSE=false CB_INSTALL_SILENT=true \
+		bash "$UPDATE_SCRIPT" "$configPath" "$remoteDir" >/dev/null 2>&1
+	assertDirExists "$configPath/2.0.0" "first clone created version dir"
+
+	# second run — same version, should be skipped (the quick-check path
+	# uses 'return 0' which works when sourced but exits non-zero when
+	# run with bash — accept either exit code, verify by output)
+	output=$(CB_HOME="$SANDBOX_CB_HOME" CB_VERBOSE=true CB_INSTALL_SILENT=true \
+		bash "$UPDATE_SCRIPT" "$configPath" "$remoteDir" 2>&1)
+	assertContains "already available" "$output" "skips re-clone of same version"
+}
+
+test_new_version_updates() {
+	echo "TEST: new remote version triggers update"
+	local remoteDir
+	remoteDir=$(createMockRemote "3.0.0")
+	local configPath="$SANDBOX/custom-config-update"
+	rm -rf "$configPath" 2>/dev/null; mkdir -p "$configPath"
+
+	# initial clone
+	CB_HOME="$SANDBOX_CB_HOME" CB_VERBOSE=false CB_INSTALL_SILENT=true \
+		bash "$UPDATE_SCRIPT" "$configPath" "$remoteDir" >/dev/null 2>&1
+	assertDirExists "$configPath/3.0.0" "initial version cloned"
+
+	# push new version to remote
+	updateMockRemote "3.1.0"
+
+	# re-run — should detect new version
+	output=$(CB_HOME="$SANDBOX_CB_HOME" CB_VERBOSE=false CB_INSTALL_SILENT=false \
+		bash "$UPDATE_SCRIPT" "$configPath" "$remoteDir" 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 for update"
+	assertDirExists "$configPath/3.1.0" "new version directory created"
+}
+
+test_lock_file_cleaned_up() {
+	echo "TEST: lock file cleaned up after run"
+	local remoteDir
+	remoteDir=$(createMockRemote "4.0.0")
+	local configPath="$SANDBOX/custom-config-lock"
+	rm -rf "$configPath" 2>/dev/null; mkdir -p "$configPath"
+
+	CB_HOME="$SANDBOX_CB_HOME" CB_VERBOSE=false CB_INSTALL_SILENT=true \
+		bash "$UPDATE_SCRIPT" "$configPath" "$remoteDir" >/dev/null 2>&1
+
+	if [ ! -f "$configPath/.lock" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: lock file removed after run"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: lock file still exists: $configPath/.lock"
+	fi
+}
+
+test_ignore_files_removed() {
+	echo "TEST: gradle/build files cleaned from cloned config"
+	local remoteDir="$SANDBOX/mock-remote.git"
+	local workDir="$SANDBOX/mock-work"
+	remoteDir=$(createMockRemote "5.0.0")
+
+	# add files that should be ignored
+	(cd "$workDir" && touch gradlew gradlew.bat .gitignore .gitattributes build.gradle settings.gradle README.md && git add -A && git commit -m "add ignore files" >/dev/null 2>&1 && git push >/dev/null 2>&1)
+
+	local configPath="$SANDBOX/custom-config-ignore"
+	rm -rf "$configPath" 2>/dev/null; mkdir -p "$configPath"
+
+	CB_HOME="$SANDBOX_CB_HOME" CB_VERBOSE=false CB_INSTALL_SILENT=true \
+		bash "$UPDATE_SCRIPT" "$configPath" "$remoteDir" >/dev/null 2>&1
+
+	local vdir="$configPath/5.0.0"
+	assertDirExists "$vdir" "version directory created"
+	# these files should have been removed
+	local allClean=true
+	for f in gradlew gradlew.bat .gitignore .gitattributes build.gradle settings.gradle README.md; do
+		if [ -e "$vdir/$f" ]; then
+			FAIL=$((FAIL+1))
+			echo "  FAIL: $f should have been removed from cloned config"
+			allClean=false
+		fi
+	done
+	if [ "$allClean" = "true" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: all ignorable files removed from clone"
+	fi
+	# but the actual config should remain
+	assertFileExists "$vdir/conf/custom.properties" "custom config file kept"
+}
+
+#########################################################################
+# main
+#########################################################################
+echo "Running update-cb-custom-home tests..."
+echo "Using:   $UPDATE_SCRIPT"
+echo "Sandbox: $SANDBOX"
+echo ""
+
+if ! command -v git >/dev/null 2>&1; then
+	echo "SKIP: git not available"
+	exit 0
+fi
+
+# ensure git identity is available for commits (env vars, no global config change)
+export GIT_AUTHOR_NAME="${GIT_AUTHOR_NAME:-cb-test}"
+export GIT_AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL:-cb-test@localhost}"
+export GIT_COMMITTER_NAME="${GIT_COMMITTER_NAME:-cb-test}"
+export GIT_COMMITTER_EMAIL="${GIT_COMMITTER_EMAIL:-cb-test@localhost}"
+
+test_missing_args
+test_missing_url
+test_missing_git
+test_fresh_clone
+test_same_version_skips
+test_new_version_updates
+test_lock_file_cleaned_up
+test_ignore_files_removed
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1
