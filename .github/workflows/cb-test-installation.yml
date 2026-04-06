@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set permissions
       - name: Install common-build
@@ -96,7 +96,7 @@ jobs:
             verify_current: true
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install common-build
         run: |
@@ -146,7 +146,7 @@ jobs:
             verify_dir: vscode-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install common-build
         run: |
@@ -177,7 +177,7 @@ jobs:
     needs: test-linux
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set permissions
       - name: Install common-build
@@ -214,7 +214,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install common-build
         run: |
@@ -311,7 +311,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install common-build
         shell: cmd
@@ -395,7 +395,7 @@ jobs:
             verify: current\python
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install common-build
         shell: cmd
@@ -442,7 +442,7 @@ jobs:
             verify_devtools: multicommander-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install common-build
         shell: cmd
@@ -489,7 +489,7 @@ jobs:
             verify_devtools: VSCode
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install common-build
         shell: cmd
@@ -524,7 +524,7 @@ jobs:
     needs: test-windows
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install common-build
         shell: cmd

@@ -617,6 +617,15 @@ goto :eof
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :COMMON_BUILD
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: early check: if no known build file exists, exit immediately
+if not exist build.gradle if not exist pom.xml if not exist build.xml if not exist package.json (
+	echo %CB_LINE%
+	echo %CB_LINEHEADER%No configuration file found for common build known build tools.
+	echo %CB_LINEHEADER%Change into a project or create a new project, see cb --help.
+	echo %CB_LINE%
+	goto END_WITH_ERROR
+)
+
 set "cbJavaVersion=" & set "cbJavaMajorVersion=" & set "cbJavaVersionFilter=*" & set "cbJavaVersionAvailable=" & set "CB_JAVA_HOME_RUNTIME="
 set JAVAC_EXEC=javac
 if .%CB_OFFLINE%==.true title %TITLE_NAME% (offline) 
