@@ -37,14 +37,6 @@ set "CGB_NUMBER_OF_RELEASE_TO_KEEP=2"
 
 if not defined TEMP set "TEMP=%TMP%"
 if not defined CB_TEMP set "CB_TEMP=%TEMP%\cb"
-if not exist "%CB_TEMP%" mkdir "%CB_TEMP%" >nul 2>nul
-
-if not defined CB_HOME echo %CB_LINEHEADER%Missing CB_HOME environment variable, please install with the cb-install. & goto END
-
-:: detect docker/nerdctl
-set "CB_DOCKER_CMD="
-where nerdctl >nul 2>nul && nerdctl info >nul 2>nul && set "CB_DOCKER_CMD=nerdctl"
-if not defined CB_DOCKER_CMD where docker >nul 2>nul && docker info >nul 2>nul && set "CB_DOCKER_CMD=docker"
 
 :: flags
 set "enableCleanupCommonBuild=0"
@@ -83,6 +75,15 @@ echo\
 goto HELP
 
 :PARAM_DONE
+:: validate CB_HOME and run expensive checks only when actually executing
+if not exist "%CB_TEMP%" mkdir "%CB_TEMP%" >nul 2>nul
+if not defined CB_HOME echo %CB_LINEHEADER%Missing CB_HOME environment variable, please install with the cb-install. & goto END
+
+:: detect docker/nerdctl
+set "CB_DOCKER_CMD="
+where nerdctl >nul 2>nul && nerdctl info >nul 2>nul && set "CB_DOCKER_CMD=nerdctl"
+if not defined CB_DOCKER_CMD where docker >nul 2>nul && docker info >nul 2>nul && set "CB_DOCKER_CMD=docker"
+
 if .%CB_SILENT%==.true set "SILENT_FLAG=--silent"
 if .%CB_DRY_RUN%==.true set "DRY_RUN_FLAG=--dry-run"
 if .%CB_DRY_RUN%==.true if .%CB_SILENT%==.false echo %CB_LINEHEADER%[DRY-RUN mode -- no files will be deleted]

@@ -111,25 +111,27 @@ parseJson() {
 		# Build the jq navigation path from nameFilter (strip # markers and leading dot)
 		jqPath=$(echo "$nameFilter" | sed 's/#//g; s/^\.//')
 
-		# Build the full jq filter expression
-		jqExpr=".$jqPath"
-
-		# Apply --filter criteria: select array elements matching key==value
+		# Build the jq filter expression.
+		# When --filter is used, apply the array filter FIRST, then extract the field.
 		if [ -n "$elementFilter" ]; then
 			selectParts=""
 			for f in $elementFilter; do
 				key="${f%:*}"
 				val="${f#*:}"
 				[ -n "$selectParts" ] && selectParts="$selectParts and "
-				# detect booleans and numbers so they are not quoted
+				# detect booleans/numbers (unquoted), regex patterns (test), or plain strings (==)
 				case "$val" in
 					true|false|null|[0-9]*)
 						selectParts="${selectParts}.${key} == ${val}" ;;
+					*'('*|*'?'*|*'['*|*'+'*)
+						selectParts="${selectParts}(.${key} | tostring | test(\"${val}\"))" ;;
 					*)
 						selectParts="${selectParts}.${key} == \"${val}\"" ;;
 				esac
 			done
-			jqExpr="${jqExpr} | if type == \"array\" then map(select(${selectParts}))[] else . end"
+			jqExpr="if type == \"array\" then map(select(${selectParts})) else [.] end | first | .$jqPath"
+		else
+			jqExpr=".$jqPath"
 		fi
 
 		# Apply --value: output raw strings without quotes
