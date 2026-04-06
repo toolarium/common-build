@@ -201,7 +201,7 @@ fi
 echo ""
 echo "STEP: verify installed cb executes"
 if [ -x "$INSTALL_DIR/bin/cb" ]; then
-	cbOutput=$("$INSTALL_DIR/bin/cb" --version 2>&1 | head -5)
+	cbOutput=$(CB_HOME="$INSTALL_DIR" "$INSTALL_DIR/bin/cb" --version 2>&1 | head -5)
 	echo "$cbOutput" | grep -q "toolarium"
 	assertEquals "0" "$?" "cb --version prints toolarium banner"
 fi
@@ -240,6 +240,8 @@ assertEquals "1" "$backupsAfterRerun" "still 1 backup after no-change re-run"
 # Now simulate 4 version upgrades: modify .bashrc CB_HOME line before each
 # re-run so the installer detects a change and keeps the backup.
 for i in 2 3 4 5; do
+	# ensure distinct backup timestamps (second-precision filenames)
+	sleep 1
 	# tamper with CB_HOME to simulate a previous version
 	if [ "$(uname)" = "Darwin" ]; then
 		sed -i '' "s|CB_HOME=\"[^\"]*\"|CB_HOME=\"/fake/old/path/v${i}\"|" "$SANDBOX_HOME/.bashrc"

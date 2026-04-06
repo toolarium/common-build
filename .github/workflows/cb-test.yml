@@ -38,6 +38,26 @@ jobs:
       - name: Set executable permissions
         run: chmod -R +x bin/ test/bin/
 
+      - name: cb-read-version-test
+        run: test/bin/cb-read-version-test
+
+      - name: cb-lock-unlock-test
+        run: test/bin/cb-lock-unlock-test
+
+      - name: cb-how-to-test
+        run: test/bin/cb-how-to-test
+
+      - name: cb-json-test
+        run: test/bin/cb-json-test
+
+      - name: cb-install-test
+        run: test/bin/cb-install-test
+
+      - name: cb-install-e2e-test
+        env:
+          CB_INSTALL_TEST_E2E: '1'
+        run: test/bin/cb-install-e2e-test
+
       - name: cb-test
         run: test/bin/cb-test
 
@@ -51,20 +71,21 @@ jobs:
           CB_PROJECT_TEST_NETWORK: '1'
         run: test/bin/cb-project-test
 
+      - name: cb-update-custom-home-test
+        run: test/bin/cb-update-custom-home-test
+
+
       - name: cb-clean-files-test
         run: test/bin/cb-clean-files-test
+
+      - name: cb-version-filter-test
+        run: test/bin/cb-version-filter-test
 
       - name: cb-cleanup-test
         run: test/bin/cb-cleanup-test
 
       - name: cb-filetail-test
         run: test/bin/cb-filetail-test
-
-      - name: cb-json-test
-        run: test/bin/cb-json-test
-
-      - name: cb-hashcode-test
-        run: test/bin/cb-hashcode-test
 
       - name: cb-open-ports-test
         run: test/bin/cb-open-ports-test
@@ -75,28 +96,8 @@ jobs:
       - name: cb-meminfo-test
         run: test/bin/cb-meminfo-test
 
-      - name: cb-read-version-test
-        run: test/bin/cb-read-version-test
-
-      - name: cb-lock-unlock-test
-        run: test/bin/cb-lock-unlock-test
-
-      - name: cb-update-custom-home-test
-        run: test/bin/cb-update-custom-home-test
-
-      - name: cb-how-to-test
-        run: test/bin/cb-how-to-test
-
-      - name: cb-version-filter-test
-        run: test/bin/cb-version-filter-test
-
-      - name: cb-install-test
-        run: test/bin/cb-install-test
-
-      - name: cb-install-e2e-test
-        env:
-          CB_INSTALL_TEST_E2E: '1'
-        run: test/bin/cb-install-e2e-test
+      - name: cb-hashcode-test
+        run: test/bin/cb-hashcode-test
 
 
   #######################################################################
@@ -107,6 +108,28 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - name: cb-read-version-test.bat
+        shell: cmd
+        run: test\bin\cb-read-version-test.bat
+
+      - name: cb-lock-unlock-test.bat
+        shell: cmd
+        run: test\bin\cb-lock-unlock-test.bat
+
+      - name: cb-how-to-test.bat
+        shell: cmd
+        run: test\bin\cb-how-to-test.bat
+
+      - name: cb-install-test.bat
+        shell: cmd
+        run: test\bin\cb-install-test.bat
+
+      - name: cb-install-e2e-test.bat
+        shell: cmd
+        env:
+          CB_INSTALL_TEST_E2E: '1'
+        run: test\bin\cb-install-e2e-test.bat
 
       - name: cb-test.bat
         shell: cmd
@@ -124,9 +147,17 @@ jobs:
           CB_PROJECT_TEST_NETWORK: '1'
         run: test\bin\cb-project-test.bat
 
+      - name: cb-update-custom-home-test.bat
+        shell: cmd
+        run: test\bin\cb-update-custom-home-test.bat
+        
       - name: cb-clean-files-test.bat
         shell: cmd
         run: test\bin\cb-clean-files-test.bat
+
+      - name: cb-version-filter-test.bat
+        shell: cmd
+        run: test\bin\cb-version-filter-test.bat
 
       - name: cb-cleanup-test.bat
         shell: cmd
@@ -135,14 +166,6 @@ jobs:
       - name: cb-filetail-test.bat
         shell: cmd
         run: test\bin\cb-filetail-test.bat
-
-      - name: cb-copysymlink-test.bat
-        shell: cmd
-        run: test\bin\cb-copysymlink-test.bat
-
-      - name: cb-deltree-test.bat
-        shell: cmd
-        run: test\bin\cb-deltree-test.bat
 
       - name: cb-open-ports-test.bat
         shell: cmd
@@ -156,21 +179,13 @@ jobs:
         shell: cmd
         run: test\bin\cb-meminfo-test.bat
 
-      - name: cb-read-version-test.bat
+      - name: cb-copysymlink-test.bat
         shell: cmd
-        run: test\bin\cb-read-version-test.bat
+        run: test\bin\cb-copysymlink-test.bat
 
-      - name: cb-lock-unlock-test.bat
+      - name: cb-deltree-test.bat
         shell: cmd
-        run: test\bin\cb-lock-unlock-test.bat
-
-      - name: cb-update-custom-home-test.bat
-        shell: cmd
-        run: test\bin\cb-update-custom-home-test.bat
-
-      - name: cb-how-to-test.bat
-        shell: cmd
-        run: test\bin\cb-how-to-test.bat
+        run: test\bin\cb-deltree-test.bat
 
       - name: cb-cleanpath-test.bat
         shell: cmd
@@ -183,17 +198,3 @@ jobs:
       - name: cb-download-test.bat
         shell: cmd
         run: test\bin\cb-download-test.bat
-
-      - name: cb-version-filter-test.bat
-        shell: cmd
-        run: test\bin\cb-version-filter-test.bat
-
-      - name: cb-install-test.bat
-        shell: cmd
-        run: test\bin\cb-install-test.bat
-
-      - name: cb-install-e2e-test.bat
-        shell: cmd
-        env:
-          CB_INSTALL_TEST_E2E: '1'
-        run: test\bin\cb-install-e2e-test.bat
