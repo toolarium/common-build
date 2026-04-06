@@ -348,7 +348,9 @@ echo TEST: setCBEnv adds java to PATH when present
 mkdir "%SANDBOX_HOME%\current\java\bin" >nul 2>nul
 echo @echo off > "%SANDBOX_HOME%\current\java\bin\javac.bat"
 set "OUT=%TEMP%\cbt-sej-%RANDOM%.txt"
+set "SAVE_PATH=%PATH%"
 call "%CB%" --setenv > "%OUT%" 2>&1
+set "PATH=%SAVE_PATH%"
 call :ASSERT_OUTPUT_CONTAINS "java" "%OUT%" "setenv mentions java"
 del /f /q "%OUT%" >nul 2>nul
 if exist "%SANDBOX_HOME%\current\java" rmdir /s /q "%SANDBOX_HOME%\current\java" >nul 2>nul
@@ -362,7 +364,9 @@ echo TEST: setCBEnv adds gradle to PATH when present
 mkdir "%SANDBOX_HOME%\current\gradle\bin" >nul 2>nul
 echo @echo off > "%SANDBOX_HOME%\current\gradle\bin\gradle.bat"
 set "OUT=%TEMP%\cbt-seg-%RANDOM%.txt"
+set "SAVE_PATH=%PATH%"
 call "%CB%" --setenv > "%OUT%" 2>&1
+set "PATH=%SAVE_PATH%"
 call :ASSERT_OUTPUT_CONTAINS "gradle" "%OUT%" "setenv mentions gradle"
 del /f /q "%OUT%" >nul 2>nul
 if exist "%SANDBOX_HOME%\current\gradle" rmdir /s /q "%SANDBOX_HOME%\current\gradle" >nul 2>nul
@@ -376,7 +380,9 @@ echo TEST: setCBEnv adds maven to PATH when present
 mkdir "%SANDBOX_HOME%\current\maven\bin" >nul 2>nul
 echo @echo off > "%SANDBOX_HOME%\current\maven\bin\mvn.bat"
 set "OUT=%TEMP%\cbt-sem-%RANDOM%.txt"
+set "SAVE_PATH=%PATH%"
 call "%CB%" --setenv > "%OUT%" 2>&1
+set "PATH=%SAVE_PATH%"
 call :ASSERT_OUTPUT_CONTAINS "maven" "%OUT%" "setenv mentions maven"
 del /f /q "%OUT%" >nul 2>nul
 if exist "%SANDBOX_HOME%\current\maven" rmdir /s /q "%SANDBOX_HOME%\current\maven" >nul 2>nul
@@ -390,7 +396,9 @@ echo TEST: setCBEnv adds node to PATH when present
 mkdir "%SANDBOX_HOME%\current\node" >nul 2>nul
 echo @echo off > "%SANDBOX_HOME%\current\node\node.exe"
 set "OUT=%TEMP%\cbt-sen-%RANDOM%.txt"
+set "SAVE_PATH=%PATH%"
 call "%CB%" --setenv > "%OUT%" 2>&1
+set "PATH=%SAVE_PATH%"
 call :ASSERT_OUTPUT_CONTAINS "node" "%OUT%" "setenv mentions node"
 del /f /q "%OUT%" >nul 2>nul
 if exist "%SANDBOX_HOME%\current\node" rmdir /s /q "%SANDBOX_HOME%\current\node" >nul 2>nul
@@ -408,7 +416,9 @@ echo @echo off > "%SANDBOX_HOME%\current\java\bin\javac.bat"
 echo @echo off > "%SANDBOX_HOME%\current\gradle\bin\gradle.bat"
 echo @echo off > "%SANDBOX_HOME%\current\node\node.exe"
 set "OUT=%TEMP%\cbt-semu-%RANDOM%.txt"
+set "SAVE_PATH=%PATH%"
 call "%CB%" --setenv > "%OUT%" 2>&1
+set "PATH=%SAVE_PATH%"
 call :ASSERT_OUTPUT_CONTAINS "java" "%OUT%" "setenv detects java"
 call :ASSERT_OUTPUT_CONTAINS "gradle" "%OUT%" "setenv detects gradle"
 call :ASSERT_OUTPUT_CONTAINS "node" "%OUT%" "setenv detects node"
@@ -426,7 +436,9 @@ echo TEST: setCBEnv --silent suppresses tool add messages
 mkdir "%SANDBOX_HOME%\current\java\bin" >nul 2>nul
 echo @echo off > "%SANDBOX_HOME%\current\java\bin\javac.bat"
 set "OUT=%TEMP%\cbt-sess-%RANDOM%.txt"
+set "SAVE_PATH=%PATH%"
 call "%CB%" --setenv --silent > "%OUT%" 2>&1
+set "PATH=%SAVE_PATH%"
 :: check that "Add java" is NOT in the output
 findstr /c:"Add java" "%OUT%" >nul 2>nul
 if !ERRORLEVEL! NEQ 0 (

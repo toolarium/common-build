@@ -77,10 +77,11 @@ tailFile() {
 	# ensure tail dies and the FIFO is removed on any exit path
 	trap 'kill "$tail_pid" 2>/dev/null; wait "$tail_pid" 2>/dev/null; rm -f "$fifo"' EXIT INT TERM
 
-	local line
+	local line matched=false
 	while IFS= read -r line; do
 		printf '%s\n' "$line"
 		if echo "$line" | grep -q -- "$SEARCH_PATTERN"; then
+			matched=true
 			break
 		fi
 	done < "$fifo"
@@ -89,7 +90,7 @@ tailFile() {
 	wait "$tail_pid" 2>/dev/null
 	rm -f "$fifo"
 	trap - EXIT INT TERM
-	return 0
+	[ "$matched" = "true" ] && return 0 || return 1
 }
 
 
