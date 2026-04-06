@@ -44,7 +44,7 @@ SEMVER_LIGHT_LIST_REGEXP="^(((0|[1-9]\d*)\.(0|[1-9]\d*)(\.(0|[1-9]\d*))?(-((0|[1
 #########################################################################
 
 versionDir=""
-selectDirectories='ls -d */ | xargs -l basename'
+selectDirectories='for d in */; do basename "$d"; done'
 invertFilter="false"
 majorVersionThreshold=2
 minorVersionThreshold=0

@@ -460,6 +460,8 @@ echo TEST: cb detects build.gradle and invokes gradle
 set "BDIR=%TEMP%\cbt-gbuild-%RANDOM%"
 mkdir "%BDIR%" >nul 2>nul
 echo task hello { doLast { println "Hello" } } > "%BDIR%\build.gradle"
+:: create dummy java dir so cb skips the network-heavy install attempt
+mkdir "%SANDBOX_HOME%\current\java\bin" >nul 2>nul
 set "OUT=%TEMP%\cbt-gb-%RANDOM%.txt"
 pushd "%BDIR%"
 call "%CB%" --verbose --silent hello > "%OUT%" 2>&1
@@ -482,6 +484,7 @@ if !ERRORLEVEL! EQU 0 (
 )
 del /f /q "%OUT%" >nul 2>nul
 if exist "%BDIR%" rmdir /s /q "%BDIR%" >nul 2>nul
+if exist "%SANDBOX_HOME%\current\java" rmdir /s /q "%SANDBOX_HOME%\current\java" >nul 2>nul
 goto :eof
 
 
@@ -492,6 +495,7 @@ echo TEST: cb detects pom.xml and invokes maven
 set "BDIR=%TEMP%\cbt-mbuild-%RANDOM%"
 mkdir "%BDIR%" >nul 2>nul
 (echo ^<project^>^<modelVersion^>4.0.0^</modelVersion^>^<groupId^>t^</groupId^>^<artifactId^>t^</artifactId^>^<version^>1^</version^>^</project^>) > "%BDIR%\pom.xml"
+mkdir "%SANDBOX_HOME%\current\java\bin" >nul 2>nul
 set "OUT=%TEMP%\cbt-mb-%RANDOM%.txt"
 pushd "%BDIR%"
 call "%CB%" --verbose --silent validate > "%OUT%" 2>&1
@@ -512,6 +516,7 @@ if !ERRORLEVEL! EQU 0 (
 )
 del /f /q "%OUT%" >nul 2>nul
 if exist "%BDIR%" rmdir /s /q "%BDIR%" >nul 2>nul
+if exist "%SANDBOX_HOME%\current\java" rmdir /s /q "%SANDBOX_HOME%\current\java" >nul 2>nul
 goto :eof
 
 
@@ -522,6 +527,7 @@ echo TEST: cb detects package.json and invokes node/npm
 set "BDIR=%TEMP%\cbt-nbuild-%RANDOM%"
 mkdir "%BDIR%" >nul 2>nul
 echo {"name":"test","version":"1.0.0","scripts":{"test":"echo test"}} > "%BDIR%\package.json"
+mkdir "%SANDBOX_HOME%\current\java\bin" >nul 2>nul
 set "OUT=%TEMP%\cbt-nb-%RANDOM%.txt"
 pushd "%BDIR%"
 call "%CB%" --verbose --silent test > "%OUT%" 2>&1
@@ -548,6 +554,7 @@ if !ERRORLEVEL! EQU 0 (
 )
 del /f /q "%OUT%" >nul 2>nul
 if exist "%BDIR%" rmdir /s /q "%BDIR%" >nul 2>nul
+if exist "%SANDBOX_HOME%\current\java" rmdir /s /q "%SANDBOX_HOME%\current\java" >nul 2>nul
 goto :eof
 
 
