@@ -68,16 +68,14 @@ set "CB_INSTALLER_SILENT=false"
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CHECK_PARAMETER
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-if %0X==X goto COMMON_BUILD_INSTALL
+if %1X==X goto COMMON_BUILD_INSTALL
 if .%1==.-h goto HELP
 if .%1==.--help goto HELP
 if .%1==.-v goto VERSION
 if .%1==.--version goto VERSION
-if .%1==.--silent set "CB_INSTALLER_SILENT=true" & shift
-if .%1==.--force set "CB_FORCE_INSALL=true" & shift
-if .%1==.--draft set CB_INSTALL_ONLY_STABLE=false & shift
-if .%1==.--force set "CB_FORCE_INSALL=true" & shift
-if .%1==.--silent set "CB_INSTALLER_SILENT=true" & shift
+if .%1==.--silent set "CB_INSTALLER_SILENT=true" & shift & goto CHECK_PARAMETER
+if .%1==.--force set "CB_FORCE_INSALL=true" & shift & goto CHECK_PARAMETER
+if .%1==.--draft set "CB_INSTALL_ONLY_STABLE=false" & shift & goto CHECK_PARAMETER
 set "CB_VERSION=%CB_VERSION% %1"
 shift
 goto CHECK_PARAMETER

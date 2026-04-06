@@ -233,6 +233,7 @@ initialBackups=$(countBackupsNextToProfile)
 assertEquals "1" "$initialBackups" "1 backup after first install"
 
 # Re-run with same CB_HOME → no change → new backup deleted
+sleep 1
 runInstaller
 backupsAfterRerun=$(countBackupsNextToProfile)
 assertEquals "1" "$backupsAfterRerun" "still 1 backup after no-change re-run"

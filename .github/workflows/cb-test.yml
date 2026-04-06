@@ -121,6 +121,18 @@ jobs:
         shell: cmd
         run: test\bin\cb-how-to-test.bat
 
+      - name: cb-timestamp-test.bat
+        shell: cmd
+        run: test\bin\cb-timestamp-test.bat
+
+      - name: cb-download-test.bat
+        shell: cmd
+        run: test\bin\cb-download-test.bat
+
+      - name: cb-cleanpath-test.bat
+        shell: cmd
+        run: test\bin\cb-cleanpath-test.bat
+
       - name: cb-install-test.bat
         shell: cmd
         run: test\bin\cb-install-test.bat
@@ -187,14 +199,3 @@ jobs:
         shell: cmd
         run: test\bin\cb-deltree-test.bat
 
-      - name: cb-cleanpath-test.bat
-        shell: cmd
-        run: test\bin\cb-cleanpath-test.bat
-
-      - name: cb-timestamp-test.bat
-        shell: cmd
-        run: test\bin\cb-timestamp-test.bat
-
-      - name: cb-download-test.bat
-        shell: cmd
-        run: test\bin\cb-download-test.bat
