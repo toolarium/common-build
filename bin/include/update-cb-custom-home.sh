@@ -125,8 +125,9 @@ if [ -n "$EXISTING_REPO" ]; then
 	elif $GIT_CLIENT -C "$EXISTING_REPO" diff --quiet HEAD @{u} -- VERSION; then
 		eval ". \"$CB_HOME/bin/include/read-version.sh\" ${EXISTING_REPO}/VERSION false"
 		CB_CUSTOM_CONFIG_VERSION="$versionNumber"
+		[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Newest version $CB_CUSTOM_CONFIG_VERSION is already available."
 		eval "$CB_HOME/bin/include/lock-unlock.sh" --unlock "$LOCKFILE"
-		return 0
+		return 0 2>/dev/null || exit 0
 	else
 		[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Version: $($GIT_CLIENT -C "$EXISTING_REPO" show HEAD:VERSION) -> remote: $($GIT_CLIENT -C "$EXISTING_REPO" show @{u}:VERSION)"
 	fi

@@ -189,7 +189,7 @@ if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" start %1
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :CHECK_PARAMETER
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-if %0X==X goto COMMON_BUILD
+if %1X==X goto COMMON_BUILD
 if .%1==.--verbose shift & set "CB_VERBOSE=true"
 if .%1==.--silent shift & set "CB_INSTALL_USER_COMMIT=false" & set "CB_INSTALL_SILENT=true"
 if .%1==.--force shift & set "CB_INSTALL_OVERWRITE_DIST=true"

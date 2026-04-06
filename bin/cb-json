@@ -108,8 +108,8 @@ cutJsonElement() {
 #########################################################################
 parseJson() {
 	if [ -n "$JQ" ]; then
-		# Build the jq navigation path from nameFilter (strip # markers used by --filter)
-		jqPath=$(echo "$nameFilter" | sed 's/#//g')
+		# Build the jq navigation path from nameFilter (strip # markers and leading dot)
+		jqPath=$(echo "$nameFilter" | sed 's/#//g; s/^\.//')
 
 		# Build the full jq filter expression
 		jqExpr=".$jqPath"
@@ -121,7 +121,13 @@ parseJson() {
 				key="${f%:*}"
 				val="${f#*:}"
 				[ -n "$selectParts" ] && selectParts="$selectParts and "
-				selectParts="${selectParts}.${key} == \"${val}\""
+				# detect booleans and numbers so they are not quoted
+				case "$val" in
+					true|false|null|[0-9]*)
+						selectParts="${selectParts}.${key} == ${val}" ;;
+					*)
+						selectParts="${selectParts}.${key} == \"${val}\"" ;;
+				esac
 			done
 			jqExpr="${jqExpr} | if type == \"array\" then map(select(${selectParts}))[] else . end"
 		fi
