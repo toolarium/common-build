@@ -121,7 +121,7 @@ assertBuildSuccess() {
 		FAIL=$((FAIL+1))
 		echo "  FAIL: $msg (exit code $exitCode, log: $logFile)"
 		# show last 10 lines on failure
-		tail -10 "$logFile" 2>/dev/null | sed 's/^/    | /'
+		tail -20 "$logFile" 2>/dev/null | sed 's/^/    | /'
 	fi
 }
 

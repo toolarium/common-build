@@ -25,7 +25,7 @@ concurrency:
 jobs:
 
   #######################################################################
-  # Linux / macOS - shell test scripts (test/bin/*)
+  # Linux - shell test scripts (test/bin/*)
   #
   # All tools are installed via cb --install into a temp sandbox that
   # the test scripts create themselves — we do NOT install anything
@@ -33,11 +33,8 @@ jobs:
   # actions.  This ensures that every test exercises the exact tool
   # versions controlled by conf/tool-version-default.properties.
   #######################################################################
-  test-scripts-shell:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+  cb-test-linux:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -82,6 +79,79 @@ jobs:
       - name: cb-update-custom-home-test
         run: test/bin/cb-update-custom-home-test
 
+      - name: cb-clean-files-test
+        run: test/bin/cb-clean-files-test
+
+      - name: cb-version-filter-test
+        run: test/bin/cb-version-filter-test
+
+      - name: cb-cleanup-test
+        run: test/bin/cb-cleanup-test
+
+      - name: cb-filetail-test
+        run: test/bin/cb-filetail-test
+
+      - name: cb-open-ports-test
+        run: test/bin/cb-open-ports-test
+
+      - name: cb-dockterm-test
+        run: test/bin/cb-dockterm-test
+
+      - name: cb-meminfo-test
+        run: test/bin/cb-meminfo-test
+
+      - name: cb-hashcode-test
+        run: test/bin/cb-hashcode-test
+
+
+  #######################################################################
+  # macOS - shell test scripts (test/bin/*)
+  #######################################################################
+  cb-test-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set executable permissions
+        run: chmod -R +x bin/ test/bin/
+
+      - name: cb-read-version-test
+        run: test/bin/cb-read-version-test
+
+      - name: cb-lock-unlock-test
+        run: test/bin/cb-lock-unlock-test
+
+      - name: cb-how-to-test
+        run: test/bin/cb-how-to-test
+
+      - name: cb-json-test
+        run: test/bin/cb-json-test
+
+      - name: cb-install-test
+        run: test/bin/cb-install-test
+
+      - name: cb-install-e2e-test
+        env:
+          CB_INSTALL_TEST_E2E: '1'
+          GITHUB_TOKEN: ${{ github.token }}
+        run: test/bin/cb-install-e2e-test
+
+      - name: cb-test
+        run: test/bin/cb-test
+
+      - name: cb-project-test (scaffold)
+        run: test/bin/cb-project-test
+
+      - name: cb-project-test (full build)
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.full_project_test)
+        env:
+          CB_PROJECT_TEST_BUILD: '1'
+          CB_PROJECT_TEST_NETWORK: '1'
+        run: test/bin/cb-project-test
+
+      - name: cb-update-custom-home-test
+        run: test/bin/cb-update-custom-home-test
 
       - name: cb-clean-files-test
         run: test/bin/cb-clean-files-test
@@ -111,7 +181,7 @@ jobs:
   #######################################################################
   # Windows - batch test scripts (test/bin/*.bat)
   #######################################################################
-  test-scripts-windows:
+  cb-test-windows:
     runs-on: windows-latest
     steps:
       - name: Checkout repository

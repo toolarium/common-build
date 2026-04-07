@@ -1515,7 +1515,12 @@ installCb() {
 							mv $CB_TOOL_VERSION_INSTALLED_TMPFILE2 $CB_TOOL_VERSION_INSTALLED >/dev/null 2>&1
 							rm -f "$CB_CURRENT_PATH/$CB_INSTALL_PKG" >/dev/null 2>&1
 							if [ -d "$CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME" ]; then
-								ln -s $CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME $CB_CURRENT_PATH/$CB_INSTALL_PKG >/dev/null 2>&1
+								# macOS JDK: bin/ is inside Contents/Home/
+								if ! [ -d "$CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME/bin" ] && [ -d "$CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME/Contents/Home/bin" ]; then
+									ln -s "$CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME/Contents/Home" "$CB_CURRENT_PATH/$CB_INSTALL_PKG" >/dev/null 2>&1
+								else
+									ln -s $CB_DEVTOOLS/$CB_PACKAGE_DIRECTORY_NAME $CB_CURRENT_PATH/$CB_INSTALL_PKG >/dev/null 2>&1
+								fi
 							else
 								echo "${CB_LINEHEADER}Could not set default for $CB_INSTALL_PKG."
 							fi
