@@ -210,6 +210,7 @@ if "!BUILD_RC!"=="0" (
 ) else (
 	set /a FAIL+=1
 	echo   FAIL: build: cb exit !BUILD_RC! - log: !BUILD_LOG!
+	powershell -NoProfile -Command "Get-Content '!BUILD_LOG!' -Tail 5 2>$null | ForEach-Object { Write-Host ('    | ' + $_) }"
 )
 goto :eof
 
