@@ -104,15 +104,17 @@ if [%CB_INSTALLER_SILENT%] equ [false] (
 	pause
 	echo\  )
 
-:: check connection
-ping 8.8.8.8 -n 1 -w 1000 >nul 2>nul
-if errorlevel 1 (set "ERROR_INFO=No internet connection detected." & goto INSTALL_FAILED)
-
-:: get the list of release from GitHub
 :: create PowerShell helper for GitHub API auth (avoids rate limits when GITHUB_TOKEN is set)
 set "cbGithubAuth=%CB_TEMP%\cb-github-auth.ps1"
 > "%cbGithubAuth%" echo $githubHeader = @{}
 >> "%cbGithubAuth%" echo if ^($env:GITHUB_TOKEN^) { $githubHeader['Authorization'] = 'token ' + $env:GITHUB_TOKEN }
+
+:: check connection (try ping first, fall back to DNS lookup if ICMP is blocked)
+ping 8.8.8.8 -n 1 -w 1000 >nul 2>nul
+if errorlevel 1 nslookup github.com >nul 2>nul
+if errorlevel 1 (set "ERROR_INFO=No internet connection detected." & goto INSTALL_FAILED)
+
+:: get the list of release from GitHub
 set CB_REMOTE_VERSION= & set CB_DOWNLOAD_VERSION_URL= & set ERROR_DETAIL_INFO= & set ERROR_INFO=
 set cbInfoTemp=%CB_TEMP%\toolarium-common-build_info%RANDOM%%RANDOM%.txt & set cbErrorTemp=%CB_TEMP%\toolarium-common-build_error%RANDOM%%RANDOM%.txt
 del /f /q %cbInfoTemp% 2>nul & del /f /q %cbErrorTemp% 2>nul
