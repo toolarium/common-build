@@ -113,7 +113,7 @@ All changes should include tests. Test scripts live in `test/bin/` as cross-plat
 **Key rules:**
 - Tests must create a sandbox `CB_HOME` under `$TMPDIR`/`%TEMP%` — never use the project directory
 - Tests must clean up after themselves
-- Use `CB_EXTERNAL_<TOOL>_HOME` to point at existing tool installs for local testing
+- Tools are always installed via `cb --install <tool> --default` into the sandbox
 
 Run the full suite:
 ```bash

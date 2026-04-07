@@ -72,15 +72,9 @@ Invokes `cb` (no arguments) in the created project directory and verifies:
 - Build exits with code 0
 - On failure, the last 10 lines of the build log are printed for diagnosis
 
-### Tool resolution order
+### Tool installation
 
-For each tool (java, gradle, node):
-
-1. **`CB_EXTERNAL_<TOOL>_HOME`** environment variable — link an existing install
-2. **Auto-detect** from `c:\devtools\toolarium-common-build-*\current\<tool>` (Windows local convention)
-3. **`cb --install <tool> --default`** into the sandbox — uses the version from `conf/tool-version-default.properties`
-
-In CI, step 3 is what always runs (no external tools pre-installed). Locally, steps 1 or 2 save time by reusing an existing installation.
+All tools (java, gradle, node) are installed into the sandbox via `cb --install <tool> --default`, using the version from `conf/tool-version-default.properties`. If the installation fails, the test fails immediately.
 
 
 ## Running tests locally
@@ -95,15 +89,13 @@ bash test/bin/cb-project-test
 test\bin\cb-project-test.bat
 ```
 
-If Java is not available locally and cannot be auto-detected, the test skips with a message.
-
 ### With build verification
 
 ```bash
 CB_PROJECT_TEST_BUILD=1 bash test/bin/cb-project-test
 ```
 
-This installs Java and Gradle into the sandbox (if not already linked) and runs `cb` in each scaffolded project.
+This installs Java and Gradle into the sandbox and runs `cb` in each scaffolded project.
 
 ### Including Node-based project types
 
@@ -112,23 +104,6 @@ CB_PROJECT_TEST_BUILD=1 CB_PROJECT_TEST_NETWORK=1 bash test/bin/cb-project-test
 ```
 
 Adds Group C (vuejs, nuxtjs, react). Node is installed via `cb --install node --default` into the sandbox.
-
-### Pointing at existing tool installations (skip download)
-
-```bash
-CB_EXTERNAL_JAVA_HOME=/path/to/java \
-CB_EXTERNAL_GRADLE_HOME=/path/to/gradle \
-CB_PROJECT_TEST_BUILD=1 \
-bash test/bin/cb-project-test
-```
-As example:
-
-```bash
-CB_EXTERNAL_JAVA_HOME=/c/devtools/jdk-21.0.2+13 \
-CB_EXTERNAL_GRADLE_HOME=/c/devtools/gradle-8.13 \
-CB_PROJECT_TEST_BUILD=1 \
-bash test/bin/cb-project-test
-```
 
 ### Running all tests
 
@@ -208,7 +183,4 @@ Always do a dry run first. It runs all tests, builds the archives, and shows the
 | `CB_PROJECT_TEST_BUILD` | (unset) | Set to `1` to enable build phase (run `cb` in each project) |
 | `CB_PROJECT_TEST_NETWORK` | (unset) | Set to `1` to include Group C (vuejs, nuxtjs, react) |
 | `CB_INSTALL_TEST_E2E` | (unset) | Set to `1` to run the end-to-end installer test |
-| `CB_EXTERNAL_JAVA_HOME` | (auto-detect) | Path to an existing Java installation to link into sandbox |
-| `CB_EXTERNAL_GRADLE_HOME` | (auto-detect) | Path to an existing Gradle installation to link into sandbox |
-| `CB_EXTERNAL_NODE_HOME` | (auto-detect) | Path to an existing Node installation to link into sandbox |
 | `CB_INSTALL_NO_PERSIST` | (unset) | Set to `true` to prevent `cb-install.bat` from writing to user registry (used by E2E test) |

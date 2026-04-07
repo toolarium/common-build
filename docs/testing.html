@@ -120,16 +120,9 @@ Invokes <code>cb</code> (no arguments) in the created project directory and veri
 <li>On failure, the last 10 lines of the build log are printed for diagnosis</li>
 </ul>
 
-<h3>Tool resolution order</h3>
+<h3>Tool installation</h3>
 
-<p>For each tool (java, gradle, node):</p>
-<ol>
-<li><strong><code>CB_EXTERNAL_&lt;TOOL&gt;_HOME</code></strong> environment variable &mdash; link an existing install</li>
-<li><strong>Auto-detect</strong> from <code>c:\devtools\toolarium-common-build-*\current\&lt;tool&gt;</code> (Windows local convention)</li>
-<li><strong><code>cb --install &lt;tool&gt; --default</code></strong> into the sandbox &mdash; ensures the version from <code>tool-version-default.properties</code> is used</li>
-</ol>
-
-<p>In CI, step 3 is what always runs (no external tools pre-installed). Locally, steps 1 or 2 save time by reusing an existing installation.</p>
+<p>All tools (java, gradle, node) are installed into the sandbox via <code>cb --install &lt;tool&gt; --default</code>, using the version from <code>conf/tool-version-default.properties</code>. If the installation fails, the test fails immediately.</p>
 
 
 <h2>Running tests locally</h2>
@@ -143,14 +136,12 @@ bash test/bin/cb-project-test
 test\bin\cb-project-test.bat
 </code></pre>
 
-<p>If Java is not available locally and cannot be auto-detected, the test skips with a message.</p>
-
 <h3>With build verification</h3>
 
 <pre><code>CB_PROJECT_TEST_BUILD=1 bash test/bin/cb-project-test
 </code></pre>
 
-<p>This installs Java and Gradle into the sandbox (if not already linked) and runs <code>cb</code> in each scaffolded project.</p>
+<p>This installs Java and Gradle into the sandbox and runs <code>cb</code> in each scaffolded project.</p>
 
 <h3>Including Node-based project types</h3>
 
@@ -158,22 +149,6 @@ test\bin\cb-project-test.bat
 </code></pre>
 
 <p>Adds Group C (vuejs, nuxtjs, react). Node is installed via <code>cb --install node --default</code> into the sandbox.</p>
-
-<h3>Pointing at existing tool installations (skip download)</h3>
-
-<pre><code>CB_EXTERNAL_JAVA_HOME=/path/to/java \
-CB_EXTERNAL_GRADLE_HOME=/path/to/gradle \
-CB_PROJECT_TEST_BUILD=1 \
-bash test/bin/cb-project-test
-</code></pre>
-
-As example:
-
-<pre><code>CB_EXTERNAL_JAVA_HOME=/c/devtools/jdk-21.0.2+13 \
-CB_EXTERNAL_GRADLE_HOME=/c/devtools/gradle-8.13 \
-CB_PROJECT_TEST_BUILD=1 \
-bash test/bin/cb-project-test
-</code></pre>
 <h3>Running all tests</h3>
 
 <pre><code># Shell
@@ -262,9 +237,6 @@ set CB_INSTALL_TEST_E2E=1 &amp;&amp; test\bin\cb-install-e2e-test.bat
 <tr><td><code>CB_PROJECT_TEST_BUILD</code></td><td>(unset)</td><td>Set to <code>1</code> to enable build phase (run <code>cb</code> in each project)</td></tr>
 <tr><td><code>CB_PROJECT_TEST_NETWORK</code></td><td>(unset)</td><td>Set to <code>1</code> to include Group C (vuejs, nuxtjs, react)</td></tr>
 <tr><td><code>CB_INSTALL_TEST_E2E</code></td><td>(unset)</td><td>Set to <code>1</code> to run the end-to-end installer test</td></tr>
-<tr><td><code>CB_EXTERNAL_JAVA_HOME</code></td><td>(auto-detect)</td><td>Path to an existing Java installation to link into sandbox</td></tr>
-<tr><td><code>CB_EXTERNAL_GRADLE_HOME</code></td><td>(auto-detect)</td><td>Path to an existing Gradle installation to link into sandbox</td></tr>
-<tr><td><code>CB_EXTERNAL_NODE_HOME</code></td><td>(auto-detect)</td><td>Path to an existing Node installation to link into sandbox</td></tr>
 <tr><td><code>CB_INSTALL_NO_PERSIST</code></td><td>(unset)</td><td>Set to <code>true</code> to prevent <code>cb-install.bat</code> from writing to user registry (used by E2E test)</td></tr>
 </tbody>
 </table>

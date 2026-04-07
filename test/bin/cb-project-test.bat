@@ -46,65 +46,21 @@ echo Setting up sandbox tools...
 
 :: --- Java ---
 set "HAS_JAVA=false"
-if defined CB_EXTERNAL_JAVA_HOME (
-	if exist "%CB_EXTERNAL_JAVA_HOME%\bin" (
-		mklink /J "%SANDBOX_HOME%\current\java" "%CB_EXTERNAL_JAVA_HOME%" >nul 2>nul
-		echo   -^> linked java from %CB_EXTERNAL_JAVA_HOME%
-	)
-)
-if not exist "%SANDBOX_HOME%\current\java\bin" (
-	for /d %%D in ("c:\devtools\toolarium-common-build-*") do (
-		if not exist "%SANDBOX_HOME%\current\java" if exist "%%D\current\java\bin" (
-			mklink /J "%SANDBOX_HOME%\current\java" "%%D\current\java" >nul 2>nul
-			echo   -^> linked java from %%D\current\java
-		)
-	)
-)
+echo   -^> installing java via cb --install into sandbox...
+call "%CB%" --silent --install java --default >nul 2>&1
 if exist "%SANDBOX_HOME%\current\java\bin" set "HAS_JAVA=true"
 
 :: --- Gradle ---
 set "HAS_GRADLE=false"
-if defined CB_EXTERNAL_GRADLE_HOME (
-	if exist "%CB_EXTERNAL_GRADLE_HOME%\bin" (
-		mklink /J "%SANDBOX_HOME%\current\gradle" "%CB_EXTERNAL_GRADLE_HOME%" >nul 2>nul
-		echo   -^> linked gradle from %CB_EXTERNAL_GRADLE_HOME%
-	)
-)
-if not exist "%SANDBOX_HOME%\current\gradle\bin" (
-	for /d %%D in ("c:\devtools\toolarium-common-build-*") do (
-		if not exist "%SANDBOX_HOME%\current\gradle" if exist "%%D\current\gradle\bin" (
-			mklink /J "%SANDBOX_HOME%\current\gradle" "%%D\current\gradle" >nul 2>nul
-			echo   -^> linked gradle from %%D\current\gradle
-		)
-	)
-)
-if not exist "%SANDBOX_HOME%\current\gradle\bin" (
-	echo   -^> installing gradle via cb --install into sandbox...
-	call "%CB%" --silent --install gradle --default >nul 2>&1
-)
+echo   -^> installing gradle via cb --install into sandbox...
+call "%CB%" --silent --install gradle --default >nul 2>&1
 if exist "%SANDBOX_HOME%\current\gradle\bin" set "HAS_GRADLE=true"
 
 :: --- Node (only when CB_PROJECT_TEST_NETWORK=1) ---
 set "HAS_NODE=false"
 if "%CB_PROJECT_TEST_NETWORK%"=="1" (
-	if defined CB_EXTERNAL_NODE_HOME (
-		if exist "%CB_EXTERNAL_NODE_HOME%" (
-			mklink /J "%SANDBOX_HOME%\current\node" "%CB_EXTERNAL_NODE_HOME%" >nul 2>nul
-			echo   -^> linked node from %CB_EXTERNAL_NODE_HOME%
-		)
-	)
-	if not exist "%SANDBOX_HOME%\current\node" (
-		for /d %%D in ("c:\devtools\toolarium-common-build-*") do (
-			if not exist "%SANDBOX_HOME%\current\node" if exist "%%D\current\node" (
-				mklink /J "%SANDBOX_HOME%\current\node" "%%D\current\node" >nul 2>nul
-				echo   -^> linked node from %%D\current\node
-			)
-		)
-	)
-	if not exist "%SANDBOX_HOME%\current\node" (
-		echo   -^> installing node via cb --install into sandbox...
-		call "%CB%" --silent --install node --default >nul 2>&1
-	)
+	echo   -^> installing node via cb --install into sandbox...
+	call "%CB%" --silent --install node --default >nul 2>&1
 	if exist "%SANDBOX_HOME%\current\node" set "HAS_NODE=true"
 )
 
@@ -119,9 +75,14 @@ if not exist "%SANDBOX%" echo ERROR: could not create sandbox %SANDBOX% & exit /
 if not exist "%CB%" echo ERROR: %CB% not found & call :CLEANUP_ALL & exit /b 1
 
 if "!HAS_JAVA!"=="false" (
-	echo SKIP: java not available - set CB_EXTERNAL_JAVA_HOME or install java.
+	echo FAIL: java not available - cb --install java failed.
 	call :CLEANUP_ALL
-	exit /b 0
+	exit /b 1
+)
+if "!HAS_GRADLE!"=="false" (
+	echo FAIL: gradle not available - cb --install gradle failed.
+	call :CLEANUP_ALL
+	exit /b 1
 )
 
 echo\
@@ -151,6 +112,11 @@ call :RUN_TYPE  11 "my-test-documentation"       "documentation"       my test-d
 call :RUN_TYPE  12 "my-test-container"           "container"           my test-description
 call :RUN_TYPE  13 "my-test-org-config"          "organization-config" my test-description
 
+if "%CB_PROJECT_TEST_NETWORK%"=="1" if "!HAS_NODE!"=="false" (
+	echo FAIL: node not available - cb --install node failed.
+	call :CLEANUP_ALL
+	exit /b 1
+)
 if "%CB_PROJECT_TEST_NETWORK%"=="1" (
 	echo\
 	echo =========================================

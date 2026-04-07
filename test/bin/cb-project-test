@@ -38,45 +38,15 @@ export CB_HOME="$SANDBOX_HOME"
 CB="$SANDBOX_HOME/bin/cb"
 
 #########################################################################
-# Link external tools into sandbox or install them via cb
+# Install tools into sandbox via cb --install
 #########################################################################
-linkOrInstallTool() {
-	local toolName="$1" extVar="$2" fallbackGlob="$3"
-	local extPath="${!extVar:-}"
+installTool() {
+	local toolName="$1"
 
-	# try env var (e.g. CB_EXTERNAL_JAVA_HOME)
-	if [ -n "$extPath" ] && [ -d "$extPath/bin" ]; then
-		ln -s "$extPath" "$SANDBOX_HOME/current/$toolName" 2>/dev/null
-		echo "  -> linked $toolName from $extPath"
-		return 0
-	fi
-
-	# try standard devtools path (Windows git-bash convention)
-	if [ -z "$extPath" ] && [ -n "$fallbackGlob" ]; then
-		for d in $fallbackGlob; do
-			if [ -d "$d/bin" ]; then
-				ln -s "$d" "$SANDBOX_HOME/current/$toolName" 2>/dev/null
-				echo "  -> linked $toolName from $d"
-				return 0
-			fi
-		done
-	fi
-
-	# install via cb into the sandbox (safe — CB_HOME is temp)
 	echo "  -> installing $toolName via cb --install (into sandbox)..."
 	"$CB" --silent --install "$toolName" --default >/dev/null 2>&1
 	if [ -d "$SANDBOX_HOME/current/$toolName/bin" ] || [ -d "$SANDBOX_HOME/current/$toolName" ]; then
 		echo "  -> $toolName installed into sandbox"
-		return 0
-	fi
-
-	# cb --install failed — fall back to well-known system env var (e.g. JAVA_HOME)
-	local sysVar
-	sysVar="$(echo "${toolName}" | tr '[:lower:]' '[:upper:]')_HOME"
-	local sysPath="${!sysVar:-}"
-	if [ -n "$sysPath" ] && [ -d "$sysPath/bin" ]; then
-		ln -s "$sysPath" "$SANDBOX_HOME/current/$toolName" 2>/dev/null
-		echo "  -> WARNING: cb --install $toolName failed, falling back to $sysVar=$sysPath"
 		return 0
 	fi
 
@@ -85,8 +55,8 @@ linkOrInstallTool() {
 }
 
 echo "Setting up sandbox tools..."
-linkOrInstallTool java    CB_EXTERNAL_JAVA_HOME    "/c/devtools/toolarium-common-build-*/current/java"
-linkOrInstallTool gradle  CB_EXTERNAL_GRADLE_HOME  "/c/devtools/toolarium-common-build-*/current/gradle"
+installTool java
+installTool gradle
 
 HAS_JAVA=false
 HAS_GRADLE=false
@@ -95,7 +65,7 @@ HAS_NODE=false
 [ -d "$SANDBOX_HOME/current/gradle/bin" ] && HAS_GRADLE=true
 
 if [ "$CB_PROJECT_TEST_NETWORK" = "1" ]; then
-	linkOrInstallTool node CB_EXTERNAL_NODE_HOME "/c/devtools/toolarium-common-build-*/current/node"
+	installTool node
 	[ -d "$SANDBOX_HOME/current/node" ] && HAS_NODE=true
 fi
 
@@ -227,8 +197,12 @@ echo ""
 [ ! -x "$CB" ] && echo "ERROR: $CB not found or not executable" && exit 1
 
 if [ "$HAS_JAVA" != "true" ]; then
-	echo "SKIP: java not available — set CB_EXTERNAL_JAVA_HOME or install java."
-	exit 0
+	echo "FAIL: java not available — cb --install java failed."
+	exit 1
+fi
+if [ "$HAS_GRADLE" != "true" ]; then
+	echo "FAIL: gradle not available — cb --install gradle failed."
+	exit 1
 fi
 
 echo "========================================="
@@ -251,6 +225,10 @@ runProjectType 12 "my-test-container"           "$(labelFor 12)" my test-descrip
 runProjectType 13 "my-test-org-config"          "$(labelFor 13)" my test-description
 
 if [ "$CB_PROJECT_TEST_NETWORK" = "1" ]; then
+	if [ "$HAS_NODE" != "true" ]; then
+		echo "FAIL: node not available — cb --install node failed."
+		exit 1
+	fi
 	echo ""
 	echo "========================================="
 	echo "Group C: Node-based project types"
