@@ -46,22 +46,34 @@ echo Setting up sandbox tools...
 
 :: --- Java ---
 set "HAS_JAVA=false"
+set "INSTALL_LOG=!SANDBOX_HOME!\install-java.log"
 echo   -^> installing java via cb --install into sandbox...
-call "%CB%" --silent --install java --default >nul 2>&1
-if exist "%SANDBOX_HOME%\current\java\bin" set "HAS_JAVA=true"
+call "%CB%" --install java --default > "!INSTALL_LOG!" 2>&1
+if exist "%SANDBOX_HOME%\current\java\bin" (set "HAS_JAVA=true") else (
+	echo   -^> WARNING: java install failed, log:
+	type "!INSTALL_LOG!"
+)
 
 :: --- Gradle ---
 set "HAS_GRADLE=false"
+set "INSTALL_LOG=!SANDBOX_HOME!\install-gradle.log"
 echo   -^> installing gradle via cb --install into sandbox...
-call "%CB%" --silent --install gradle --default >nul 2>&1
-if exist "%SANDBOX_HOME%\current\gradle\bin" set "HAS_GRADLE=true"
+call "%CB%" --install gradle --default > "!INSTALL_LOG!" 2>&1
+if exist "%SANDBOX_HOME%\current\gradle\bin" (set "HAS_GRADLE=true") else (
+	echo   -^> WARNING: gradle install failed, log:
+	type "!INSTALL_LOG!"
+)
 
 :: --- Node (only when CB_PROJECT_TEST_NETWORK=1) ---
 set "HAS_NODE=false"
 if "%CB_PROJECT_TEST_NETWORK%"=="1" (
+	set "INSTALL_LOG=!SANDBOX_HOME!\install-node.log"
 	echo   -^> installing node via cb --install into sandbox...
-	call "%CB%" --silent --install node --default >nul 2>&1
-	if exist "%SANDBOX_HOME%\current\node" set "HAS_NODE=true"
+	call "%CB%" --install node --default > "!INSTALL_LOG!" 2>&1
+	if exist "%SANDBOX_HOME%\current\node" (set "HAS_NODE=true") else (
+		echo   -^> WARNING: node install failed, log:
+		type "!INSTALL_LOG!"
+	)
 )
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

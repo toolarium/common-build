@@ -42,15 +42,17 @@ CB="$SANDBOX_HOME/bin/cb"
 #########################################################################
 installTool() {
 	local toolName="$1"
+	local installLog="$SANDBOX_HOME/install-${toolName}.log"
 
 	echo "  -> installing $toolName via cb --install (into sandbox)..."
-	"$CB" --silent --install "$toolName" --default >/dev/null 2>&1
+	"$CB" --install "$toolName" --default >"$installLog" 2>&1
 	if [ -d "$SANDBOX_HOME/current/$toolName/bin" ] || [ -d "$SANDBOX_HOME/current/$toolName" ]; then
 		echo "  -> $toolName installed into sandbox"
 		return 0
 	fi
 
-	echo "  -> WARNING: $toolName install failed"
+	echo "  -> WARNING: $toolName install failed, log:"
+	cat "$installLog" 2>/dev/null
 	return 1
 }
 
