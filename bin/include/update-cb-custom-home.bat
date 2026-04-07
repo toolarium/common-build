@@ -73,6 +73,7 @@ if %HAS_UPSTREAM% NEQ 0 goto :QUICK_CHECK_END
 set "VERSION_CHANGED=%ERRORLEVEL%"
 if %VERSION_CHANGED% EQU 0 call %CB_HOME%\bin\include\read-version "%EXISTING_REPO%\VERSION" false
 if %VERSION_CHANGED% EQU 0 set "CB_CUSTOM_CONFIG_VERSION=%version.number%"
+if %VERSION_CHANGED% EQU 0 if .%CB_VERBOSE%==.true echo %CB_LINEHEADER%Newest version %CB_CUSTOM_CONFIG_VERSION% is already available.
 if %VERSION_CHANGED% EQU 0 call "%CB_HOME%\bin\include\lock-unlock.bat" --unlock "%LOCKFILE%" & endlocal & ( set CB_CUSTOM_CONFIG_VERSION=%CB_CUSTOM_CONFIG_VERSION% ) & exit /b 0
 if .%CB_VERBOSE%==.true for /f %%i in ('%GIT_CLIENT% -C "%EXISTING_REPO%" show HEAD:VERSION') do set "LOCAL=%%i"
 if .%CB_VERBOSE%==.true for /f %%i in ('%GIT_CLIENT% -C "%EXISTING_REPO%" show @{u}:VERSION') do set "REMOTE=%%i"

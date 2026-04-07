@@ -155,8 +155,8 @@ getTypeConfiguration() {
 		count=$((count+1))
 	done < "$1"
 	
-	[ -z "$3" ] && echo "$configValue" | xargs | sed 's/|/\n/g' 2>/dev/null
-	[ -n "$3" ] && [ "$3" = "true" ] && echo "${configValue#*|}" | sed 's/|/\n/g' 2>/dev/null
+	[ -z "$3" ] && echo "$configValue" | xargs | tr '|' '\n' 2>/dev/null
+	[ -n "$3" ] && [ "$3" = "true" ] && echo "${configValue#*|}" | tr '|' '\n' 2>/dev/null
 }
 
 
@@ -470,7 +470,7 @@ if hasProjectTypeConfiguration ".*install.*=.*"; then
 	
 	if [ -n "$installPackages" ]; then
 		[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Check package dependencies: $installPackages"
-		for i in $(echo "${installPackages#*=}" | sed 's/,/\n/g' | sed 's/^[[:space:]]*//g;s/[[:space:]]*$//g'); do
+		for i in $(echo "${installPackages#*=}" | tr ',' '\n' | sed 's/^[[:space:]]*//g;s/[[:space:]]*$//g'); do
 			echo "${CB_LINEHEADER}Check package dependency $i"
 			$PN_FULL --silent --install "$i"
 			[ $? -ne 0 ] && endWithError
