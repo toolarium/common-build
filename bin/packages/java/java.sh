@@ -76,13 +76,13 @@ echo "${CB_LINEHEADER}Check $CB_JAVA_IMAGE_TYPE $CB_PACKAGE_VERSION version" | t
 downloadFiles "$CB_JAVA_INFO_DOWNLOAD_URL" "$CB_JAVA_JSON_INFO"
 
 #echo ${CB_LINEHEADER}Verify java packages | tee -a $CB_LOGFILE
-cat $CB_JAVA_JSON_INFO | ${CB_BIN}/cb-json --filter architecture=$CB_JAVA_ARCH --filter jvm_impl=$CB_JAVA_JVM_IMPL --filter image_type=$CB_JAVA_IMAGE_TYPE --filter os=$CB_JAVA_OS > "${CB_JAVA_JSON_INFO}.filtered"
+cat $CB_JAVA_JSON_INFO | ${CB_BIN}/cb-json --filter binary.architecture=$CB_JAVA_ARCH --filter binary.jvm_impl=$CB_JAVA_JVM_IMPL --filter binary.image_type=$CB_JAVA_IMAGE_TYPE --filter binary.os=$CB_JAVA_OS > "${CB_JAVA_JSON_INFO}.filtered"
 mv -f "${CB_JAVA_JSON_INFO}.filtered" "$CB_JAVA_JSON_INFO" >/dev/null 2>&1
 
-CB_PACKAGE_DOWNLOAD_NAME=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-json --value --name package.name) 
-CB_PACKAGE_DOWNLOAD_URL=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-json --value --name package.link) 
-CB_PACKAGE_VERSION=$(grep "semver" "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-json --value --name version.semver)
-CB_PACKAGE_VERSION_HASH=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-json --value --name package.checksum)
+CB_PACKAGE_DOWNLOAD_NAME=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-json --value --name binary.package.name)
+CB_PACKAGE_DOWNLOAD_URL=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-json --value --name binary.package.link)
+CB_PACKAGE_VERSION=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-json --value --name version.semver)
+CB_PACKAGE_VERSION_HASH=$(cat "$CB_JAVA_JSON_INFO" 2>/dev/null | ${CB_BIN}/cb-json --value --name binary.package.checksum)
 
 if ! [ -n "$CB_PACKAGE_DOWNLOAD_NAME" ]; then 
 	rm "$CB_JAVA_JSON_INFO" >/dev/null 2>&1

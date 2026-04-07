@@ -46,34 +46,22 @@ echo Setting up sandbox tools...
 
 :: --- Java ---
 set "HAS_JAVA=false"
-set "INSTALL_LOG=!SANDBOX_HOME!\install-java.log"
 echo   -^> installing java via cb --install into sandbox...
-call "%CB%" --install java --default > "!INSTALL_LOG!" 2>&1
-if exist "%SANDBOX_HOME%\current\java\bin" (set "HAS_JAVA=true") else (
-	echo   -^> WARNING: java install failed, log:
-	type "!INSTALL_LOG!"
-)
+call :INSTALL_TOOL java
+if exist "%SANDBOX_HOME%\current\java\bin" set "HAS_JAVA=true"
 
 :: --- Gradle ---
 set "HAS_GRADLE=false"
-set "INSTALL_LOG=!SANDBOX_HOME!\install-gradle.log"
 echo   -^> installing gradle via cb --install into sandbox...
-call "%CB%" --install gradle --default > "!INSTALL_LOG!" 2>&1
-if exist "%SANDBOX_HOME%\current\gradle\bin" (set "HAS_GRADLE=true") else (
-	echo   -^> WARNING: gradle install failed, log:
-	type "!INSTALL_LOG!"
-)
+call :INSTALL_TOOL gradle
+if exist "%SANDBOX_HOME%\current\gradle\bin" set "HAS_GRADLE=true"
 
 :: --- Node (only when CB_PROJECT_TEST_NETWORK=1) ---
 set "HAS_NODE=false"
 if "%CB_PROJECT_TEST_NETWORK%"=="1" (
-	set "INSTALL_LOG=!SANDBOX_HOME!\install-node.log"
 	echo   -^> installing node via cb --install into sandbox...
-	call "%CB%" --install node --default > "!INSTALL_LOG!" 2>&1
-	if exist "%SANDBOX_HOME%\current\node" (set "HAS_NODE=true") else (
-		echo   -^> WARNING: node install failed, log:
-		type "!INSTALL_LOG!"
-	)
+	call :INSTALL_TOOL node
+	if exist "%SANDBOX_HOME%\current\node" set "HAS_NODE=true"
 )
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -226,6 +214,24 @@ if exist "%~1\" (
 ) else (
 	set /a FAIL+=1
 	echo   FAIL: %~2 - dir missing: %~1
+)
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:INSTALL_TOOL
+:: %1 = tool name (java, gradle, node)
+:: Runs cb --install in an isolated cmd /c to avoid PATH overflow from cb.bat endlocal
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+set "INSTALL_LOG=!SANDBOX_HOME!\install-%~1.log"
+cmd /c ""%CB%" --install %~1 --default" > "!INSTALL_LOG!" 2>&1
+if exist "%SANDBOX_HOME%\current\%~1\bin" (
+	echo   -^> %~1 installed into sandbox
+) else if exist "%SANDBOX_HOME%\current\%~1" (
+	echo   -^> %~1 installed into sandbox
+) else (
+	echo   -^> WARNING: %~1 install failed, log:
+	type "!INSTALL_LOG!"
 )
 goto :eof
 
