@@ -27,21 +27,30 @@ set "FAIL=0"
 set "SKIP=0"
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-:: Install common-build into sandbox via cb-install.bat
-:: This bootstraps wget.exe, unzip.exe, and sets up CB_HOME properly.
+:: Build a sandbox CB_HOME (never use the repo)
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-set "SANDBOX_DEVTOOLS=%TEMP%\cb-project-devtools-%RANDOM%%RANDOM%"
-echo Setting up sandbox via cb-install.bat...
-set "CB_INSTALL_NO_PERSIST=true"
-cmd /c "set "CB_HOME=" & set "CB_DEVTOOLS=%SANDBOX_DEVTOOLS%" & "%SRC_ROOT%\bin\cb-install.bat" --silent --force" >nul 2>&1
-set "CB_INSTALL_NO_PERSIST="
-
-:: find the installed CB_HOME
-set "SANDBOX_HOME="
-for /d %%D in ("%SANDBOX_DEVTOOLS%\toolarium-common-build-*") do set "SANDBOX_HOME=%%~fD"
-if not defined SANDBOX_HOME echo ERROR: cb-install.bat failed - no install directory under %SANDBOX_DEVTOOLS% & exit /b 1
+set "SANDBOX_HOME=%TEMP%\cb-project-home-%RANDOM%%RANDOM%"
+mkdir "%SANDBOX_HOME%" >nul 2>nul
+mkdir "%SANDBOX_HOME%\current" >nul 2>nul
+mklink /J "%SANDBOX_HOME%\bin"  "%SRC_ROOT%\bin"  >nul 2>nul
+mklink /J "%SANDBOX_HOME%\conf" "%SRC_ROOT%\conf" >nul 2>nul
+copy /y "%SRC_ROOT%\VERSION" "%SANDBOX_HOME%\VERSION" >nul 2>nul
 set "CB_HOME=%SANDBOX_HOME%"
 set "CB=%SANDBOX_HOME%\bin\cb.bat"
+
+:: Bootstrap wget.exe and unzip.exe (required by cb --install on Windows).
+:: Run cb-install.bat into the sandbox to download them, then keep only
+:: the binaries — the sandbox already has bin/ and conf/ from the repo.
+set "CB_INSTALL_NO_PERSIST=true"
+cmd /c "set "CB_HOME=" & set "CB_DEVTOOLS=%SANDBOX_HOME%" & "%SRC_ROOT%\bin\cb-install.bat" --silent --force" >nul 2>&1
+set "CB_INSTALL_NO_PERSIST="
+:: cb-install creates a versioned subdir; move wget/unzip up to sandbox bin/
+for /d %%D in ("%SANDBOX_HOME%\toolarium-common-build-*") do (
+	if exist "%%D\bin\wget.exe" copy /y "%%D\bin\wget.exe" "%SANDBOX_HOME%\bin\wget.exe" >nul 2>nul
+	if exist "%%D\bin\unzip.exe" copy /y "%%D\bin\unzip.exe" "%SANDBOX_HOME%\bin\unzip.exe" >nul 2>nul
+	rmdir /s /q "%%D" >nul 2>nul
+)
+if not exist "%SANDBOX_HOME%\bin\wget.exe" echo ERROR: could not bootstrap wget.exe & exit /b 1
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Install tools via cb into sandbox
@@ -149,7 +158,9 @@ if %FAIL% EQU 0 (exit /b 0) else (exit /b 1)
 :CLEANUP_ALL
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 if exist "%SANDBOX%" rmdir /s /q "%SANDBOX%" >nul 2>nul
-if defined SANDBOX_DEVTOOLS if exist "%SANDBOX_DEVTOOLS%" rmdir /s /q "%SANDBOX_DEVTOOLS%" >nul 2>nul
+if exist "%SANDBOX_HOME%\bin"    rmdir "%SANDBOX_HOME%\bin"    >nul 2>nul
+if exist "%SANDBOX_HOME%\conf"   rmdir "%SANDBOX_HOME%\conf"   >nul 2>nul
+if exist "%SANDBOX_HOME%"        rmdir /s /q "%SANDBOX_HOME%"  >nul 2>nul
 goto :eof
 
 

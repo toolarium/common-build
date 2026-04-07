@@ -27,28 +27,13 @@ SKIP=0
 [ -z "$CB_PROJECT_SCAFFOLD_TIMEOUT" ] && CB_PROJECT_SCAFFOLD_TIMEOUT=60
 
 #########################################################################
-# Install common-build into sandbox via cb-install
-# This ensures wget/unzip/cb-json and all required tools are in place.
+# Build a sandbox CB_HOME (never use the repo)
 #########################################################################
-SANDBOX_DEVTOOLS=$(mktemp -d 2>/dev/null || echo "/tmp/cb-project-devtools-$$")
-echo "Setting up sandbox via cb-install..."
-env -i \
-	PATH="$PATH" \
-	HOME="${HOME}" \
-	USER="${USER:-tester}" \
-	SHELL="${SHELL:-/bin/bash}" \
-	GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
-	CB_DEVTOOLS="$SANDBOX_DEVTOOLS" \
-	"$SRC_ROOT/bin/cb-install" --silent --force >/dev/null 2>&1
-
-SANDBOX_HOME=""
-for d in "$SANDBOX_DEVTOOLS"/toolarium-common-build-*; do
-	[ -d "$d" ] && SANDBOX_HOME="$d" && break
-done
-if [ -z "$SANDBOX_HOME" ] || [ ! -d "$SANDBOX_HOME" ]; then
-	echo "ERROR: cb-install failed — no install directory under $SANDBOX_DEVTOOLS"
-	exit 1
-fi
+SANDBOX_HOME=$(mktemp -d 2>/dev/null || echo "/tmp/cb-project-home-$$")
+mkdir -p "$SANDBOX_HOME/current"
+ln -s "$SRC_ROOT/bin"     "$SANDBOX_HOME/bin"     2>/dev/null
+ln -s "$SRC_ROOT/conf"    "$SANDBOX_HOME/conf"    2>/dev/null
+ln -s "$SRC_ROOT/VERSION" "$SANDBOX_HOME/VERSION" 2>/dev/null
 export CB_HOME="$SANDBOX_HOME"
 CB="$SANDBOX_HOME/bin/cb"
 
@@ -96,7 +81,7 @@ mkdir -p "$LOGDIR"
 
 cleanup() {
 	[ -n "$SANDBOX" ] && [ -d "$SANDBOX" ] && rm -rf "$SANDBOX" >/dev/null 2>&1
-	[ -n "$SANDBOX_DEVTOOLS" ] && [ -d "$SANDBOX_DEVTOOLS" ] && rm -rf "$SANDBOX_DEVTOOLS" >/dev/null 2>&1
+	[ -n "$SANDBOX_HOME" ] && [ -d "$SANDBOX_HOME" ] && rm -rf "$SANDBOX_HOME" >/dev/null 2>&1
 }
 trap cleanup EXIT INT TERM
 
