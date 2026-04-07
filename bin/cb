@@ -1423,16 +1423,16 @@ installCb() {
 							echo "${CB_LINEHEADER}Install rpm package $i..."
 							sudo rpm -ivh $i
 						else
-							[ -z "${i%%*.tar}" ] && CMD="tar $CB_TAR_PARAM -xf $i 2>&1" && TOPDIR_CMD="tar -tvf $i | head -n1 | awk '{print \$6}' | sed 's/\/$//g;s/^\.\///g'"
-							[ -z "${i%%*.tar.gz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i 2>&1" && TOPDIR_CMD="tar -ztvf $i | head -n1 | awk '{print \$6}' | sed 's/\/$//g;s/^\.\///g'"
-							[ -z "${i%%*.tgz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i 2>&1" && TOPDIR_CMD="tar -ztvf $i | head -n1 | awk '{print \$6}' | sed 's/\/$//g;s/^\.\///g'"
+							[ -z "${i%%*.tar}" ] && CMD="tar $CB_TAR_PARAM -xf $i 2>&1" && TOPDIR_CMD="tar -tvf $i | head -n1 | awk '{print \$NF}' | sed 's/\/$//g;s/^\.\///g'"
+							[ -z "${i%%*.tar.gz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i 2>&1" && TOPDIR_CMD="tar -ztvf $i | head -n1 | awk '{print \$NF}' | sed 's/\/$//g;s/^\.\///g'"
+							[ -z "${i%%*.tgz}" ] && CMD="tar $CB_TAR_PARAM -zxf $i 2>&1" && TOPDIR_CMD="tar -ztvf $i | head -n1 | awk '{print \$NF}' | sed 's/\/$//g;s/^\.\///g'"
 							if [ -z "${i%%*.xz}" ]; then
 								if ! [ -n "$(existBinary xz)" ]; then
 									CMD="echo \"${CB_LINEHEADER}Missing package xz (xz-utils), please install it before you continue!\">&2; false"
 									TOPDIR_CMD="true; echo \"ok\""
 								else
 									CMD="rm ${i%*.xz} > /dev/null 2>&1; xz $CB_XZ_PARAM --decompress $i 2>&1 && tar $CB_TAR_PARAM -xf ${i%*.xz} 2>&1; rm ${i%*.xz} > /dev/null 2>&1" 
-									TOPDIR_CMD="tar -Jtvf $i | head -n1 | awk '{print \$6}' | sed 's/\/$//g;s/^\.\///g'"
+									TOPDIR_CMD="tar -Jtvf $i | head -n1 | awk '{print \$NF}' | sed 's/\/$//g;s/^\.\///g'"
 								fi
 							fi
 						fi
