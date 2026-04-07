@@ -34,8 +34,8 @@ mkdir "%SANDBOX_HOME%" >nul 2>nul
 mkdir "%SANDBOX_HOME%\current" >nul 2>nul
 mklink /J "%SANDBOX_HOME%\bin"  "%SRC_ROOT%\bin"  >nul 2>nul
 mklink /J "%SANDBOX_HOME%\conf" "%SRC_ROOT%\conf" >nul 2>nul
-mklink    "%SANDBOX_HOME%\VERSION" "%SRC_ROOT%\VERSION" >nul 2>nul
-if not exist "%SANDBOX_HOME%\VERSION" copy /y "%SRC_ROOT%\VERSION" "%SANDBOX_HOME%\VERSION" >nul 2>nul
+:: file symlinks need admin; always copy VERSION
+copy /y "%SRC_ROOT%\VERSION" "%SANDBOX_HOME%\VERSION" >nul 2>nul
 set "CB_HOME=%SANDBOX_HOME%"
 set "CB=%SANDBOX_HOME%\bin\cb.bat"
 
@@ -221,18 +221,32 @@ goto :eof
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :INSTALL_TOOL
 :: %1 = tool name (java, gradle, node)
-:: Runs cb --install in an isolated cmd /c to avoid PATH overflow from cb.bat endlocal
+:: Tries cb --install first, then falls back to system env var (e.g. JAVA_HOME)
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 set "INSTALL_LOG=!SANDBOX_HOME!\install-%~1.log"
 cmd /c ""%CB%" --install %~1 --default" > "!INSTALL_LOG!" 2>&1
 if exist "%SANDBOX_HOME%\current\%~1\bin" (
 	echo   -^> %~1 installed into sandbox
-) else if exist "%SANDBOX_HOME%\current\%~1" (
-	echo   -^> %~1 installed into sandbox
-) else (
-	echo   -^> WARNING: %~1 install failed, log:
-	type "!INSTALL_LOG!"
+	goto :eof
 )
+if exist "%SANDBOX_HOME%\current\%~1" (
+	echo   -^> %~1 installed into sandbox
+	goto :eof
+)
+:: cb --install failed — try system env var fallback (e.g. JAVA_HOME, GRADLE_HOME)
+set "_TOOL_UPPER=%~1"
+for %%a in ("a=A" "b=B" "c=C" "d=D" "e=E" "f=F" "g=G" "h=H" "i=I" "j=J" "k=K" "l=L" "m=M" "n=N" "o=O" "p=P" "q=Q" "r=R" "s=S" "t=T" "u=U" "v=V" "w=W" "x=X" "y=Y" "z=Z") do call set "_TOOL_UPPER=%%_TOOL_UPPER:%%~a%%"
+set "_FALLBACK_VAR=!_TOOL_UPPER!_HOME"
+call set "_FALLBACK_PATH=%%!_FALLBACK_VAR!%%"
+if defined _FALLBACK_PATH if exist "!_FALLBACK_PATH!\bin" (
+	mklink /J "%SANDBOX_HOME%\current\%~1" "!_FALLBACK_PATH!" >nul 2>nul
+	if exist "%SANDBOX_HOME%\current\%~1\bin" (
+		echo   -^> WARNING: cb --install %~1 failed, falling back to !_FALLBACK_VAR!=!_FALLBACK_PATH!
+		goto :eof
+	)
+)
+echo   -^> WARNING: %~1 install failed, log:
+type "!INSTALL_LOG!"
 goto :eof
 
 
