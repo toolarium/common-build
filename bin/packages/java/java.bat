@@ -41,22 +41,22 @@ if not defined CB_JAVA_OS set "CB_JAVA_OS=windows"
 if not defined CB_JAVA_ARCH  set "CB_JAVA_ARCH=x%CB_PROCESSOR_ARCHITECTURE_NUMBER%"
 :: jdk, jre, testimage, debugimage, staticlibs
 if not defined CB_JAVA_IMAGE_TYPE set "CB_JAVA_IMAGE_TYPE=jdk"
-:: hotspot, openj9
+:: hotspot
 if not defined CB_JAVA_JVM_IMPL set "CB_JAVA_JVM_IMPL=hotspot"
 :: normal, large
 if not defined CB_JAVA_HEAP_SIZE set "CB_JAVA_HEAP_SIZE=normal"
-:: adoptopenjdk, openjdk
-if not defined CB_JAVA_VENDOR set "CB_JAVA_VENDOR=openjdk"
-:: see https://api.adoptopenjdk.net/v3/info/release_names
+:: eclipse
+if not defined CB_JAVA_VENDOR set "CB_JAVA_VENDOR=eclipse"
+:: see https://api.adoptium.net/v3/info/available_releases
 ::set CB_JAVA_RELEASENAME=jdk-11.0.6+10
 ::  jdk, valhalla, metropolis, jfr
 if not defined CB_JAVA_PROJECT set "CB_JAVA_PROJECT=%CB_JAVA_IMAGE_TYPE%"
 
-::set "CB_PACKAGE_DOWNLOAD_URL_V3=https://api.adoptopenjdk.net/v3/binary/version/%CB_JAVA_RELEASENAME%/%CB_JAVA_OS%/%CB_JAVA_ARCH%/%CB_JAVA_IMAGE_TYPE%/%CB_JAVA_JVM_IMPL%/%CB_JAVA_HEAP_SIZE%/%CB_JAVA_VENDOR%"
-set "CB_PACKAGE_DOWNLOAD_URL_V3_LATEST=https://api.adoptopenjdk.net/v3/binary/latest/%CB_JAVA_FEATURE_VERSION%/%CB_JAVA_RELEASE_TYPE%/%CB_JAVA_OS%/%CB_JAVA_ARCH%/%CB_JAVA_IMAGE_TYPE%/%CB_JAVA_JVM_IMPL%/%CB_JAVA_HEAP_SIZE%/%CB_JAVA_VENDOR%"
-set "CB_JAVA_INFO_DOWNLOAD_URL_V3_LATEST=https://api.adoptopenjdk.net/v3/assets/latest/%CB_JAVA_FEATURE_VERSION%/%CB_JAVA_JVM_IMPL%"
-set "CB_PACKAGE_DOWNLOAD_URL_V2_LATEST=https://api.adoptopenjdk.net/v2/binary/releases/openjdk%CB_JAVA_FEATURE_VERSION%?openjdk_impl=%CB_JAVA_JVM_IMPL%&os=windows&arch=x%CB_PROCESSOR_ARCHITECTURE_NUMBER%&release=latest&type=%CB_JAVA_IMAGE_TYPE%"
-set "CB_JAVA_INFO_DOWNLOAD_URL_V2_LATEST=https://api.adoptopenjdk.net/v2/info/releases/openjdk%CB_JAVA_FEATURE_VERSION%?openjdk_impl=%CB_JAVA_JVM_IMPL%&os=windows&arch=x%CB_PROCESSOR_ARCHITECTURE_NUMBER%&release=latest&type=%CB_JAVA_IMAGE_TYPE%"
+::set "CB_PACKAGE_DOWNLOAD_URL_V3=https://api.adoptium.net/v3/binary/version/%CB_JAVA_RELEASENAME%/%CB_JAVA_OS%/%CB_JAVA_ARCH%/%CB_JAVA_IMAGE_TYPE%/%CB_JAVA_JVM_IMPL%/%CB_JAVA_HEAP_SIZE%/%CB_JAVA_VENDOR%"
+set "CB_PACKAGE_DOWNLOAD_URL_V3_LATEST=https://api.adoptium.net/v3/binary/latest/%CB_JAVA_FEATURE_VERSION%/%CB_JAVA_RELEASE_TYPE%/%CB_JAVA_OS%/%CB_JAVA_ARCH%/%CB_JAVA_IMAGE_TYPE%/%CB_JAVA_JVM_IMPL%/%CB_JAVA_HEAP_SIZE%/%CB_JAVA_VENDOR%"
+set "CB_JAVA_INFO_DOWNLOAD_URL_V3_LATEST=https://api.adoptium.net/v3/assets/latest/%CB_JAVA_FEATURE_VERSION%/%CB_JAVA_JVM_IMPL%"
+set "CB_PACKAGE_DOWNLOAD_URL_V2_LATEST=https://api.adoptium.net/v2/binary/releases/openjdk%CB_JAVA_FEATURE_VERSION%?openjdk_impl=%CB_JAVA_JVM_IMPL%&os=windows&arch=x%CB_PROCESSOR_ARCHITECTURE_NUMBER%&release=latest&type=%CB_JAVA_IMAGE_TYPE%"
+set "CB_JAVA_INFO_DOWNLOAD_URL_V2_LATEST=https://api.adoptium.net/v2/info/releases/openjdk%CB_JAVA_FEATURE_VERSION%?openjdk_impl=%CB_JAVA_JVM_IMPL%&os=windows&arch=x%CB_PROCESSOR_ARCHITECTURE_NUMBER%&release=latest&type=%CB_JAVA_IMAGE_TYPE%"
 
 set CB_PACKAGE_BASE_URL=
 set CB_PACKAGE_DOWNLOAD_NAME=
