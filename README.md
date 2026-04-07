@@ -17,7 +17,7 @@ Key features:
 - **[Organization Config](docs/organization-config.md)** — Centralize tool versions, project templates, naming conventions and lifecycle hooks in a Git repository for consistent corporate-wide developer environments.
 - **[Package development](docs/package-development.html)** — Add new tool packages to common-build with a simple script convention, supporting cross-platform downloads, version management, and post-install hooks.
 - **Self-update** — Keep common-build itself up to date with `cb --install cb`.
-- **[Automated testing](TESTING.md)** — Cross-platform test suite with sandbox isolation, gated build verification, and nightly CI coverage for all project types.
+- **[Automated testing](docs/testing.md)** — Cross-platform test suite with sandbox isolation, gated build verification, and nightly CI coverage for all project types.
 
 > Works hand in hand with its sister project [**common-gradle-build**](https://github.com/toolarium/common-gradle-build). For Gradle-based projects, common-gradle-build provides the build framework while common-build manages the developer toolchain and project scaffolding.
 

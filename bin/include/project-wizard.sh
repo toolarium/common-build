@@ -262,7 +262,7 @@ selectInput() {
 		[ -n "$input" ] && inputResult="$input"
 	else
 		inputResult="$3"
-		echo "${CB_LINEHEADER}${1^} [$3]"
+		echo "${CB_LINEHEADER}$(echo "$1" | awk '{print toupper(substr($0,1,1)) substr($0,2)}') [$3]"
 	fi
 }
 

@@ -24,6 +24,7 @@ SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
 PASS=0
 FAIL=0
 SKIP=0
+[ -z "$CB_PROJECT_SCAFFOLD_TIMEOUT" ] && CB_PROJECT_SCAFFOLD_TIMEOUT=60
 
 #########################################################################
 # Build a sandbox CB_HOME (never use the repo)
@@ -153,6 +154,21 @@ assertBuildSuccess() {
 }
 
 #########################################################################
+# Run a command with a timeout (portable: Linux + macOS)
+# Args: seconds command [args...]
+#########################################################################
+runWithTimeout() {
+	local secs="$1"; shift
+	"$@" &
+	local pid=$!
+	( sleep "$secs" && kill "$pid" 2>/dev/null ) &
+	local timer=$!
+	wait "$pid" 2>/dev/null
+	kill "$timer" 2>/dev/null
+	wait "$timer" 2>/dev/null
+}
+
+#########################################################################
 # Run one project type: scaffold + optional build
 # Args: typeId projectName label extraArg1 ...
 #########################################################################
@@ -164,8 +180,10 @@ runProjectType() {
 
 	echo "TEST: cb --new $typeId ($label)"
 
-	# Phase 1: scaffold
-	( cd "$subDir" && "$CB" --new "$typeId" "$projectName" "$@" >/dev/null 2>&1 )
+	# Phase 1: scaffold — timeout keeps CI fast; the directory and
+	# build.gradle are created before the (slow) Gradle download starts,
+	# so a short timeout is enough for the scaffold assertions.
+	( cd "$subDir" && runWithTimeout "$CB_PROJECT_SCAFFOLD_TIMEOUT" "$CB" --new "$typeId" "$projectName" "$@" >/dev/null 2>&1 )
 	local projectDir="$subDir/$projectName"
 	assertDirExists    "$projectDir" "scaffold: project directory created"
 	assertScaffoldFile "$projectDir" "scaffold: file present"
