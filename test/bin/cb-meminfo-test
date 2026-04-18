@@ -245,7 +245,7 @@ echo ""
 # cb-meminfo requires Linux /proc/meminfo, macOS sysctl, or SunOS prtconf
 os=$(uname -s 2>/dev/null)
 case "$os" in
-	Linux*|Darwin*|SunOS*)
+	Linux*|Darwin*|SunOS*|MINGW*|MSYS*)
 		test_help
 		test_help_short
 		test_invalid_arg

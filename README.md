@@ -8,6 +8,7 @@
 
 The common-build project simplifies the development environment setup across Linux, MacOS and Windows.
 It acts as a transparent wrapper for common build tools such as Gradle, Maven or Ant, and manages the installation of developer tools like Java, Node, Python, Trivy and many more. All software is installed into a local "devtools" directory, and all settings can be overridden via environment variables.
+No administrator or root privileges are required.
 
 Key features:
 

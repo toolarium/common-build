@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-04-18
+### Changed
+- Migrated Java package download URLs from `api.adoptopenjdk.net` to `api.adoptium.net` (Adoptium) and changed default vendor from `openjdk` to `eclipse` in both `java.bat` and `java.sh`.
+- Updated Java shell script to use Adoptium JSON structure (`binary.package.name`, `binary.package.link`, `binary.os`, etc.) for parsing download metadata.
+- Updated project templates: Vue.js now uses `npm create vue@latest` (replacing deprecated `@vue/cli`), Nuxt uses `npx nuxi@latest init` (replacing deprecated `npm create nuxt`), React uses `npm create vite@latest` with React template (replacing deprecated `create-react-app`).
+- `cb-meminfo` Linux path now computes used memory from `/proc/meminfo` (`MemTotal − MemAvailable`) in a single `awk` pass instead of summing RSS of all processes via `ps`, providing more accurate and efficient memory reporting.
+- `cb-meminfo` SunOS and macOS paths now guard against empty command output with `${var:-0}` defaults to prevent arithmetic errors.
+- `cb-install` and `cb-install.bat` now pass `GITHUB_TOKEN` (when set) as an `Authorization` header on all GitHub API requests, avoiding rate limits in CI.
+- `cb-install.bat` internet connectivity check now falls back to DNS lookup (`nslookup github.com`) when ICMP ping is blocked.
+- `cb-install.bat` parameter parsing loop now correctly re-enters `CHECK_PARAMETER` after shifting flags (`--silent`, `--force`, `--draft`), fixing cases where multiple flags were silently ignored.
+- `cb-json` jq path: improved `--filter` handling to apply array filtering before field extraction, with support for boolean/numeric values and regex patterns (`test()`).
+- `cb` and `cb.bat` now show an early error message when no known build file (`build.gradle`, `pom.xml`, `build.xml`, `package.json`) is found, instead of proceeding to Java discovery.
+- `cb.bat` now preserves `CB_HOME` in `CB_HOME_PREVIOUS` during `--setenv` for use by downstream scripts.
+- Replaced GNU-specific `sed 's/|/\n/g'` with portable `tr '|' '\n'` in `project-wizard.sh` and `sed 's/,/\n/g'` with `tr ',' '\n'` for package dependency parsing.
+- Fixed `tar` top-directory extraction to use `awk '{print $NF}'` instead of `awk '{print $6}'` for compatibility with macOS `tar` output format.
+- Fixed `node.sh` macOS download filename to use `darwin` instead of `mac` to match the official Node.js release naming.
+- Fixed `cb-cleanpath.bat` and `cb.bat` parameter check from `%0X` to `%1X` for correct empty-argument detection.
+- `cb-cleanup` now defers `CB_HOME` and `find` validation until after argument parsing, so `--help` and `-h` work without `CB_HOME` being set.
+- `cb-filetail` now returns exit code 1 when the search pattern is never matched before the file ends.
+- `cb-version-filter` replaced `xargs -l basename` with a portable `for d in */; do basename "$d"; done` loop.
+- `update-cb-custom-home` (shell and batch) now logs "Newest version ... is already available" in verbose mode when the quick check determines no update is needed.
+- Removed `CB_EXTERNAL_JAVA_HOME`, `CB_EXTERNAL_GRADLE_HOME`, and `CB_EXTERNAL_NODE_HOME` references from test scripts and documentation — all test tools are now installed via `cb --install` into the sandbox.
+- CI workflow `cb-test.yml`: separated Linux and macOS into dedicated jobs (`cb-test-linux`, `cb-test-macos`) instead of a matrix, added concurrency groups with cancel-in-progress, reordered test steps for faster feedback, and added `GITHUB_TOKEN` to e2e installer tests.
+- Updated all GitHub Actions from `actions/checkout@v4` to `actions/checkout@v5`.
+- Added GitHub corner link and badge to all documentation HTML pages (`index.html`, `organization-config.html`, `package-development.html`, `project-wizard.html`, `testing.html`).
+- Added "Automated testing" link to `docs/index.html` navigation.
+- `cb-meminfo-test` now also runs on MINGW/MSYS environments.
+
+
 ## [1.1.0] - 2026-04-06
 ### Added
 - GraalVM Community Edition support (`bin/packages/graalvm/graalvm.bat` and `graalvm.sh`) with platform-specific downloads for Windows, Linux and macOS. Default version: 21.0.2.

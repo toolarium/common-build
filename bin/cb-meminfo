@@ -134,9 +134,14 @@ done
 processMemory=0
 case "$(uname -s)" in
     SunOS)
-        totalMemory=$((1024 * 1024 * $(/usr/sbin/prtconf | awk '/Memory/{print $3}')))
-        usedMemory=$((1024 * $(ps -elfy | awk '{s+=$8}END{print s+0}')))
-        [ -n "$pidId" ] && processMemory=$((1024 * $(ps -lyp "$pidId" | awk '{s+=$8}END{print s+0}')))
+        _memtotal=$(/usr/sbin/prtconf 2>/dev/null | awk '/Memory/{print $3}')
+        totalMemory=$((1024 * 1024 * ${_memtotal:-0}))
+        _usedrss=$(ps -elfy 2>/dev/null | awk '{s+=$8}END{print s+0}')
+        usedMemory=$((1024 * ${_usedrss:-0}))
+        if [ -n "$pidId" ]; then
+            _pidrss=$(ps -lyp "$pidId" 2>/dev/null | awk '{s+=$8}END{print s+0}')
+            processMemory=$((1024 * ${_pidrss:-0}))
+        fi
         ;;
     Darwin)
         # macOS: use sysctl for total memory, ps for used/per-PID
@@ -144,7 +149,8 @@ case "$(uname -s)" in
         [ -z "$totalMemory" ] && totalMemory=0
 
         # Used: sum RSS of all processes (ps reports in KB on macOS)
-        usedMemory=$((1024 * $(ps -A -o rss= | awk '{s+=$1}END{print s+0}')))
+        _usedrss=$(ps -A -o rss= 2>/dev/null | awk '{s+=$1}END{print s+0}')
+        usedMemory=$((1024 * ${_usedrss:-0}))
 
         # Per-PID
         if [ -n "$pidId" ]; then
@@ -153,13 +159,24 @@ case "$(uname -s)" in
         fi
         ;;
     *)
-        # Linux/other: read /proc/meminfo directly (no fork); fall back to free(1)
-        _memtotal=$(awk '/^MemTotal:/{print $2; exit}' /proc/meminfo 2>/dev/null)
-        [ -z "$_memtotal" ] && _memtotal=$(free | awk 'NR==2{print $2}')
-        totalMemory=$((_memtotal * 1024))
-
-        # Used: sum RSS of all processes
-        usedMemory=$((1024 * $(ps -e -o rss= | awk '{s+=$1}END{print s+0}')))
+        # Linux/other: single awk pass on /proc/meminfo (no fork beyond awk)
+        eval "$(awk '
+            /^MemTotal:/     { t=$2 }
+            /^MemAvailable:/ { a=$2 }
+            /^MemFree:/      { f=$2 }
+            /^Buffers:/      { b=$2 }
+            /^Cached:/       { c=$2 }
+            END {
+                if (a=="") a=f+b+c
+                printf "_memtotal=%d _memavail=%d\n", t+0, a+0
+            }
+        ' /proc/meminfo 2>/dev/null)"
+        # Fallback to free(1) if /proc/meminfo is unavailable
+        if [ "${_memtotal:-0}" -eq 0 ] 2>/dev/null; then
+            eval "$(free 2>/dev/null | awk 'NR==2{printf "_memtotal=%d _memavail=%d\n",$2,$7?$7:$4}')"
+        fi
+        totalMemory=$((${_memtotal:-0} * 1024))
+        usedMemory=$(( (${_memtotal:-0} - ${_memavail:-0}) * 1024 ))
 
         # Per-PID: read /proc directly (zero forks); fall back to ps filter
         if [ -n "$pidId" ]; then
