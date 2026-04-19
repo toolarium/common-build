@@ -262,7 +262,7 @@ jobs:
           fi
 
           gh release create "$TAG" \
-            --title "$ARCHIVE_NAME" \
+            --title "$TAG" \
             --notes "$NOTES" \
             "/tmp/$ARCHIVE_NAME.tgz#$ARCHIVE_NAME.tgz" \
             "/tmp/$ARCHIVE_NAME.zip#$ARCHIVE_NAME.zip"
