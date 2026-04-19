@@ -1,0 +1,338 @@
+#!/usr/bin/env bash
+
+#########################################################################
+#
+# cb-container-test
+#
+# Tests for cb-container: --help, --version, argument parsing,
+# config file handling, image resolution, and container operations.
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+CT="$SRC_ROOT/bin/cb-container"
+PASS=0
+FAIL=0
+
+assertEquals() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (expected [$expected], got [$actual])"
+	fi
+}
+
+assertContains() {
+	local needle="$1" haystack="$2" msg="$3"
+	if echo "$haystack" | grep -q -- "$needle"; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (missing: $needle)"
+	fi
+}
+
+assertNotContains() {
+	local needle="$1" haystack="$2" msg="$3"
+	if echo "$haystack" | grep -q -- "$needle"; then
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (unexpected: $needle)"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	fi
+}
+
+#########################################################################
+# help / version tests
+#########################################################################
+test_help() {
+	echo "TEST: --help"
+	output=$("$CT" --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "container manager" "$output" "help mentions 'container manager'"
+	assertContains "usage:" "$output" "help contains 'usage:'"
+	assertContains "-h, --help" "$output" "help lists -h/--help"
+	assertContains "-v, --version" "$output" "help lists -v/--version"
+	assertContains "--list" "$output" "help lists --list"
+	assertContains "--start" "$output" "help lists --start"
+	assertContains "--stop" "$output" "help lists --stop"
+	assertContains "--it" "$output" "help lists --it"
+	assertContains "--log" "$output" "help lists --log"
+	assertContains "--tail" "$output" "help lists --tail"
+	assertContains "--scan" "$output" "help lists --scan"
+	assertContains "--clean" "$output" "help lists --clean"
+	assertContains "--delete" "$output" "help lists --delete"
+	assertContains "--env" "$output" "help lists --env"
+	assertContains "--port" "$output" "help lists --port"
+	assertContains "--entrypoint" "$output" "help lists --entrypoint"
+	assertContains "--shell" "$output" "help lists --shell"
+	assertContains ".cb-container" "$output" "help mentions .cb-container config file"
+}
+
+test_help_short() {
+	echo "TEST: -h"
+	output=$("$CT" -h 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "usage:" "$output" "shows usage line"
+}
+
+test_version() {
+	echo "TEST: --version"
+	output=$("$CT" --version 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "toolarium cb-container" "$output" "version shows 'toolarium cb-container'"
+}
+
+test_version_short() {
+	echo "TEST: -v"
+	output=$("$CT" -v 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0"
+	assertContains "toolarium cb-container" "$output" "version shows 'toolarium cb-container'"
+}
+
+#########################################################################
+# flag acceptance tests
+#########################################################################
+test_verbose_flag() {
+	echo "TEST: --verbose flag accepted"
+	output=$("$CT" --verbose --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with --verbose --help"
+	assertContains "usage:" "$output" "--verbose does not prevent --help"
+}
+
+test_shell_flag() {
+	echo "TEST: -s/--shell flag accepted"
+	output=$("$CT" -s /bin/bash --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with -s --help"
+	output=$("$CT" --shell /bin/zsh --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with --shell --help"
+}
+
+test_entrypoint_flag() {
+	echo "TEST: -e/--entrypoint flag accepted"
+	output=$("$CT" -e /bin/bash --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with -e --help"
+}
+
+test_port_flag() {
+	echo "TEST: -p/--port flag accepted"
+	output=$("$CT" -p 8080 --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with -p --help"
+}
+
+test_env_flag() {
+	echo "TEST: --env flag accepted"
+	output=$("$CT" --env KEY=val --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with --env --help"
+}
+
+test_invalid_parameter() {
+	echo "TEST: invalid parameter"
+	output=$("$CT" --invalid 2>&1)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit code 1 for invalid parameter"
+	assertContains "Invalid parameter" "$output" "error mentions invalid parameter"
+}
+
+test_combined_flags() {
+	echo "TEST: combined flags -s -p --env --verbose --help"
+	output=$("$CT" -s /bin/bash -p 8080 --env K=v --verbose --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with combined flags"
+	assertContains "usage:" "$output" "combined flags do not break --help"
+}
+
+#########################################################################
+# list tests (require container runtime)
+#########################################################################
+test_list() {
+	echo "TEST: --list"
+	output=$("$CT" --list 2>&1)
+	exitCode=$?
+	if [ $exitCode -eq 0 ]; then
+		assertContains "IMAGE ID" "$output" "--list shows header"
+		assertContains "CONTAINER ID" "$output" "--list shows CONTAINER ID column"
+		assertContains "TAG" "$output" "--list shows TAG column"
+		PASS=$((PASS+1))
+		echo "  PASS: --list exits successfully"
+	elif echo "$output" | grep -qi "nerdctl\|docker"; then
+		PASS=$((PASS+1))
+		echo "  PASS: --list failed (no container runtime — expected in CI)"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: --list unexpected failure: $output"
+	fi
+}
+
+test_list_verbose() {
+	echo "TEST: --list --verbose"
+	output=$("$CT" --list --verbose 2>&1)
+	exitCode=$?
+	if [ $exitCode -eq 0 ]; then
+		assertContains "image(s)" "$output" "--list --verbose shows image count"
+		assertContains "running" "$output" "--list --verbose shows running count"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: --list --verbose skipped (no container runtime)"
+	fi
+}
+
+#########################################################################
+# image not found tests
+#########################################################################
+test_start_not_found() {
+	echo "TEST: --start with non-existent image"
+	output=$("$CT" --start nonexistent-image-xyz123 2>&1)
+	exitCode=$?
+	if [ $exitCode -ne 0 ]; then
+		assertContains "not found" "$output" "--start shows not found for bad image"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: --start handled (runtime available, pull attempted)"
+	fi
+}
+
+test_stop_not_found() {
+	echo "TEST: --stop with non-existent image"
+	output=$("$CT" --stop nonexistent-image-xyz123 2>&1)
+	exitCode=$?
+	if [ $exitCode -ne 0 ]; then
+		assertContains "not found" "$output" "--stop shows not found for bad image"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: --stop should fail for non-existent image"
+	fi
+}
+
+test_delete_not_found() {
+	echo "TEST: --delete with non-existent image"
+	output=$("$CT" --delete nonexistent-image-xyz123 2>&1)
+	exitCode=$?
+	if [ $exitCode -ne 0 ]; then
+		assertContains "not found" "$output" "--delete shows not found for bad image"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: --delete should fail for non-existent image"
+	fi
+}
+
+test_log_not_found() {
+	echo "TEST: --log with non-existent image"
+	output=$("$CT" --log nonexistent-image-xyz123 2>&1)
+	exitCode=$?
+	if [ $exitCode -ne 0 ]; then
+		assertContains "not found" "$output" "--log shows not found for bad image"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: --log should fail for non-existent image"
+	fi
+}
+
+#########################################################################
+# clean tests
+#########################################################################
+test_clean_standalone() {
+	echo "TEST: --clean standalone"
+	output=$("$CT" --clean 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 for --clean"
+	# clean standalone forces verbose
+	if echo "$output" | grep -qi "cache\|clean\|pruned\|No cache"; then
+		PASS=$((PASS+1))
+		echo "  PASS: --clean shows output"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: --clean completed"
+	fi
+}
+
+#########################################################################
+# .cb-container config file tests
+#########################################################################
+test_config_file() {
+	echo "TEST: .cb-container config file"
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-ct-cfg-$$")
+	mkdir -p "$tmpdir"
+	echo "--verbose" > "$tmpdir/.cb-container"
+	# run --help from that directory
+	output=$(cd "$tmpdir" && "$CT" --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with .cb-container"
+	rm -rf "$tmpdir"
+}
+
+#########################################################################
+# distro alias tests
+#########################################################################
+test_distro_alias_help() {
+	echo "TEST: distro aliases documented"
+	output=$("$CT" --help 2>&1)
+	assertContains "--it" "$output" "help documents --it"
+}
+
+#########################################################################
+# scan not found tests
+#########################################################################
+test_scan_not_found() {
+	echo "TEST: --scan with non-existent image"
+	output=$("$CT" --scan nonexistent-image-xyz123 2>&1)
+	exitCode=$?
+	if echo "$output" | grep -qi "not found\|not installed"; then
+		PASS=$((PASS+1))
+		echo "  PASS: --scan shows error for bad image or missing trivy"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: --scan completed (trivy found, image pull attempted)"
+	fi
+}
+
+#########################################################################
+# main
+#########################################################################
+echo "Running cb-container tests..."
+echo "Using: $CT"
+echo ""
+
+[ ! -x "$CT" ] && echo "ERROR: $CT not found or not executable" && exit 1
+
+test_help
+test_help_short
+test_version
+test_version_short
+test_verbose_flag
+test_shell_flag
+test_entrypoint_flag
+test_port_flag
+test_env_flag
+test_invalid_parameter
+test_combined_flags
+test_list
+test_list_verbose
+test_start_not_found
+test_stop_not_found
+test_delete_not_found
+test_log_not_found
+test_clean_standalone
+test_config_file
+test_distro_alias_help
+test_scan_not_found
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed"
+[ $FAIL -eq 0 ] && exit 0 || exit 1

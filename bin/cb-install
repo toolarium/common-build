@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #########################################################################
 #
@@ -261,7 +261,7 @@ getLatestRelease() {
 	[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -fsSL $CB_GITHUB_AUTH" || CMD="wget -q --header=\"Accept: application/json\" $CB_GITHUB_AUTH_WGET -O -"
 	CMD="$CMD $CB_RELEASE_URL 2>\"$cbErrorTemp\" | $CB_JSON"
 	[ "$1" = "true" ] && CMD="$CMD --filter \"prerelease=false\""
-	CMD="$CMD --value --name name"
+	CMD="$CMD --value --name tag_name"
 
 	version=$(eval "$CMD")
 	[ $? -eq 0 ] && echo "$version" || echo ""
@@ -273,7 +273,7 @@ getLatestRelease() {
 #########################################################################
 getRelease() {
 	[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -fsSL $CB_GITHUB_AUTH" || CMD="wget -q --header=\"Accept: application/json\" $CB_GITHUB_AUTH_WGET -O -"
-	CMD="$CMD $CB_RELEASE_URL 2>\"$cbErrorTemp\" | $CB_JSON --filter \"name=(v)?$1\\\"\" --value --name name"
+	CMD="$CMD $CB_RELEASE_URL 2>\"$cbErrorTemp\" | $CB_JSON --filter \"tag_name=(v)?$1\\\"\" --value --name tag_name"
 
  	version=$(eval "$CMD" 2>>"$cbErrorTemp")
 	[ $? -eq 0 ] && echo "$version" || echo ""
@@ -287,7 +287,7 @@ getReleaseDownloadUrl() {
 	[ -z "${HTTP_REQUEST_CLI##*curl*}" ] && CMD="curl -# -fsSL $CB_GITHUB_AUTH" || CMD="wget -q --header=\"Accept: application/json\" $CB_GITHUB_AUTH_WGET -O -"
 	CMD="$CMD $CB_RELEASE_URL 2>\"$cbErrorTemp\" | $CB_JSON"
 	[ "$1" = "true" ] && CMD="$CMD --filter \"prerelease=false\""
-	CMD="$CMD --filter \"name=(v)?$1\\\"\" --value --name tarball_url"
+	CMD="$CMD --filter \"tag_name=(v)?$1\\\"\" --value --name tarball_url"
 	
 	downloadUrl=$(eval "$CMD" 2>>"$cbErrorTemp")
 	[ $? -eq 0 ] && echo "$downloadUrl" || echo ""
@@ -357,20 +357,43 @@ updateShellInitialisation() {
 		if [ -n "$CB_DEVTOOLS_INITIALISATION_CMD" ]; then
 			devtoolsMarker="# toolarium-common-build devtools support"
 			if grep -Fxq "$CB_DEVTOOLS_INITIALISATION_CMD" "$shellProfile" 2>/dev/null; then
-				: # already up-to-date
-			elif grep -Fxq "$devtoolsMarker" "$shellProfile" 2>/dev/null; then
+				# already up-to-date; only remove legacy line if still present
+				if grep -q 'cb --setenv|sed' "$shellProfile" 2>/dev/null; then
+					newFileName="${shellProfile}_cb-new"
+					rm -f "$newFileName" >/dev/null 2>&1
+					[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Remove legacy devtools PATH entry in $shellProfile"
+					grep -v 'cb --setenv|sed' "$shellProfile" > "$newFileName"
+					chmod --reference="$shellProfile" "$newFileName" >/dev/null 2>&1
+					chmod +r+w "$newFileName" >/dev/null 2>&1
+					mv -f "$newFileName" "$shellProfile" >/dev/null 2>&1
+				fi
+			elif grep -Fq "$devtoolsMarker" "$shellProfile" 2>/dev/null; then
 				newFileName="${shellProfile}_cb-new"
 				rm -f "$newFileName" >/dev/null 2>&1
 				[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Update devtools initialisation in $shellProfile"
-				awk -v marker="$devtoolsMarker" -v cmd="$CB_DEVTOOLS_INITIALISATION_CMD" '
-					replace_next { print cmd; replace_next=0; next }
+				awk -v marker="$devtoolsMarker" -v cmd="$CB_DEVTOOLS_INITIALISATION_CMD" -v legacy="cb --setenv[|]sed" '
+					replace_next {
+						print cmd; replace_next=0; next
+					}
+					$0 ~ marker { replace_next=1 }
+					$0 ~ legacy { next }
 					{ print }
-					$0 == marker { replace_next=1 }
+					END { if (replace_next) print cmd }
 				' "$shellProfile" > "$newFileName"
 				chmod --reference="$shellProfile" "$newFileName" >/dev/null 2>&1
 				chmod +r+w "$newFileName" >/dev/null 2>&1
 				mv -f "$newFileName" "$shellProfile" >/dev/null 2>&1
 			else
+				# no marker: remove any standalone legacy line, then add fresh block
+				if grep -q 'cb --setenv|sed' "$shellProfile" 2>/dev/null; then
+					newFileName="${shellProfile}_cb-new"
+					rm -f "$newFileName" >/dev/null 2>&1
+					[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Remove legacy devtools PATH entry in $shellProfile"
+					grep -v 'cb --setenv|sed' "$shellProfile" > "$newFileName"
+					chmod --reference="$shellProfile" "$newFileName" >/dev/null 2>&1
+					chmod +r+w "$newFileName" >/dev/null 2>&1
+					mv -f "$newFileName" "$shellProfile" >/dev/null 2>&1
+				fi
 				[ "$CB_INSTALLER_SILENT" = "false" ] && echo "${CB_LINEHEADER}Add devtools initialisation to $shellProfile"
 				echo "" >> "$shellProfile"
 				echo "$devtoolsMarker" >> "$shellProfile"

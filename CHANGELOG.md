@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2026-04-19
+### Added
+- New utility `cb-container` (shell + `.bat`): cross-platform container management for Docker and nerdctl with:
+  - Image listing (`-l`/`--list`, `-a`/`--all`) with running container info, creation date, size, and tag, sorted by name
+  - Container lifecycle: `--start` (detached), `--stop`, `-i`/`--it` (connect or run interactively)
+  - `-i`/`--it` connects to running containers by name, image name, image ID, or container ID; if not running, starts interactively with `-it --rm`
+  - Log viewing (`--log`) with line ranges (`10`, `5-10`, `5-`), tailing (`-t`/`--tail`)
+  - Vulnerability scanning (`--scan`) via trivy with JSON parsing, severity sorting, daily caching, multi-image support
+  - Image deletion (`--delete`), cache cleanup (`--clean`) with dangling image pruning
+  - Port publishing (`-p`), environment variables (`--env`), entrypoint override (`-e`), shell override (`-s`)
+  - `.cb-container` config file for default parameters
+  - Distro aliases for `-i`/`--it`: `arch`, `debian`, `kali`
+  - Auto-pull for images not found locally
+  - Smart image resolution: `:latest` preferred, newest tag fallback, image ID prefix matching, multi-tag matching
+  - See [`docs/cb-container.md`](docs/cb-container.md) for full documentation
+
+### Fixed
+- Fixed release workflow title from `toolarium-common-build v<tag>` (space) to `toolarium-common-build-v<tag>` (hyphen), matching the archive filename convention.
+- Fixed `cb-install` and `cb-install.bat` to query `tag_name` instead of `name` from the GitHub Releases API, preventing release title format from breaking version detection.
+
+### Changed
+- Updated all shell script shebangs from `#!/bin/bash` to `#!/usr/bin/env bash` for improved portability.
+
 ## [1.1.1] - 2026-04-18
 ### Changed
 - Migrated Java package download URLs from `api.adoptopenjdk.net` to `api.adoptium.net` (Adoptium) and changed default vendor from `openjdk` to `eclipse` in both `java.bat` and `java.sh`.

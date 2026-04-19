@@ -1,0 +1,1089 @@
+#!/usr/bin/env bash
+
+#########################################################################
+#
+# cb-container
+#
+# Copyright by toolarium, all rights reserved.
+#
+# This file is part of the toolarium common-build.
+#
+# The common-build is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The common-build is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with the common-build. If not, see <http://www.gnu.org/licenses/>.
+#
+#########################################################################
+
+
+CB_CONTAINER_VERSION=1.0.0
+PN=$(basename "$0" 2>/dev/null)
+[ -z "$CB_LINE" ] && CB_LINE="------------------------------------------------------------------------------------------------------------------------"
+[ -z "$CB_LINEHEADER" ] && CB_LINEHEADER=".: "
+! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb-$USER"
+CB_CONTAINER_TEMP="$CB_TEMP/cb-container"
+[ ! -d "$CB_CONTAINER_TEMP" ] && mkdir -p "$CB_CONTAINER_TEMP" 2>/dev/null
+
+
+#########################################################################
+# printUsage
+#########################################################################
+printUsage() {
+	echo "$PN - container manager v$CB_CONTAINER_VERSION"
+	echo "usage: $PN [OPTION] [image]"
+	echo ""
+	echo "Overview of the available OPTIONs:"
+	echo " -h, --help                  Show this help message."
+	echo " -v, --version               Print the version information."
+	echo " -l, --list                  List images with running containers."
+	echo " -a, --all                   Show all images (default: running only)."
+	echo "     --verbose               Verbose output."
+	echo " -i, --it [name|id]          Connect to a running container. If not running,"
+	echo "                             starts it interactively. Supports distro aliases."
+	echo " -s, --shell <shell>         Shell to use when connecting (default: /bin/sh)."
+	echo " -e, --entrypoint <entry>    Override entrypoint when starting a container."
+	echo " -p, --port <port>           Publish port. Single port maps to same host port"
+	echo "                             (e.g. -p 8080 -> 8080:8080). With colon, taken as-is"
+	echo "                             (e.g. -p 8081:8082). Multiple ports: -p 8080 -p 9090."
+	echo "     --env <vars>            Set environment variables (comma-separated)."
+	echo "                             Example: --env MY_VAR=\"val1\",OTHER=\"val2\""
+	echo "     --start <name|id>       Start a container detached by name or id, e.g."
+	echo "                             --start my-app or --start my-app:1.0.0."
+	echo "     --stop <name|id>        Stop a running container by name, image name, or id."
+	echo "     --log <name|id> [n]     Show logs of a container. Optionally limit output:"
+	echo "                             10 = first 10 lines, 5-10 = lines 5 to 10,"
+	echo "                             5- = from line 5 to end."
+	echo " -t, --tail                  Tail (follow) mode, used with -l/--log."
+	echo "     --scan <name|id>        Scan an image with trivy. Comma-separated for multiple."
+	echo "     --clean                 Clean the scan cache and dangling images."
+	echo "     --delete <name|id>      Delete an image by name or id."
+	echo ""
+	echo "The [image] can be given as a name without tag. The script resolves"
+	echo "the best match: prefers :latest, otherwise the newest available tag."
+	echo ""
+	echo "When called without arguments in a directory containing a Dockerfile,"
+	echo "the script builds and starts the container from that Dockerfile."
+	echo ""
+	echo "Special files:"
+	echo " .cb-container               First line is read as default parameters, e.g."
+	echo "                             --env KEY=\"val\" -p 8080"
+	echo ""
+	echo "Examples:"
+	echo "  Build and run from current directory:"
+	echo "  $PN"
+	echo ""
+	echo "  Start my-app (:latest or newest tag):"
+	echo "  $PN my-app"
+	echo ""
+	echo "  List all images and running containers:"
+	echo "  $PN --list"
+	echo ""
+	echo "  Connect to container (starts interactively if not running):"
+	echo "  $PN -i ubuntu"
+	echo "  $PN -i my-app"
+	echo "  $PN -i abc123"
+	echo "  $PN -i kali -s /bin/bash"
+	echo ""
+	echo "  Start container:"
+	echo "  $PN --start my-app"
+	echo "  $PN --start my-app:1.0.0"
+	echo "  $PN --start my-app -i"
+	echo "  $PN --start my-app -t"
+	echo "  $PN --start my-app -l 5"
+	echo ""
+	echo "  Stop container:"
+	echo "  $PN --stop my-app"
+	echo "  $PN --stop abc123"
+	echo ""
+	echo "  Show logs:"
+	echo "  $PN -l my-app"
+	echo "  $PN -l my-app 10"
+	echo "  $PN -l my-app 5-10"
+	echo "  $PN -l my-app 5-"
+	echo "  $PN -l my-app -t"
+	echo "  $PN -l my-app 10- -t"
+	echo ""
+	echo "  Scan image with trivy:"
+	echo "  $PN --scan my-app"
+	echo ""
+	echo "  Override entrypoint, port, env:"
+	echo "  $PN -e /bin/bash"
+	echo "  $PN -p 8080"
+	echo "  $PN -p 8081:8082"
+	echo "  $PN --env KEY=\"val\",K2=\"v2\""
+	echo ""
+}
+
+
+#########################################################################
+# printVersion
+#########################################################################
+printVersion() {
+	echo "$CB_LINE"
+	echo "toolarium cb-container $CB_CONTAINER_VERSION"
+	echo "$CB_LINE"
+}
+
+
+#########################################################################
+# Detect container runtime: prefer nerdctl, fall back to docker
+#########################################################################
+detectRuntime() {
+	if command -v nerdctl >/dev/null 2>&1 && nerdctl info >/dev/null 2>&1; then
+		echo "nerdctl"
+	elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+		echo "docker"
+	else
+		echo ""
+	fi
+}
+
+
+#########################################################################
+# listImages — list all images with their running containers
+#########################################################################
+listImages() {
+	[ "$CB_CONTAINER_VERBOSE" = true ] && echo "${CB_LINEHEADER}Images and running containers [$CB_CONTAINER_RUNTIME]"
+
+	# collect running containers into a flat list (pipe-separated: id|image|started)
+	local containerList
+	containerList=$("$CB_CONTAINER_RUNTIME" ps --format '{{.ID}}|{{.Image}}|{{.CreatedAt}}' 2>/dev/null)
+
+	# list all images
+	local imageList
+	imageList=$("$CB_CONTAINER_RUNTIME" images --format '{{.ID}}|{{.Repository}}|{{.Tag}}|{{.Size}}|{{.CreatedAt}}' 2>/dev/null | sort -t'|' -k2,3)
+
+	local imageCount=0
+	[ -n "$imageList" ] && imageCount=$(echo "$imageList" | wc -l | tr -d ' ')
+
+	# print header with image count right-aligned
+	echo "$CB_LINE"
+	local lineLen=${#CB_LINE}
+	local header
+	header=$(printf "%-14s %-14s %-18s %-18s %-9s %s" "IMAGE ID" "CONTAINER ID" "CREATED" "STARTED" "SIZE" "TAG")
+	local now
+	now=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
+	local countLabel="$now - $imageCount image(s)"
+	local headerLen=${#header}
+	local countLen=${#countLabel}
+	local padding=$((lineLen - headerLen - countLen))
+	if [ "$padding" -gt 0 ] 2>/dev/null; then
+		printf "%s%*s%s\n" "$header" "$padding" "" "$countLabel"
+	else
+		printf "%s  %s\n" "$header" "$countLabel"
+	fi
+	echo "$CB_LINE"
+
+	if [ -z "$imageList" ]; then
+		echo "${CB_LINEHEADER}No images found."
+		return
+	fi
+
+	echo "$imageList" | while IFS='|' read -r imageId repo tag imgSize imgCreated; do
+		[ -z "$imageId" ] && continue
+		local repoTag="${repo}:${tag}"
+		[ "$repo" = "<none>" ] && repoTag="<none>"
+		local shortId
+		shortId=$(printf "%.12s" "$imageId")
+		local shortCreated
+		shortCreated=$(printf "%.16s" "$imgCreated")
+
+		# find matching containers by image name, repo, or id
+		local matchLines=""
+		if [ -n "$containerList" ]; then
+			matchLines=$(echo "$containerList" | awk -F'|' -v rt="$repoTag" -v r="$repo" -v iid="$imageId" \
+				'function endsWith(s,e) { return substr(s,length(s)-length(e)+1)==e }
+				 $2==rt || $2==r || $2==iid || endsWith($2,"/"rt) || endsWith($2,"/"r) { print $0 }')
+		fi
+
+		if [ -n "$matchLines" ]; then
+			echo "$matchLines" | awk -F'|' -v sid="$shortId" -v rt="$repoTag" -v sz="$imgSize" -v cr="$shortCreated" \
+				'NR==1 { started=substr($3,1,16); printf "%-14s %-14s %-18s %-18s %-9s %s\n", sid, $1, cr, started, sz, rt }
+				 NR>1  { started=substr($3,1,16); printf "%-14s %-14s %-18s %-18s %-9s %s\n", "", $1, "", started, "", rt }'
+		elif [ "$CB_CONTAINER_ALL" = true ]; then
+			printf "%-14s %-14s %-18s %-18s %-9s %s\n" "$shortId" "-" "$shortCreated" "-" "$imgSize" "$repoTag"
+		fi
+	done
+
+	# verbose summary
+	if [ "$CB_CONTAINER_VERBOSE" = true ]; then
+		local runningCount
+		runningCount=$("$CB_CONTAINER_RUNTIME" ps -q 2>/dev/null | wc -l | tr -d ' ')
+		echo "$CB_LINE"
+		echo "${CB_LINEHEADER}$imageCount image(s), $runningCount running."
+	fi
+}
+
+
+#########################################################################
+# connectToContainer — exec into a running container
+#########################################################################
+connectToContainer() {
+	local containerId="$1"
+	local shell="$2"
+
+	# verify container is running — try direct ID first
+	local running
+	running=$("$CB_CONTAINER_RUNTIME" ps -q --filter "id=$containerId" 2>/dev/null)
+	if [ -z "$running" ]; then
+		# try resolving by name or image ID
+		findRunningContainer "$containerId"
+		if [ -n "$FOUND_CONTAINER_ID" ]; then
+			containerId="$FOUND_CONTAINER_ID"
+			running="$FOUND_CONTAINER_ID"
+			local shortId
+			shortId=$(printf "%.12s" "$FOUND_CONTAINER_ID")
+			[ -n "$FOUND_CONTAINER_IMAGE" ] && echo "${CB_LINEHEADER}Resolved '$1' to container $shortId ($FOUND_CONTAINER_IMAGE)."
+		fi
+	fi
+	if [ -z "$running" ]; then
+		# try to resolve as image and run interactively
+		local resolvedImage
+		local mappedInput
+		mappedInput=$(mapImageAlias "$containerId")
+		resolvedImage=$(resolveImage "$mappedInput")
+		if [ -n "$resolvedImage" ]; then
+			runContainer "$resolvedImage" "$CB_CONTAINER_ENTRYPOINT" "$shell"
+			return $?
+		fi
+		# try pulling if has explicit tag
+		local pullImage="$containerId"
+		echo "$pullImage" | grep -q ':' || pullImage="${pullImage}:latest"
+		echo "${CB_LINEHEADER}Image '$containerId' not found locally, pulling $pullImage..."
+		if "$CB_CONTAINER_RUNTIME" pull "$pullImage" >/dev/null 2>&1; then
+			runContainer "$pullImage" "$CB_CONTAINER_ENTRYPOINT" "$shell"
+			return $?
+		fi
+		echo "${CB_LINEHEADER}Container or image '$containerId' not found."
+		return 1
+	fi
+
+	echo "${CB_LINEHEADER}Connecting to container $containerId with $shell..."
+	"$CB_CONTAINER_RUNTIME" exec -it "$containerId" "$shell"
+}
+
+
+#########################################################################
+# buildPortArgs — normalize port entries into -p flags
+# "8080"      -> -p 8080:8080
+# "8081:8082" -> -p 8081:8082
+# Result: populates PORT_ARGS array
+#########################################################################
+buildPortArgs() {
+	PORT_ARGS=()
+	for port in "$@"; do
+		if echo "$port" | grep -q ':'; then
+			PORT_ARGS+=(-p "$port")
+		else
+			PORT_ARGS+=(-p "${port}:${port}")
+		fi
+	done
+}
+
+
+#########################################################################
+# buildEnvArgs — parse comma-separated env vars into -e flags
+# Input:  "KEY1=val1,KEY2=val2"
+# Result: populates ENV_ARGS array with -e KEY1=val1 -e KEY2=val2
+#########################################################################
+buildEnvArgs() {
+	ENV_ARGS=()
+	[ -z "$1" ] && return
+	local IFS=','
+	for entry in $1; do
+		# trim leading/trailing whitespace
+		entry="${entry#"${entry%%[![:space:]]*}"}"; entry="${entry%"${entry##*[![:space:]]}"}"
+		[ -n "$entry" ] && ENV_ARGS+=(-e "$entry")
+	done
+}
+
+
+#########################################################################
+# buildAndRun — build image from Dockerfile and run it
+#########################################################################
+buildAndRun() {
+	local dockerfile="$1"
+	local entrypoint="$2"
+	local projectDir
+	projectDir=$(dirname "$dockerfile")
+	local projectName
+	projectName=$(basename "$(cd "$projectDir" && pwd)" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]/-/g')
+
+	echo "${CB_LINEHEADER}Building container image '$projectName' from $dockerfile..."
+	"$CB_CONTAINER_RUNTIME" build -t "$projectName" -f "$dockerfile" "$projectDir" || exit 1
+
+	buildPortArgs "${CB_CONTAINER_PORTS[@]}"
+	buildEnvArgs "$CB_CONTAINER_ENV"
+	local runArgs=(-it --name "${projectName}" --rm "${PORT_ARGS[@]}" "${ENV_ARGS[@]}")
+	if [ -n "$entrypoint" ]; then
+		runArgs+=(--entrypoint "$entrypoint")
+		echo "${CB_LINEHEADER}Starting container '$projectName' with entrypoint '$entrypoint'..."
+	else
+		echo "${CB_LINEHEADER}Starting container '$projectName'..."
+	fi
+	"$CB_CONTAINER_RUNTIME" run "${runArgs[@]}" "$projectName"
+}
+
+
+#########################################################################
+# resolveImage — resolve an image name (without tag) to the best match
+# Priority: 1) name:latest  2) newest tag (last listed by the runtime)
+# If input contains ":" it is returned as-is.
+# Prints the resolved image name or empty string if not found.
+#########################################################################
+resolveImage() {
+	local input="$1"
+
+	# if a tag is already specified, return as-is
+	if echo "$input" | grep -q ':'; then
+		echo "$input"
+		return 0
+	fi
+
+	# check for :latest first
+	local hasLatest
+	hasLatest=$("$CB_CONTAINER_RUNTIME" images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep "^${input}:latest$")
+	if [ -n "$hasLatest" ]; then
+		echo "${input}:latest"
+		return 0
+	fi
+
+	# fall back to newest tag (last line = most recently created)
+	local newest
+	newest=$("$CB_CONTAINER_RUNTIME" images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep "^${input}:" | head -n 1)
+	if [ -n "$newest" ]; then
+		echo "$newest"
+		return 0
+	fi
+
+	# try as image ID (full or short) — input must be a prefix of the ID, not the other way around
+	local byId
+	byId=$("$CB_CONTAINER_RUNTIME" images --format '{{.ID}}|{{.Repository}}:{{.Tag}}' 2>/dev/null | awk -F'|' -v iid="$input" 'length(iid) <= length($1) && substr($1, 1, length(iid)) == iid { print $2; exit }')
+	if [ -n "$byId" ] && [ "$byId" != "<none>:<none>" ]; then
+		echo "$byId"
+		return 0
+	fi
+	# if image ID matched but has no repo:tag, return the ID itself
+	if [ -n "$byId" ]; then
+		echo "$input"
+		return 0
+	fi
+
+	return 1
+}
+
+
+#########################################################################
+# startContainer — start a container from an existing image
+# Checks if a container from that image is already running.
+#########################################################################
+startContainer() {
+	local image="$1"
+	local entrypoint="$2"
+	local containerName
+	containerName=$(echo "$image" | sed 's|[/:@]|-|g')
+
+	# check if a container from this image is already running
+	local runningId
+	runningId=$("$CB_CONTAINER_RUNTIME" ps --format '{{.ID}}|{{.Image}}' 2>/dev/null | awk -F'|' -v img="$image" 'function endsWith(s,e){return substr(s,length(s)-length(e)+1)==e} $2==img || endsWith($2,"/"img) { print $1; exit }')
+	if [ -n "$runningId" ]; then
+		echo "${CB_LINEHEADER}Container from '$image' is already running (id: $runningId)."
+		STARTED_CONTAINER_ID="$runningId"
+		return 0
+	fi
+
+	# remove any stopped container with the same name
+	"$CB_CONTAINER_RUNTIME" rm -f "${containerName}" >/dev/null 2>&1
+
+	buildPortArgs "${CB_CONTAINER_PORTS[@]}"
+	buildEnvArgs "$CB_CONTAINER_ENV"
+	local runArgs=(-d --name "${containerName}" "${PORT_ARGS[@]}" "${ENV_ARGS[@]}")
+	if [ -n "$entrypoint" ]; then
+		runArgs+=(--entrypoint "$entrypoint")
+		echo "${CB_LINEHEADER}Starting container from '$image' with entrypoint '$entrypoint'..."
+	else
+		echo "${CB_LINEHEADER}Starting container from '$image'..."
+	fi
+	local cid errMsg
+	cid=$("$CB_CONTAINER_RUNTIME" run "${runArgs[@]}" "$image" 2>"$CB_CONTAINER_TEMP/cb-start-err.$$")
+	local rc=$?
+	errMsg=$(cat "$CB_CONTAINER_TEMP/cb-start-err.$$" 2>/dev/null)
+	rm -f "$CB_CONTAINER_TEMP/cb-start-err.$$" 2>/dev/null
+	if [ $rc -ne 0 ]; then
+		echo "${CB_LINEHEADER}Failed to start container from '$image'."
+		[ -n "$errMsg" ] && echo "${CB_LINEHEADER}$errMsg"
+		return 1
+	fi
+	local shortCid
+	shortCid=$(printf "%.12s" "$cid")
+	echo "${CB_LINEHEADER}Container started (id: $shortCid)."
+	STARTED_CONTAINER_ID="$cid"
+}
+
+
+#########################################################################
+# findRunningContainer — resolve input to a running container ID
+# Sets FOUND_CONTAINER_ID and FOUND_CONTAINER_IMAGE
+#########################################################################
+findRunningContainer() {
+	local input="$1"
+	FOUND_CONTAINER_ID=""
+	FOUND_CONTAINER_IMAGE=""
+
+	# try by container id
+	FOUND_CONTAINER_ID=$("$CB_CONTAINER_RUNTIME" ps -q --filter "id=$input" 2>/dev/null)
+	if [ -n "$FOUND_CONTAINER_ID" ]; then
+		FOUND_CONTAINER_IMAGE=$("$CB_CONTAINER_RUNTIME" ps --format '{{.Image}}' --filter "id=$input" 2>/dev/null | head -n 1)
+		return 0
+	fi
+
+	# try by container name
+	FOUND_CONTAINER_ID=$("$CB_CONTAINER_RUNTIME" ps -q --filter "name=$input" 2>/dev/null)
+	if [ -n "$FOUND_CONTAINER_ID" ]; then
+		FOUND_CONTAINER_IMAGE=$("$CB_CONTAINER_RUNTIME" ps --format '{{.Image}}' --filter "name=$input" 2>/dev/null | head -n 1)
+		return 0
+	fi
+
+	# try by image name or image ID — check all tags for the resolved image
+	local resolvedImage
+	resolvedImage=$(resolveImage "$input")
+	if [ -n "$resolvedImage" ]; then
+		# first try the resolved image directly
+		FOUND_CONTAINER_ID=$("$CB_CONTAINER_RUNTIME" ps --format '{{.ID}}|{{.Image}}' 2>/dev/null | awk -F'|' -v img="$resolvedImage" 'function endsWith(s,e){return substr(s,length(s)-length(e)+1)==e} $2==img || endsWith($2,"/"img) { print $1; exit }')
+		if [ -n "$FOUND_CONTAINER_ID" ]; then
+			FOUND_CONTAINER_IMAGE="$resolvedImage"
+			return 0
+		fi
+		# if not found, get all tags for the same image ID and try each
+		local imageId
+		imageId=$("$CB_CONTAINER_RUNTIME" images --format '{{.ID}}|{{.Repository}}:{{.Tag}}' 2>/dev/null | awk -F'|' -v img="$resolvedImage" '$2 == img { print $1; exit }')
+		if [ -n "$imageId" ]; then
+			local allTags
+			allTags=$("$CB_CONTAINER_RUNTIME" images --format '{{.ID}}|{{.Repository}}:{{.Tag}}' 2>/dev/null | awk -F'|' -v iid="$imageId" '$1 == iid { print $2 }')
+			local tag
+			for tag in $allTags; do
+				[ "$tag" = "$resolvedImage" ] && continue
+				FOUND_CONTAINER_ID=$("$CB_CONTAINER_RUNTIME" ps --format '{{.ID}}|{{.Image}}' 2>/dev/null | awk -F'|' -v img="$tag" 'function endsWith(s,e){return substr(s,length(s)-length(e)+1)==e} $2==img || endsWith($2,"/"img) { print $1; exit }')
+				if [ -n "$FOUND_CONTAINER_ID" ]; then
+					FOUND_CONTAINER_IMAGE="$tag"
+					return 0
+				fi
+			done
+		fi
+	fi
+
+	return 1
+}
+
+
+#########################################################################
+# stopContainer — stop a running container by name, image name, or id
+#########################################################################
+stopContainer() {
+	local input="$1"
+
+	findRunningContainer "$input"
+	if [ -z "$FOUND_CONTAINER_ID" ]; then
+		local resolvedImage
+		resolvedImage=$(resolveImage "$input")
+		if [ -z "$resolvedImage" ]; then
+			echo "${CB_LINEHEADER}Image '$input' not found."
+		else
+			echo "${CB_LINEHEADER}No running container found for '$input'."
+		fi
+		return 1
+	fi
+
+	local shortId
+	shortId=$(printf "%.12s" "$FOUND_CONTAINER_ID")
+	if [ -n "$FOUND_CONTAINER_IMAGE" ]; then
+		echo "${CB_LINEHEADER}Stopping container from '$FOUND_CONTAINER_IMAGE' (id: $shortId)..."
+	else
+		echo "${CB_LINEHEADER}Stopping container $shortId..."
+	fi
+	if ! "$CB_CONTAINER_RUNTIME" stop "$FOUND_CONTAINER_ID" >/dev/null; then
+		echo "${CB_LINEHEADER}Failed to stop container $shortId."
+		return 1
+	fi
+	echo "${CB_LINEHEADER}Container stopped (id: $shortId)."
+	return 0
+}
+
+
+#########################################################################
+# showLogs — show or tail logs of a running container
+# $1 = target (name, image, id)
+# $2 = line limit (empty = all)
+# $3 = "follow" for tail mode
+#########################################################################
+showLogs() {
+	local input="$1"
+	local lineLimit="$2"
+	local followMode="$3"
+
+	findRunningContainer "$input"
+	if [ -z "$FOUND_CONTAINER_ID" ]; then
+		local resolvedImage
+		resolvedImage=$(resolveImage "$input")
+		if [ -z "$resolvedImage" ]; then
+			echo "${CB_LINEHEADER}Image '$input' not found."
+		else
+			echo "${CB_LINEHEADER}No running container found for '$input'."
+		fi
+		return 1
+	fi
+
+	local shortId
+	shortId=$(printf "%.12s" "$FOUND_CONTAINER_ID")
+	local logArgs=()
+
+	if [ "$followMode" = "follow" ]; then
+		if [ "$CB_CONTAINER_VERBOSE" = true ]; then
+			if [ -n "$FOUND_CONTAINER_IMAGE" ]; then
+				echo "${CB_LINEHEADER}Tailing logs from '$FOUND_CONTAINER_IMAGE' (id: $shortId)..."
+			else
+				echo "${CB_LINEHEADER}Tailing logs from container $shortId..."
+			fi
+		fi
+		logArgs+=(-f)
+	else
+		if [ "$CB_CONTAINER_VERBOSE" = true ]; then
+			if [ -n "$FOUND_CONTAINER_IMAGE" ]; then
+				echo "${CB_LINEHEADER}Logs from '$FOUND_CONTAINER_IMAGE' (id: $shortId)..."
+			else
+				echo "${CB_LINEHEADER}Logs from container $shortId..."
+			fi
+		fi
+	fi
+
+	if [ -n "$lineLimit" ]; then
+		# parse range: N, N-M, N-, -M
+		local rangeStart="" rangeEnd=""
+		case "$lineLimit" in
+			-*)
+				# -M means 1-M
+				rangeStart=1
+				rangeEnd="${lineLimit#-}"
+				;;
+			*-*)
+				rangeStart="${lineLimit%%-*}"
+				rangeEnd="${lineLimit#*-}"
+				;;
+			*)
+				rangeEnd="$lineLimit"
+				;;
+		esac
+		[ -z "$rangeStart" ] && rangeStart=1
+
+		# 0 means show nothing
+		if [ "$rangeEnd" = "0" ] || [ "$lineLimit" = "0" ]; then
+			return 0
+		fi
+
+		if [ -n "$rangeEnd" ]; then
+			# N-M or just N (first N lines from rangeStart)
+			local count=$((rangeEnd - rangeStart + 1))
+			[ "$count" -le 0 ] 2>/dev/null && return 0
+			"$CB_CONTAINER_RUNTIME" logs "${logArgs[@]}" "$FOUND_CONTAINER_ID" 2>&1 | tail -n +"$rangeStart" | head -n "$count"
+		else
+			# N- (from line N to end, optionally tailing)
+			"$CB_CONTAINER_RUNTIME" logs "${logArgs[@]}" "$FOUND_CONTAINER_ID" 2>&1 | tail -n +"$rangeStart"
+		fi
+	else
+		"$CB_CONTAINER_RUNTIME" logs "${logArgs[@]}" "$FOUND_CONTAINER_ID"
+	fi
+}
+
+
+#########################################################################
+# scanSingleImage — scan one image, output sorted rows to stdout
+# Returns data via stdout. Stores json and row data in temp files.
+#########################################################################
+scanSingleImage() {
+	local input="$1"
+
+	# resolve image — if not found locally and has explicit tag, try to pull
+	local resolvedImage
+	resolvedImage=$(resolveImage "$input")
+	if [ -z "$resolvedImage" ] && echo "$input" | grep -q ':'; then
+		echo "${CB_LINEHEADER}Image '$input' not found locally, pulling..." >&2
+		if "$CB_CONTAINER_RUNTIME" pull "$input" >/dev/null 2>&1; then
+			resolvedImage="$input"
+		fi
+	fi
+	if [ -z "$resolvedImage" ]; then
+		echo "${CB_LINEHEADER}Image '$input' not found." >&2
+		return 1
+	fi
+
+	# resolve image ID for storing the result
+	local imageId
+	imageId=$("$CB_CONTAINER_RUNTIME" images --format '{{.ID}}' --filter "reference=$resolvedImage" 2>/dev/null | head -n 1)
+	[ -z "$imageId" ] && imageId=$(echo "$resolvedImage" | sed 's|[/:@]|-|g')
+
+	local today
+	today=$(date '+%Y%m%d' 2>/dev/null)
+	local scanJson="$CB_CONTAINER_TEMP/${imageId}-${today}-trivy.json"
+	local scanRows="$CB_CONTAINER_TEMP/${imageId}-${today}-trivy.rows"
+
+	# use cached result if available from today
+	if [ -f "$scanRows" ] && [ -f "$scanJson" ]; then
+		[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Using cached scan from today for '$resolvedImage'.\n"
+		cat "$scanRows"
+		return 0
+	fi
+
+	[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Scanning '$resolvedImage' with trivy...\n"
+	trivy image --quiet --format json "$resolvedImage" 2>/dev/null > "$scanJson"
+
+	# format results sorted by severity, output rows only
+	awk '
+	function sevChar(s) {
+		if (s=="CRITICAL") return "C"
+		if (s=="HIGH") return "H"
+		if (s=="MEDIUM") return "M"
+		if (s=="LOW") return "L"
+		return "?"
+	}
+	function truncLeft(s, maxlen) {
+		if (length(s) <= maxlen) return s
+		return ".." substr(s, length(s) - maxlen + 3)
+	}
+	function extractVal(line, key,    tmp) {
+		if (index(line, "\"" key "\"") == 0) return ""
+		tmp = line
+		sub(".*\"" key "\": *\"", "", tmp)
+		sub("\".*", "", tmp)
+		return tmp
+	}
+	BEGIN { ci=0; hi=0; mi=0; li=0; ui=0; TAB=sprintf("%c",9) }
+	{
+		v = extractVal($0, "Target");           if (v != "") target = v
+		v = extractVal($0, "VulnerabilityID");  if (v != "") { vid = v; fix = "" }
+		v = extractVal($0, "PkgName");          if (v != "") pkg = v
+		v = extractVal($0, "InstalledVersion"); if (v != "") ver = v
+		v = extractVal($0, "FixedVersion");     if (v != "") fix = v
+		v = extractVal($0, "Severity");         if (v != "") sev = v; else sev = ""
+		if (sev != "" && vid != "") {
+			sc = sevChar(sev)
+			tp = truncLeft(pkg, 28)
+			# use pipe as internal separator for multiple fix versions
+			if (fix == "") fix = "-"
+			gsub(/, */, "|", fix)
+			entry = vid TAB sc TAB tp TAB ver TAB fix TAB target
+			if (sev=="CRITICAL") clines[ci++]=entry
+			else if (sev=="HIGH") hlines[hi++]=entry
+			else if (sev=="MEDIUM") mlines[mi++]=entry
+			else if (sev=="LOW") llines[li++]=entry
+			else ulines[ui++]=entry
+			vid=""
+		}
+	}
+	function printEntry(entry,    f, fixes, n, j, iv, fv) {
+		n = split(entry, f, TAB)
+		n = split(f[5], fixes, "[|]")
+		iv = truncLeft(f[4], 12)
+		fv = truncLeft(fixes[1], 12)
+		printf "%-22s %-4s %-30s %-14s %-14s %s\n", f[1], f[2], f[3], iv, fv, f[6]
+		for (j=2; j<=n; j++) {
+			fv = truncLeft(fixes[j], 12)
+			printf "%-22s %-4s %-30s %-14s %-14s\n", "", "", "", "", fv
+		}
+	}
+	END {
+		for (i=0;i<ci;i++) printEntry(clines[i])
+		for (i=0;i<hi;i++) printEntry(hlines[i])
+		for (i=0;i<mi;i++) printEntry(mlines[i])
+		for (i=0;i<li;i++) printEntry(llines[i])
+		for (i=0;i<ui;i++) printEntry(ulines[i])
+	}
+	' "$scanJson" | tee "$scanRows"
+
+	[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_POST="${CB_SCAN_VERBOSE_POST}${CB_LINEHEADER}Scan result stored in $scanRows\n${CB_LINEHEADER}Scan json stored in $scanJson\n"
+}
+
+
+#########################################################################
+# scanContainer — scan one or more images (comma-separated) with trivy
+#########################################################################
+scanContainer() {
+	local input="$1"
+
+	# detect trivy — try cb --setenv if not in PATH
+	if ! command -v trivy >/dev/null 2>&1; then
+		source cb --setenv >/dev/null 2>&1
+		[ -n "$TRIVY_HOME" ] && export PATH="$TRIVY_HOME:$PATH"
+	fi
+	if ! command -v trivy >/dev/null 2>&1; then
+		echo "${CB_LINEHEADER}Trivy is not installed. Install with: cb --install trivy"
+		return 1
+	fi
+
+	# scan each image first to collect verbose messages
+	CB_SCAN_VERBOSE_PRE=""
+	CB_SCAN_VERBOSE_POST=""
+	local allRows="$CB_CONTAINER_TEMP/scan-all-$$.tmp"
+	> "$allRows"
+	local IFS=','
+	for target in $input; do
+		target="${target#"${target%%[![:space:]]*}"}"; target="${target%"${target##*[![:space:]]}"}"
+		[ -z "$target" ] && continue
+		scanSingleImage "$target" >> "$allRows"
+	done
+	unset IFS
+
+	# print verbose pre-messages before header
+	[ -n "$CB_SCAN_VERBOSE_PRE" ] && printf "%b" "$CB_SCAN_VERBOSE_PRE"
+
+	# print header with timestamp right-aligned
+	echo "$CB_LINE"
+	local lineLen=${#CB_LINE}
+	local header
+	header=$(printf "%-22s %-4s %-30s %-14s %-14s %s" "CVE ID" "SEV" "PACKAGE" "INSTALLED" "FIXED" "TARGET")
+	local now
+	now=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
+	local headerLen=${#header}
+	local nowLen=${#now}
+	local padding=$((lineLen - headerLen - nowLen))
+	if [ "$padding" -gt 0 ] 2>/dev/null; then
+		printf "%s%*s%s\n" "$header" "$padding" "" "$now"
+	else
+		printf "%s  %s\n" "$header" "$now"
+	fi
+	echo "$CB_LINE"
+
+	# display rows
+	if [ -s "$allRows" ]; then
+		cat "$allRows"
+	else
+		echo "No vulnerabilities found."
+	fi
+
+	# compute combined summary
+	local critical high medium low total
+	critical=$(awk '{if($2=="C")n++} END{print n+0}' "$allRows" 2>/dev/null)
+	high=$(awk '{if($2=="H")n++} END{print n+0}' "$allRows" 2>/dev/null)
+	medium=$(awk '{if($2=="M")n++} END{print n+0}' "$allRows" 2>/dev/null)
+	low=$(awk '{if($2=="L")n++} END{print n+0}' "$allRows" 2>/dev/null)
+	total=$((critical + high + medium + low))
+
+	echo "$CB_LINE"
+	printf "Summary: %d vulnerabilities" "$total"
+	[ "$total" -gt 0 ] && printf " (CRITICAL: %d, HIGH: %d, MEDIUM: %d, LOW: %d)" "$critical" "$high" "$medium" "$low"
+	echo ""
+	echo "$CB_LINE"
+
+	# print verbose post-messages after summary
+	[ -n "$CB_SCAN_VERBOSE_POST" ] && printf "%b" "$CB_SCAN_VERBOSE_POST"
+
+	rm -f "$allRows" 2>/dev/null
+}
+
+
+#########################################################################
+# mapImageAlias — map short distro aliases to full image names
+#########################################################################
+mapImageAlias() {
+	case "$1" in
+		arch)   echo "archlinux";;
+		debian) echo "library/debian";;
+		kali)   echo "kalilinux/kali-rolling";;
+		*)      echo "$1";;
+	esac
+}
+
+
+#########################################################################
+# runContainer — run a container interactively (with --rm)
+#########################################################################
+runContainer() {
+	local image="$1"
+	local entrypoint="$2"
+	local shell="$3"
+	local containerName
+	containerName=$(echo "$image" | sed 's|[/:@]|-|g')
+
+	# check if already running — connect to it
+	local runningId
+	runningId=$("$CB_CONTAINER_RUNTIME" ps --format '{{.ID}}|{{.Image}}' 2>/dev/null | awk -F'|' -v img="$image" 'function endsWith(s,e){return substr(s,length(s)-length(e)+1)==e} $2==img || endsWith($2,"/"img) { print $1; exit }')
+	if [ -n "$runningId" ]; then
+		echo "${CB_LINEHEADER}Container from '$image' is already running (id: $runningId)."
+		echo "${CB_LINEHEADER}Connecting..."
+		"$CB_CONTAINER_RUNTIME" exec -it "$runningId" "$shell"
+		return $?
+	fi
+
+	# remove any stopped container with the same name
+	"$CB_CONTAINER_RUNTIME" rm -f "${containerName}" >/dev/null 2>&1
+
+	buildPortArgs "${CB_CONTAINER_PORTS[@]}"
+	buildEnvArgs "$CB_CONTAINER_ENV"
+	local runArgs=(-it --name "${containerName}" --rm "${PORT_ARGS[@]}" "${ENV_ARGS[@]}")
+	if [ -n "$entrypoint" ]; then
+		runArgs+=(--entrypoint "$entrypoint")
+		echo "${CB_LINEHEADER}Running container from '$image' with entrypoint '$entrypoint'..."
+	else
+		echo "${CB_LINEHEADER}Running container from '$image'..."
+	fi
+	"$CB_CONTAINER_RUNTIME" run "${runArgs[@]}" "$image" "$shell"
+}
+
+
+#########################################################################
+# deleteImage — delete an image by name or id
+#########################################################################
+deleteImage() {
+	local input="$1"
+
+	# resolve image
+	local resolvedImage
+	resolvedImage=$(resolveImage "$input")
+	if [ -z "$resolvedImage" ]; then
+		echo "${CB_LINEHEADER}Image '$input' not found."
+		return 1
+	fi
+
+	# check if a container is using this image
+	local runningId
+	runningId=$("$CB_CONTAINER_RUNTIME" ps --format '{{.ID}}|{{.Image}}' 2>/dev/null | awk -F'|' -v img="$resolvedImage" 'function endsWith(s,e){return substr(s,length(s)-length(e)+1)==e} $2==img || endsWith($2,"/"img) { print $1; exit }')
+	if [ -n "$runningId" ]; then
+		echo "${CB_LINEHEADER}Cannot delete '$resolvedImage': container $runningId is running. Stop it first."
+		return 1
+	fi
+
+	echo "${CB_LINEHEADER}Deleting image '$resolvedImage'..."
+	if ! "$CB_CONTAINER_RUNTIME" rmi "$resolvedImage" >/dev/null 2>&1; then
+		echo "${CB_LINEHEADER}Failed to delete image '$resolvedImage'."
+		return 1
+	fi
+	echo "${CB_LINEHEADER}Image deleted."
+}
+
+
+#########################################################################
+# cleanCache — remove all cached scan results
+#########################################################################
+cleanCache() {
+	if [ -d "$CB_CONTAINER_TEMP" ]; then
+		local count
+		count=$(find "$CB_CONTAINER_TEMP" -type f 2>/dev/null | wc -l | tr -d ' ')
+		rm -rf "$CB_CONTAINER_TEMP" 2>/dev/null
+		mkdir -p "$CB_CONTAINER_TEMP" 2>/dev/null
+		[ "$CB_CONTAINER_VERBOSE" = true ] && echo "${CB_LINEHEADER}Cache cleaned ($count file(s) removed)."
+	else
+		[ "$CB_CONTAINER_VERBOSE" = true ] && echo "${CB_LINEHEADER}No cache to clean."
+	fi
+
+	# prune dangling images
+	local pruned
+	pruned=$("$CB_CONTAINER_RUNTIME" image prune -f 2>/dev/null)
+	if [ "$CB_CONTAINER_VERBOSE" = true ]; then
+		local reclaimedLine
+		reclaimedLine=$(echo "$pruned" | grep -i "reclaimed\|space" | tail -n 1)
+		if [ -n "$reclaimedLine" ]; then
+			echo "${CB_LINEHEADER}$reclaimedLine"
+		else
+			echo "${CB_LINEHEADER}Dangling images pruned."
+		fi
+	fi
+}
+
+
+#########################################################################
+# main
+#########################################################################
+CB_CONTAINER_SHELL="/bin/sh"
+CB_CONTAINER_ID=""
+CB_CONTAINER_ENTRYPOINT=""
+CB_CONTAINER_ENV=""
+CB_CONTAINER_PORTS=()
+CB_CONTAINER_START_IMAGE=""
+CB_CONTAINER_STOP_TARGET=""
+CB_CONTAINER_SCAN_TARGET=""
+CB_CONTAINER_CLEAN=false
+CB_CONTAINER_DELETE_TARGET=""
+CB_CONTAINER_LOG_TARGET=""
+CB_CONTAINER_LOG_LINES=""
+CB_CONTAINER_TAIL=false
+CB_CONTAINER_ALL=false
+CB_CONTAINER_LIST=false
+CB_CONTAINER_VERBOSE=false
+
+# read .cb-container config file if present (first line = default parameters)
+if [ -f ".cb-container" ]; then
+	cbContainerConfig=$(head -n 1 ".cb-container" 2>/dev/null | tr -d '\r\n\t')
+	if [ -n "$cbContainerConfig" ]; then
+		[ "$CB_CONTAINER_VERBOSE" = true ] && echo "${CB_LINEHEADER}Config: $cbContainerConfig"
+		eval set -- $cbContainerConfig '"$@"'
+	fi
+fi
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		-h|--help)        printUsage; exit 0;;
+		-v|--version)     printVersion; exit 0;;
+		-l|--list)        CB_CONTAINER_LIST=true;;
+		-a|--all)         CB_CONTAINER_ALL=true;;
+		--verbose)        CB_CONTAINER_VERBOSE=true;;
+		-i|--it)          if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
+		                    shift; CB_CONTAINER_ID="$1"
+		                  else
+		                    CB_CONTAINER_ID="auto"
+		                  fi;;
+		-s|--shell)       shift; CB_CONTAINER_SHELL="$1";;
+		-e|--entrypoint)  shift; CB_CONTAINER_ENTRYPOINT="$1";;
+		-p|--port)        shift; CB_CONTAINER_PORTS+=("$1");;
+		--env)            shift; CB_CONTAINER_ENV="$1";;
+		--start)          shift; CB_CONTAINER_START_IMAGE="$1";;
+		--stop)           shift; CB_CONTAINER_STOP_TARGET="$1";;
+		--scan)           shift; CB_CONTAINER_SCAN_TARGET="$1";;
+		--clean)          CB_CONTAINER_CLEAN=true;;
+		--delete)         shift; CB_CONTAINER_DELETE_TARGET="$1";;
+		--log)            shift
+		                  if [ -n "$1" ] && echo "$1" | grep -q '^-\?[0-9]\+\(-[0-9]*\)\?$' 2>/dev/null; then
+		                    CB_CONTAINER_LOG_TARGET="auto"
+		                    CB_CONTAINER_LOG_LINES="$1"
+		                  elif [ -n "$1" ] && [ "${1#-}" = "$1" ]; then
+		                    CB_CONTAINER_LOG_TARGET="$1"
+		                    if [ -n "$2" ] && echo "$2" | grep -q '^-\?[0-9]\+\(-[0-9]*\)\?$' 2>/dev/null; then
+		                      CB_CONTAINER_LOG_LINES="$2"; shift
+		                    fi
+		                  else
+		                    CB_CONTAINER_LOG_TARGET="auto"
+		                  fi;;
+		-t|--tail)        CB_CONTAINER_TAIL=true;;
+		-*)               echo "Invalid parameter: $1"; echo ""; printUsage; exit 1;;
+		*)                CB_CONTAINER_START_IMAGE="$1";;
+	esac
+	shift
+done
+
+# detect runtime
+CB_CONTAINER_RUNTIME=$(detectRuntime)
+if [ -z "$CB_CONTAINER_RUNTIME" ]; then
+	echo "$CB_LINE"
+	echo "${CB_LINEHEADER}Neither nerdctl nor docker found in PATH."
+	echo "$CB_LINE"
+	exit 1
+fi
+
+# clean cache (can be combined with other actions)
+if [ "$CB_CONTAINER_CLEAN" = true ]; then
+	# force verbose when clean is the only action
+	hasOtherAction=false
+	[ -n "$CB_CONTAINER_DELETE_TARGET" ] && hasOtherAction=true
+	[ "$CB_CONTAINER_LIST" = true ] && hasOtherAction=true
+	[ -n "$CB_CONTAINER_ID" ] && hasOtherAction=true
+	[ -n "$CB_CONTAINER_LOG_TARGET" ] && hasOtherAction=true
+	[ -n "$CB_CONTAINER_STOP_TARGET" ] && hasOtherAction=true
+	[ -n "$CB_CONTAINER_START_IMAGE" ] && hasOtherAction=true
+	[ -n "$CB_CONTAINER_SCAN_TARGET" ] && hasOtherAction=true
+	if [ "$hasOtherAction" = false ]; then
+		CB_CONTAINER_VERBOSE=true
+		cleanCache
+		exit 0
+	fi
+	cleanCache
+fi
+
+# delete image
+if [ -n "$CB_CONTAINER_DELETE_TARGET" ]; then
+	deleteImage "$CB_CONTAINER_DELETE_TARGET"
+	exit $?
+fi
+
+# list mode
+if [ "$CB_CONTAINER_LIST" = true ]; then
+	listImages
+	exit 0
+fi
+
+# connect to running container (standalone --id with a container id)
+if [ -n "$CB_CONTAINER_ID" ] && [ "$CB_CONTAINER_ID" != "auto" ]; then
+	connectToContainer "$CB_CONTAINER_ID" "$CB_CONTAINER_SHELL"
+	exit $?
+fi
+
+# scan image with trivy
+if [ -n "$CB_CONTAINER_SCAN_TARGET" ]; then
+	scanContainer "$CB_CONTAINER_SCAN_TARGET"
+	exit $?
+fi
+
+# show/tail logs (standalone, not combined with --start)
+if [ -n "$CB_CONTAINER_LOG_TARGET" ] && [ "$CB_CONTAINER_LOG_TARGET" != "auto" ]; then
+	followMode=""
+	[ "$CB_CONTAINER_TAIL" = true ] && followMode="follow"
+	showLogs "$CB_CONTAINER_LOG_TARGET" "$CB_CONTAINER_LOG_LINES" "$followMode"
+	exit $?
+fi
+
+# stop a container
+if [ -n "$CB_CONTAINER_STOP_TARGET" ]; then
+	stopContainer "$CB_CONTAINER_STOP_TARGET"
+	exit $?
+fi
+
+# start a container from an existing image
+if [ -n "$CB_CONTAINER_START_IMAGE" ]; then
+	resolvedImage=$(resolveImage "$CB_CONTAINER_START_IMAGE")
+	if [ -z "$resolvedImage" ]; then
+		pullImage="$CB_CONTAINER_START_IMAGE"
+		echo "$pullImage" | grep -q ':' || pullImage="${pullImage}:latest"
+		echo "${CB_LINEHEADER}Image '$CB_CONTAINER_START_IMAGE' not found locally, pulling $pullImage..."
+		if "$CB_CONTAINER_RUNTIME" pull "$pullImage" >/dev/null 2>&1; then
+			resolvedImage="$pullImage"
+		fi
+	fi
+	if [ -z "$resolvedImage" ]; then
+		echo "${CB_LINEHEADER}Image '$CB_CONTAINER_START_IMAGE' not found."
+		exit 1
+	fi
+	[ "$CB_CONTAINER_VERBOSE" = true ] && echo "${CB_LINEHEADER}Resolved image: $resolvedImage"
+	STARTED_CONTAINER_ID=""
+	startContainer "$resolvedImage" "$CB_CONTAINER_ENTRYPOINT"
+	rc=$?
+	if [ $rc -eq 0 ] && [ -n "$STARTED_CONTAINER_ID" ]; then
+		# if --id was specified, attach to the started container
+		if [ "$CB_CONTAINER_ID" = "auto" ]; then
+			connectToContainer "$STARTED_CONTAINER_ID" "$CB_CONTAINER_SHELL"
+			exit $?
+		fi
+		# if --log or -t/--tail was specified, show/tail logs
+		if [ "$CB_CONTAINER_LOG_TARGET" = "auto" ] || [ "$CB_CONTAINER_TAIL" = true ]; then
+			followMode=""
+			[ "$CB_CONTAINER_TAIL" = true ] && followMode="follow"
+			showLogs "$resolvedImage" "$CB_CONTAINER_LOG_LINES" "$followMode"
+			exit $?
+		fi
+	fi
+	exit $rc
+fi
+
+# auto-detect Dockerfile in current directory
+if [ -f "Dockerfile" ]; then
+	buildAndRun "Dockerfile" "$CB_CONTAINER_ENTRYPOINT"
+	exit $?
+elif [ -f "dockerfile" ]; then
+	buildAndRun "dockerfile" "$CB_CONTAINER_ENTRYPOINT"
+	exit $?
+elif [ -f "Containerfile" ]; then
+	buildAndRun "Containerfile" "$CB_CONTAINER_ENTRYPOINT"
+	exit $?
+fi
+
+# no specific action — show the image list as default
+listImages
+
+
+#########################################################################
+# EOF
+#########################################################################
