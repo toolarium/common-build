@@ -21,6 +21,9 @@ cb-container -l
 # List all images
 cb-container -l -a
 
+# Filter images by name prefix
+cb-container -l alpine
+
 # Connect to a container (starts interactively if not running)
 cb-container -i ubuntu
 
@@ -35,7 +38,34 @@ cb-container --log my-app
 
 # Scan for vulnerabilities
 cb-container --scan my-app
+
+# Scan all images
+cb-container --scan -a
 ```
+
+## Project-Aware Mode
+
+When run from a directory containing `settings.gradle`, `cb-container` automatically detects the project name from the `rootProject.name` property.
+
+```bash
+# In a project directory with settings.gradle:
+cb-container                     # lists only this project's images
+cb-container --scan              # scans the project image
+cb-container --start             # starts the project image
+cb-container --stop              # stops the project container
+cb-container --log               # shows logs of the project container
+cb-container --delete            # deletes the project image
+```
+
+The `--list` / `-l` flag is **not** affected by project detection — it always shows all images (or filtered by an explicit prefix).
+
+### Local Cache
+
+When in a project directory, scan results are stored locally:
+- **Default**: `build/container/`
+- **Testing projects** (where `gradle.properties` has `projectType = testing`): `build/reports/testing/`
+
+This keeps scan artifacts with the project instead of in the global temp directory.
 
 ## Commands
 
@@ -46,10 +76,14 @@ Show images with running container info. By default only images with running con
 ```bash
 cb-container -l                      # running containers only
 cb-container -l -a                   # all images
+cb-container -l alpine               # filter by name prefix (implies -a)
+cb-container -l al                   # partial prefix match
 cb-container -l --verbose            # includes summary: N image(s), M running.
 ```
 
 Output columns: IMAGE ID, CONTAINER ID, CREATED, STARTED, SIZE, TAG. Sorted alphabetically by tag name. The header shows a right-aligned timestamp and image count.
+
+When a filter prefix is provided, only images whose repository name or image ID starts with the prefix are shown, and `-a` (show all) is implied automatically.
 
 ### Connecting to Containers (`-i`, `--it`)
 
@@ -148,14 +182,71 @@ Log header is only shown with `--verbose`.
 
 ### Scanning for Vulnerabilities (`--scan`)
 
-Scan images for security vulnerabilities using [trivy](https://trivy.dev). Results are cached per day.
+Scan images for security vulnerabilities using [trivy](https://trivy.dev). Results are cached with automatic invalidation.
 
 ```bash
 cb-container --scan my-app                   # scan single image
 cb-container --scan my-app,nginx:alpine      # scan multiple (comma-separated)
 cb-container --scan alpine:3.16              # pulls if not local
 cb-container --scan 34b83c5c873f             # by image ID
+cb-container --scan -a                       # scan ALL images (list view with VULN column)
+cb-container --scan -a -l my                 # scan all images filtered by prefix
+cb-container --scan my-app -w               # wide output (full column widths)
+cb-container --scan my-app -f               # force rescan (ignore cache)
 ```
+
+#### Scan All Images (`--scan -a`)
+
+When combined with `-a` / `--all`, scans every image and displays a list-style table with per-severity columns (**CRIT**, **HIGH**, **MED**, **LOW**) replacing SIZE and STARTED:
+
+```
+------------------------------------------------------------------------------------------------------------------------
+IMAGE ID      CONTAINER ID  CREATED           CRIT HIGH MED  LOW  TAG
+------------------------------------------------------------------------------------------------------------------------
+25109184c71b  -             2026-01-28 02:18  2    11   5    2    alpine:latest
+1487d0af5f52  -             2024-09-26 23:31  0    0    0    0    busybox:latest
+------------------------------------------------------------------------------------------------------------------------
+.: Scan completed [4s]
+```
+
+Scanning multiple comma-separated images uses the same list-style format:
+
+```bash
+cb-container --scan alpine,archlinux         # list-style with severity columns
+cb-container --scan 25109184,237637c5        # by image ID prefixes
+```
+
+Can be combined with `-l <prefix>` to filter by image name or image ID prefix.
+
+#### Wide Output (`-w`, `--wide`)
+
+Shows full (untruncated) PACKAGE, INSTALLED, and FIXED columns with a wider separator line:
+
+```bash
+cb-container --scan my-app -w
+```
+
+#### Force Rescan (`-f`, `--force`)
+
+Ignores cached results and forces a fresh trivy scan:
+
+```bash
+cb-container --scan my-app -f
+```
+
+#### CSV Output (`--csv`)
+
+Output as semicolon-separated CSV. Suppresses separator lines and footers. Works with `--list -a`, `--scan -a`, and `--scan img1,img2`:
+
+```bash
+cb-container --list -a --csv                 # list all images as CSV
+cb-container --scan -a --csv                 # scan all images as CSV
+cb-container --scan -a -l my --csv           # scan filtered images as CSV
+cb-container --scan img1,img2 --csv          # scan specific images as CSV
+```
+
+List CSV header: `IMAGE ID;CONTAINER ID;CREATED;STARTED;SIZE;TAG`
+Scan CSV header: `IMAGE ID;CONTAINER ID;CREATED;CRIT;HIGH;MED;LOW;TAG`
 
 #### Trivy Detection
 
@@ -169,25 +260,43 @@ Results are sorted by severity (CRITICAL, HIGH, MEDIUM, LOW) and displayed in a 
 
 ```
 ------------------------------------------------------------------------------------------------------------------------
-CVE ID                 SEV  PACKAGE                        INSTALLED      FIXED          TARGET      2026-04-19 16:30:21
+CVE ID                 SEV  PACKAGE                        INSTALLED      FIXED          TARGET      2026-04-23 16:30:21
 ------------------------------------------------------------------------------------------------------------------------
 CVE-2026-28390         H    libcrypto3                     3.5.5-r0       3.5.6-r0       alpine:latest (alpine 3.23.3)
 CVE-2026-28388         M    libcrypto3                     3.5.5-r0       3.5.6-r0       alpine:latest (alpine 3.23.3)
 CVE-2026-2673          L    libcrypto3                     3.5.5-r0       3.5.6-r0       alpine:latest (alpine 3.23.3)
 ------------------------------------------------------------------------------------------------------------------------
-Summary: 20 vulnerabilities (CRITICAL: 0, HIGH: 5, MEDIUM: 11, LOW: 4)
+Summary: 20 vulnerabilities (CRITICAL: 0, HIGH: 5, MEDIUM: 11, LOW: 4) [12s]
 ------------------------------------------------------------------------------------------------------------------------
 ```
 
 - **SEV**: C = CRITICAL, H = HIGH, M = MEDIUM, L = LOW
-- **PACKAGE**: truncated from left with `..` if too long
-- **INSTALLED / FIXED**: truncated from left with `..` if too long
+- **PACKAGE**: truncated from left with `..` if too long (full width with `-w`)
+- **INSTALLED / FIXED**: truncated from left with `..` if too long (full width with `-w`)
 - **FIXED**: shows `-` when no fix is available; multiple fix versions shown on continuation lines
+- **Duration**: shown in brackets at the end of the summary line
 - **Multiple images**: when scanning comma-separated images, all results are combined with a single summary
 
 #### Caching
 
-Scan results are cached in `$CB_TEMP/cb-container/` with filenames like `<imageId>-<YYYYMMDD>-trivy.json` and `.rows`. On the same day, subsequent scans show the cached result instantly.
+Scan results are cached with filenames like `<imageId>-<YYYYMMDD-HHmmss>-trivy.json`, `.rows`, and `.counts`.
+
+Cache is stored in:
+- **Project directory**: `build/container/` (or `build/reports/testing/` for testing projects) when `settings.gradle` is present
+- **Global temp**: `$CB_TEMP/cb-container/` otherwise
+
+Cache is automatically invalidated when:
+- A new day starts (day boundary)
+- The image has been rebuilt (creation timestamp newer than cache)
+- `--force` / `-f` is used
+
+The `--verbose` flag shows cache status:
+```
+.: Using cached scan for 'my-app:latest'.
+.: Image is newer than cache (20260423-120830 > 20260423-100000), rescanning.
+.: Cache expired (from 20260422, today 20260423), rescanning.
+.: Force scan, cache cleared for 'my-app:latest'.
+```
 
 ### Deleting Images (`--delete`)
 
@@ -291,6 +400,10 @@ An image name can be passed as a positional argument (without `--start`):
 cb-container my-app                          # equivalent to --start my-app
 ```
 
+## Auto-Build from Dockerfile
+
+If no command is given and a `Dockerfile`, `dockerfile`, or `Containerfile` exists in the current directory, `cb-container` automatically builds and runs the image.
+
 ## Cross-Platform Compatibility
 
 - **Windows**: `cb-container.bat` using `cmd.exe` with delayed expansion. Uses PowerShell for JSON parsing (trivy scan) and date formatting.
@@ -301,6 +414,9 @@ All container runtime commands are compatible with both Docker and nerdctl. Uses
 
 ## Temp Directory
 
-All temporary files are stored in `$CB_TEMP/cb-container/` (shell) or `%CB_TEMP%\cb-container\` (batch). This includes scan caches, intermediate files, and error logs.
+Temporary and cache files are stored in:
+
+- **In a project directory** (with `settings.gradle`): `build/container/` (or `build/reports/testing/` for testing projects)
+- **Outside a project**: `$CB_TEMP/cb-container/` (shell) or `%CB_TEMP%\cb-container\` (batch)
 
 If `CB_TEMP` is not set, defaults to `/tmp/cb-$USER` (shell) or `%TEMP%\cb` (batch).

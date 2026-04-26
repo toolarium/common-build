@@ -336,7 +336,7 @@ executeCustomConfig() {
 		done < <( echo "$CB_CUSTOM_CONFIG_CONTENT" )
 	fi
 
-	! [ -n "$CB_CUSTOM_CONFIG" ] && echo "${CB_LINEHEADER}Ignore empty custom config, see $CB_CONFIG_HOME/conf/$CB_CUSTOM_CONFIG_FILENAME"
+	! [ -n "$CB_CUSTOM_CONFIG" ] && [ "$CB_INSTALL_SILENT" = "false" ] && echo "${CB_LINEHEADER}Ignore empty custom config, see $CB_CONFIG_HOME/conf/$CB_CUSTOM_CONFIG_FILENAME"
 	! [ -n "$CB_CUSTOM_CONFIG" ] && return
 	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Select custom config entry [$CB_CUSTOM_CONFIG]."
 	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Verify custom config [$CB_CUSTOM_CONFIG]."
@@ -1558,7 +1558,8 @@ if [ $# -gt 0 ]; then
 	[ "$1" = "--packages" ] && shift && readVersion && printPackages $1 && exit 0
 	[ "$1" = "--install" ] && doExecuteCustomSettings=false
 	for arg in "$@"; do
-		[ "$arg" = "--setenv" ] && CB_SETENV_ONLY=true && break
+		[ "$arg" = "--setenv" ] && CB_SETENV_ONLY=true
+		[ "$arg" = "--silent" ] && CB_INSTALL_SILENT=true
 	done
 fi
 

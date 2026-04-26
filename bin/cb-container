@@ -27,6 +27,7 @@
 CB_CONTAINER_VERSION=1.0.0
 PN=$(basename "$0" 2>/dev/null)
 [ -z "$CB_LINE" ] && CB_LINE="------------------------------------------------------------------------------------------------------------------------"
+[ -z "$CB_LINE_WIDE" ] && CB_LINE_WIDE="----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------"
 [ -z "$CB_LINEHEADER" ] && CB_LINEHEADER=".: "
 ! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb-$USER"
 CB_CONTAINER_TEMP="$CB_TEMP/cb-container"
@@ -43,8 +44,14 @@ printUsage() {
 	echo "Overview of the available OPTIONs:"
 	echo " -h, --help                  Show this help message."
 	echo " -v, --version               Print the version information."
-	echo " -l, --list                  List images with running containers."
+	echo " -l, --list [filter]         List images with running containers. Optionally"
+	echo "                             filter by image name prefix."
 	echo " -a, --all                   Show all images (default: running only)."
+	echo " -w, --wide                  Show wider columns for installed/fixed versions"
+	echo "                             in scan output."
+	echo " -f, --force                 Force scan, ignore cached results."
+	echo "     --csv                   Output as CSV (semicolon-separated). Used with"
+	echo "                             -l/--list -a, --scan -a, or --scan img1,img2."
 	echo "     --verbose               Verbose output."
 	echo " -i, --it [name|id]          Connect to a running container. If not running,"
 	echo "                             starts it interactively. Supports distro aliases."
@@ -85,6 +92,8 @@ printUsage() {
 	echo ""
 	echo "  List all images and running containers:"
 	echo "  $PN --list"
+	echo "  $PN -l alpine"
+	echo "  $PN -l al"
 	echo ""
 	echo "  Connect to container (starts interactively if not running):"
 	echo "  $PN -i ubuntu"
@@ -161,26 +170,36 @@ listImages() {
 	local imageList
 	imageList=$("$CB_CONTAINER_RUNTIME" images --format '{{.ID}}|{{.Repository}}|{{.Tag}}|{{.Size}}|{{.CreatedAt}}' 2>/dev/null | sort -t'|' -k2,3)
 
+	# apply list filter (prefix match on repository name or image ID)
+	if [ -n "$CB_CONTAINER_LIST_FILTER" ] && [ -n "$imageList" ]; then
+		imageList=$(echo "$imageList" | awk -F'|' -v f="$CB_CONTAINER_LIST_FILTER" \
+			'BEGIN { flen=length(f) } tolower(substr($1,1,flen))==tolower(f) || tolower(substr($2,1,flen))==tolower(f) { print }')
+	fi
+
 	local imageCount=0
 	[ -n "$imageList" ] && imageCount=$(echo "$imageList" | wc -l | tr -d ' ')
 
 	# print header with image count right-aligned
-	echo "$CB_LINE"
-	local lineLen=${#CB_LINE}
-	local header
-	header=$(printf "%-14s %-14s %-18s %-18s %-9s %s" "IMAGE ID" "CONTAINER ID" "CREATED" "STARTED" "SIZE" "TAG")
-	local now
-	now=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
-	local countLabel="$now - $imageCount image(s)"
-	local headerLen=${#header}
-	local countLen=${#countLabel}
-	local padding=$((lineLen - headerLen - countLen))
-	if [ "$padding" -gt 0 ] 2>/dev/null; then
-		printf "%s%*s%s\n" "$header" "$padding" "" "$countLabel"
+	if [ "$CB_CONTAINER_CSV" = true ]; then
+		echo "IMAGE ID;CONTAINER ID;CREATED;STARTED;SIZE;TAG"
 	else
-		printf "%s  %s\n" "$header" "$countLabel"
+		echo "$CB_LINE"
+		local lineLen=${#CB_LINE}
+		local header
+		header=$(printf "%-14s %-14s %-18s %-18s %-9s %s" "IMAGE ID" "CONTAINER ID" "CREATED" "STARTED" "SIZE" "TAG")
+		local now
+		now=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
+		local countLabel="$now - $imageCount image(s)"
+		local headerLen=${#header}
+		local countLen=${#countLabel}
+		local padding=$((lineLen - headerLen - countLen))
+		if [ "$padding" -gt 0 ] 2>/dev/null; then
+			printf "%s%*s%s\n" "$header" "$padding" "" "$countLabel"
+		else
+			printf "%s  %s\n" "$header" "$countLabel"
+		fi
+		echo "$CB_LINE"
 	fi
-	echo "$CB_LINE"
 
 	if [ -z "$imageList" ]; then
 		echo "${CB_LINEHEADER}No images found."
@@ -204,17 +223,26 @@ listImages() {
 				 $2==rt || $2==r || $2==iid || endsWith($2,"/"rt) || endsWith($2,"/"r) { print $0 }')
 		fi
 
-		if [ -n "$matchLines" ]; then
-			echo "$matchLines" | awk -F'|' -v sid="$shortId" -v rt="$repoTag" -v sz="$imgSize" -v cr="$shortCreated" \
-				'NR==1 { started=substr($3,1,16); printf "%-14s %-14s %-18s %-18s %-9s %s\n", sid, $1, cr, started, sz, rt }
-				 NR>1  { started=substr($3,1,16); printf "%-14s %-14s %-18s %-18s %-9s %s\n", "", $1, "", started, "", rt }'
-		elif [ "$CB_CONTAINER_ALL" = true ]; then
-			printf "%-14s %-14s %-18s %-18s %-9s %s\n" "$shortId" "-" "$shortCreated" "-" "$imgSize" "$repoTag"
+		if [ "$CB_CONTAINER_CSV" = true ]; then
+			if [ -n "$matchLines" ]; then
+				echo "$matchLines" | awk -F'|' -v sid="$shortId" -v rt="$repoTag" -v sz="$imgSize" -v cr="$shortCreated" \
+					'NR==1 { started=substr($3,1,16); printf "%s;%s;%s;%s;%s;%s\n", sid, $1, cr, started, sz, rt }'
+			elif [ "$CB_CONTAINER_ALL" = true ]; then
+				printf "%s;%s;%s;%s;%s;%s\n" "$shortId" "-" "$shortCreated" "-" "$imgSize" "$repoTag"
+			fi
+		else
+			if [ -n "$matchLines" ]; then
+				echo "$matchLines" | awk -F'|' -v sid="$shortId" -v rt="$repoTag" -v sz="$imgSize" -v cr="$shortCreated" \
+					'NR==1 { started=substr($3,1,16); printf "%-14s %-14s %-18s %-18s %-9s %s\n", sid, $1, cr, started, sz, rt }
+					 NR>1  { started=substr($3,1,16); printf "%-14s %-14s %-18s %-18s %-9s %s\n", "", $1, "", started, "", rt }'
+			elif [ "$CB_CONTAINER_ALL" = true ]; then
+				printf "%-14s %-14s %-18s %-18s %-9s %s\n" "$shortId" "-" "$shortCreated" "-" "$imgSize" "$repoTag"
+			fi
 		fi
 	done
 
 	# verbose summary
-	if [ "$CB_CONTAINER_VERBOSE" = true ]; then
+	if [ "$CB_CONTAINER_VERBOSE" = true ] && [ "$CB_CONTAINER_CSV" != true ]; then
 		local runningCount
 		runningCount=$("$CB_CONTAINER_RUNTIME" ps -q 2>/dev/null | wc -l | tr -d ' ')
 		echo "$CB_LINE"
@@ -391,9 +419,12 @@ startContainer() {
 	local containerName
 	containerName=$(echo "$image" | sed 's|[/:@]|-|g')
 
-	# check if a container from this image is already running
+	# check if a container from this image is already running (match by name, repo, or image ID)
+	local startRepo="${image%%:*}"
+	local startImageId
+	startImageId=$("$CB_CONTAINER_RUNTIME" images --format '{{.ID}}' --filter "reference=$image" 2>/dev/null | head -n 1)
 	local runningId
-	runningId=$("$CB_CONTAINER_RUNTIME" ps --format '{{.ID}}|{{.Image}}' 2>/dev/null | awk -F'|' -v img="$image" 'function endsWith(s,e){return substr(s,length(s)-length(e)+1)==e} $2==img || endsWith($2,"/"img) { print $1; exit }')
+	runningId=$("$CB_CONTAINER_RUNTIME" ps --format '{{.ID}}|{{.Image}}' 2>/dev/null | awk -F'|' -v img="$image" -v repo="$startRepo" -v iid="$startImageId" 'function endsWith(s,e){return substr(s,length(s)-length(e)+1)==e} $2==img || $2==repo || $2==iid || endsWith($2,"/"img) || endsWith($2,"/"repo) { print $1; exit }')
 	if [ -n "$runningId" ]; then
 		echo "${CB_LINEHEADER}Container from '$image' is already running (id: $runningId)."
 		STARTED_CONTAINER_ID="$runningId"
@@ -629,23 +660,81 @@ scanSingleImage() {
 	imageId=$("$CB_CONTAINER_RUNTIME" images --format '{{.ID}}' --filter "reference=$resolvedImage" 2>/dev/null | head -n 1)
 	[ -z "$imageId" ] && imageId=$(echo "$resolvedImage" | sed 's|[/:@]|-|g')
 
-	local today
-	today=$(date '+%Y%m%d' 2>/dev/null)
-	local scanJson="$CB_CONTAINER_TEMP/${imageId}-${today}-trivy.json"
-	local scanRows="$CB_CONTAINER_TEMP/${imageId}-${today}-trivy.rows"
+	# get image creation timestamp for cache validation
+	local imageCreatedRaw
+	imageCreatedRaw=$("$CB_CONTAINER_RUNTIME" images --format '{{.CreatedAt}}' --filter "reference=$resolvedImage" 2>/dev/null | head -n 1)
+	local imageCreatedTs=""
+	if [ -n "$imageCreatedRaw" ]; then
+		# normalize to YYYYMMDD-HHmmss (strip non-digits, take first 15 chars, insert dash)
+		imageCreatedTs=$(echo "$imageCreatedRaw" | sed 's/[^0-9]//g' | cut -c1-14)
+		imageCreatedTs="${imageCreatedTs:0:8}-${imageCreatedTs:8:6}"
+	fi
+	[ "$CB_CONTAINER_VERBOSE" = true ] && [ -n "$imageCreatedTs" ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Image created: $imageCreatedTs\n"
 
-	# use cached result if available from today
-	if [ -f "$scanRows" ] && [ -f "$scanJson" ]; then
-		[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Using cached scan from today for '$resolvedImage'.\n"
+	local scanRowsSuffix=""
+	[ "$CB_CONTAINER_WIDE" = true ] && scanRowsSuffix="-wide"
+
+	# find newest cached json for this image (skip if --force)
+	local scanJson="" scanRows="" scanCacheTs="" scanCacheValid=false
+	if [ "$CB_CONTAINER_FORCE" = true ]; then
+		rm -f "$CB_CONTAINER_TEMP/${imageId}"-*-trivy.json 2>/dev/null
+		rm -f "$CB_CONTAINER_TEMP/${imageId}"-*-trivy*.rows 2>/dev/null
+		[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Force scan, cache cleared for '$resolvedImage'.\n"
+	fi
+	local cachedJson=""
+	[ "$CB_CONTAINER_FORCE" != true ] && cachedJson=$(ls -1r "$CB_CONTAINER_TEMP/${imageId}"-*-trivy.json 2>/dev/null | head -n 1)
+	if [ -n "$cachedJson" ]; then
+		# extract timestamp from filename
+		scanCacheTs=$(basename "$cachedJson" | sed "s/^${imageId}-//;s/-trivy\.json$//")
+		local cacheDay="${scanCacheTs%%-*}"
+		local today
+		today=$(date '+%Y%m%d' 2>/dev/null)
+		if [ -n "$today" ] && [ "$cacheDay" != "$today" ]; then
+			[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Cache expired (from $cacheDay, today $today), rescanning.\n"
+			rm -f "$cachedJson" 2>/dev/null
+			rm -f "$CB_CONTAINER_TEMP/${imageId}-${scanCacheTs}-trivy"*.rows 2>/dev/null
+			rm -f "$CB_CONTAINER_TEMP/${imageId}-${scanCacheTs}-trivy"*.counts 2>/dev/null
+		elif [ -n "$imageCreatedTs" ] && [ "$imageCreatedTs" \> "$scanCacheTs" ]; then
+			[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Image is newer than cache ($imageCreatedTs > $scanCacheTs), rescanning.\n"
+			rm -f "$cachedJson" 2>/dev/null
+			rm -f "$CB_CONTAINER_TEMP/${imageId}-${scanCacheTs}-trivy"*.rows 2>/dev/null
+			rm -f "$CB_CONTAINER_TEMP/${imageId}-${scanCacheTs}-trivy"*.counts 2>/dev/null
+		else
+			scanJson="$cachedJson"
+			scanRows="$CB_CONTAINER_TEMP/${imageId}-${scanCacheTs}-trivy${scanRowsSuffix}.rows"
+			scanCacheValid=true
+		fi
+	fi
+
+	# set filenames: reuse cached timestamp or use current
+	if [ -z "$scanJson" ]; then
+		local scanTimestamp
+		scanTimestamp=$(date '+%Y%m%d-%H%M%S' 2>/dev/null)
+		scanJson="$CB_CONTAINER_TEMP/${imageId}-${scanTimestamp}-trivy.json"
+		scanRows="$CB_CONTAINER_TEMP/${imageId}-${scanTimestamp}-trivy${scanRowsSuffix}.rows"
+	fi
+
+	# derive normal, wide and counts filenames from json path
+	local scanRowsNormal="${scanJson%.json}.rows"
+	local scanRowsWide="${scanJson%.json}-wide.rows"
+	local scanCounts="${scanJson%.json}.counts"
+	local scanRows="$scanRowsNormal"
+	[ "$CB_CONTAINER_WIDE" = true ] && scanRows="$scanRowsWide"
+
+	# use cached result if rows file exists
+	if [ "$scanCacheValid" = true ] && [ -f "$scanRows" ]; then
+		[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Using cached scan for '$resolvedImage'.\n"
 		cat "$scanRows"
 		return 0
 	fi
 
-	[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Scanning '$resolvedImage' with trivy...\n"
-	trivy image --quiet --format json "$resolvedImage" 2>/dev/null > "$scanJson"
+	[ "$CB_CONTAINER_VERBOSE" = true ] && [ ! -f "$scanJson" ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Scanning '$resolvedImage' with trivy...\n"
+	[ "$CB_CONTAINER_VERBOSE" = true ] && [ -f "$scanJson" ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Using cached scan result for '$resolvedImage', reformatting.\n"
+	# scan only if json not already cached
+	[ ! -f "$scanJson" ] && trivy image --quiet --format json "$resolvedImage" 2>/dev/null > "$scanJson"
 
-	# format results sorted by severity, output rows only
-	awk '
+	# generate both normal and wide rows + counts in a single awk pass
+	awk -v normalFile="$scanRowsNormal" -v wideFile="$scanRowsWide" -v countsFile="$scanCounts" '
 	function sevChar(s) {
 		if (s=="CRITICAL") return "C"
 		if (s=="HIGH") return "H"
@@ -654,6 +743,7 @@ scanSingleImage() {
 		return "?"
 	}
 	function truncLeft(s, maxlen) {
+		if (maxlen <= 0) return s
 		if (length(s) <= maxlen) return s
 		return ".." substr(s, length(s) - maxlen + 3)
 	}
@@ -674,11 +764,9 @@ scanSingleImage() {
 		v = extractVal($0, "Severity");         if (v != "") sev = v; else sev = ""
 		if (sev != "" && vid != "") {
 			sc = sevChar(sev)
-			tp = truncLeft(pkg, 28)
-			# use pipe as internal separator for multiple fix versions
 			if (fix == "") fix = "-"
 			gsub(/, */, "|", fix)
-			entry = vid TAB sc TAB tp TAB ver TAB fix TAB target
+			entry = vid TAB sc TAB pkg TAB ver TAB fix TAB target
 			if (sev=="CRITICAL") clines[ci++]=entry
 			else if (sev=="HIGH") hlines[hi++]=entry
 			else if (sev=="MEDIUM") mlines[mi++]=entry
@@ -687,27 +775,327 @@ scanSingleImage() {
 			vid=""
 		}
 	}
-	function printEntry(entry,    f, fixes, n, j, iv, fv) {
+	function printEntry(entry,    f, fixes, n, j, iv, fv, tp) {
 		n = split(entry, f, TAB)
 		n = split(f[5], fixes, "[|]")
+		# normal format
+		tp = truncLeft(f[3], 28)
 		iv = truncLeft(f[4], 12)
 		fv = truncLeft(fixes[1], 12)
-		printf "%-22s %-4s %-30s %-14s %-14s %s\n", f[1], f[2], f[3], iv, fv, f[6]
-		for (j=2; j<=n; j++) {
-			fv = truncLeft(fixes[j], 12)
-			printf "%-22s %-4s %-30s %-14s %-14s\n", "", "", "", "", fv
-		}
+		printf "%-22s %-4s %-30s %-14s %-14s %s\n", f[1], f[2], tp, iv, fv, f[6] > normalFile
+		for (j=2; j<=n; j++) { fv = truncLeft(fixes[j], 12); printf "%-22s %-4s %-30s %-14s %-14s\n", "", "", "", "", fv > normalFile }
+		# wide format (no truncation)
+		fv = fixes[1]
+		printf "%-22s %-4s %-42s %-30s %-30s %s\n", f[1], f[2], f[3], f[4], fv, f[6] > wideFile
+		for (j=2; j<=n; j++) { printf "%-22s %-4s %-42s %-30s %-30s\n", "", "", "", "", fixes[j] > wideFile }
 	}
 	END {
-		for (i=0;i<ci;i++) printEntry(clines[i])
-		for (i=0;i<hi;i++) printEntry(hlines[i])
-		for (i=0;i<mi;i++) printEntry(mlines[i])
-		for (i=0;i<li;i++) printEntry(llines[i])
+		cc=0; hc=0; mc=0; lc=0
+		for (i=0;i<ci;i++) { printEntry(clines[i]); cc++ }
+		for (i=0;i<hi;i++) { printEntry(hlines[i]); hc++ }
+		for (i=0;i<mi;i++) { printEntry(mlines[i]); mc++ }
+		for (i=0;i<li;i++) { printEntry(llines[i]); lc++ }
 		for (i=0;i<ui;i++) printEntry(ulines[i])
+		printf "%d %d %d %d %d\n", cc+hc+mc+lc, cc, hc, mc, lc > countsFile
 	}
-	' "$scanJson" | tee "$scanRows"
+	' "$scanJson"
+
+	# display the requested format
+	cat "$scanRows"
 
 	[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_POST="${CB_SCAN_VERBOSE_POST}${CB_LINEHEADER}Scan result stored in $scanRows\n${CB_LINEHEADER}Scan json stored in $scanJson\n"
+}
+
+
+#########################################################################
+# getVulnCounts — get cached vuln counts for an image, or return empty
+#########################################################################
+getVulnCounts() {
+	local imageId="$1"
+	local imgCreated="$2"
+	local cachedJson
+	cachedJson=$(ls -1r "$CB_CONTAINER_TEMP/${imageId}"-*-trivy.json 2>/dev/null | head -n 1)
+	[ -z "$cachedJson" ] && return 1
+	local cacheTs
+	cacheTs=$(basename "$cachedJson" | sed "s/^${imageId}-//;s/-trivy\.json$//")
+	# validate cache: day boundary
+	local cacheDay="${cacheTs%%-*}"
+	local today
+	today=$(date '+%Y%m%d' 2>/dev/null)
+	[ -n "$today" ] && [ "$cacheDay" != "$today" ] && return 1
+	# validate cache: image creation time
+	if [ -n "$imgCreated" ]; then
+		local imgTs
+		imgTs=$(echo "$imgCreated" | sed 's/[^0-9]//g' | cut -c1-14)
+		imgTs="${imgTs:0:8}-${imgTs:8:6}"
+		[ "$imgTs" \> "$cacheTs" ] && return 1
+	fi
+	[ "$CB_CONTAINER_FORCE" = true ] && return 1
+	local countsFile="$CB_CONTAINER_TEMP/${imageId}-${cacheTs}-trivy.counts"
+	[ -f "$countsFile" ] && cat "$countsFile" && return 0
+	return 1
+}
+
+
+#########################################################################
+# detectTrivy — ensure trivy is in PATH, try cb --setenv if needed
+#########################################################################
+detectTrivy() {
+	if ! command -v trivy >/dev/null 2>&1; then
+		source cb --setenv >/dev/null 2>&1
+		[ -n "$TRIVY_HOME" ] && export PATH="$TRIVY_HOME:$PATH"
+	fi
+	if ! command -v trivy >/dev/null 2>&1; then
+		echo "${CB_LINEHEADER}Trivy is not installed. Install with: cb --install trivy"
+		return 1
+	fi
+	return 0
+}
+
+
+#########################################################################
+# printScanHeader — print header for scan list output
+#########################################################################
+printScanHeader() {
+	local imageCount="$1"
+	if [ "$CB_CONTAINER_CSV" = true ]; then
+		echo "IMAGE ID;CONTAINER ID;CREATED;CRIT;HIGH;MED;LOW;TAG"
+		return
+	fi
+	echo "$CB_LINE"
+	local lineLen=${#CB_LINE}
+	local header
+	header=$(printf "%-14s %-14s %-18s %-5s %-5s %-5s %-5s %s" "IMAGE ID" "CONTAINER ID" "CREATED" "CRIT" "HIGH" "MED" "LOW" "TAG")
+	local now
+	now=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
+	local countLabel="$now - $imageCount image(s)"
+	local headerLen=${#header}
+	local countLen=${#countLabel}
+	local padding=$((lineLen - headerLen - countLen))
+	if [ "$padding" -gt 0 ] 2>/dev/null; then
+		printf "%s%*s%s\n" "$header" "$padding" "" "$countLabel"
+	else
+		printf "%s  %s\n" "$header" "$countLabel"
+	fi
+	echo "$CB_LINE"
+}
+
+#########################################################################
+# printScanLine — print a scan result row
+# args: shortId containerId created cc hc mc lc repoTag firstMatch
+#########################################################################
+printScanLine() {
+	local sid="$1" cid="$2" created="$3" cc="$4" hc="$5" mc="$6" lc="$7" rt="$8" first="$9"
+	if [ "$CB_CONTAINER_CSV" = true ]; then
+		[ "$first" != "false" ] && printf "%s;%s;%s;%s;%s;%s;%s;%s\n" "$sid" "$cid" "$(printf '%.16s' "$created")" "$cc" "$hc" "$mc" "$lc" "$rt"
+		return
+	fi
+	local shortCreated
+	shortCreated=$(printf "%.16s" "$created")
+	if [ "$first" = "false" ]; then
+		printf "%-14s %-14s %-18s %-5s %-5s %-5s %-5s %s\n" "" "" "" "" "" "" "" "$rt"
+	else
+		printf "%-14s %-14s %-18s %-5s %-5s %-5s %-5s %s\n" "$sid" "$cid" "$shortCreated" "$cc" "$hc" "$mc" "$lc" "$rt"
+	fi
+}
+
+#########################################################################
+# scanMultipleImages — scan comma-separated images, display list with VULN column
+#########################################################################
+scanMultipleImages() {
+	local input="$1"
+
+	detectTrivy || return 1
+
+	local scanStartSec
+	scanStartSec=$(date '+%s' 2>/dev/null)
+
+	local containerList
+	containerList=$("$CB_CONTAINER_RUNTIME" ps --format '{{.ID}}|{{.Image}}|{{.CreatedAt}}' 2>/dev/null)
+
+	# resolve each target to image data
+	local imageList=""
+	local IFS=','
+	for target in $input; do
+		target="${target#"${target%%[![:space:]]*}"}"; target="${target%"${target##*[![:space:]]}"}"
+		[ -z "$target" ] && continue
+		local imgLine
+		imgLine=$("$CB_CONTAINER_RUNTIME" images --format '{{.ID}}|{{.Repository}}|{{.Tag}}|{{.CreatedAt}}' --filter "reference=$target" 2>/dev/null | head -n 1)
+		# fallback: try matching by image ID prefix
+		if [ -z "$imgLine" ]; then
+			imgLine=$("$CB_CONTAINER_RUNTIME" images --format '{{.ID}}|{{.Repository}}|{{.Tag}}|{{.CreatedAt}}' 2>/dev/null | awk -F'|' -v id="$target" 'substr($1,1,length(id))==id { print; exit }')
+		fi
+		[ -n "$imgLine" ] && imageList="${imageList}${imgLine}"$'\n'
+	done
+	unset IFS
+	imageList=$(echo "$imageList" | grep -v '^$')
+
+	local imageCount=0
+	[ -n "$imageList" ] && imageCount=$(echo "$imageList" | wc -l | tr -d ' ')
+
+	printScanHeader "$imageCount"
+
+	if [ -z "$imageList" ]; then
+		echo "${CB_LINEHEADER}No images found."
+		return
+	fi
+
+	echo "$imageList" | while IFS='|' read -r imageId repo tag imgCreated; do
+		[ -z "$imageId" ] && continue
+		local repoTag="${repo}:${tag}"
+		[ "$repo" = "<none>" ] && repoTag="<none>"
+		local shortId
+		shortId=$(printf "%.12s" "$imageId")
+
+		# try cached counts, otherwise scan
+		local cc="-" hc="-" mc="-" lc="-"
+		local counts
+		counts=$(getVulnCounts "$imageId" "$imgCreated" 2>/dev/null)
+		if [ -z "$counts" ]; then
+			CB_SCAN_VERBOSE_PRE=""
+			CB_SCAN_VERBOSE_POST=""
+			scanSingleImage "$repoTag" >/dev/null 2>&1
+			counts=$(getVulnCounts "$imageId" "$imgCreated" 2>/dev/null)
+		fi
+		if [ -n "$counts" ]; then
+			cc=$(echo "$counts" | awk '{print $2}')
+			hc=$(echo "$counts" | awk '{print $3}')
+			mc=$(echo "$counts" | awk '{print $4}')
+			lc=$(echo "$counts" | awk '{print $5}')
+		fi
+
+		# find matching containers
+		local matchLines=""
+		if [ -n "$containerList" ]; then
+			matchLines=$(echo "$containerList" | awk -F'|' -v rt="$repoTag" -v r="$repo" -v iid="$imageId" \
+				'function endsWith(s,e) { return substr(s,length(s)-length(e)+1)==e }
+				 $2==rt || $2==r || $2==iid || endsWith($2,"/"rt) || endsWith($2,"/"r) { print $0 }')
+		fi
+
+		if [ -n "$matchLines" ]; then
+			local first=true
+			echo "$matchLines" | while IFS='|' read -r cid cimage cstatus; do
+				if [ "$first" = true ]; then
+					printScanLine "$shortId" "$cid" "$imgCreated" "$cc" "$hc" "$mc" "$lc" "$repoTag" "true"
+					first=false
+				else
+					printScanLine "$shortId" "$cid" "$imgCreated" "$cc" "$hc" "$mc" "$lc" "$repoTag" "false"
+				fi
+			done
+		else
+			printScanLine "$shortId" "-" "$imgCreated" "$cc" "$hc" "$mc" "$lc" "$repoTag" "true"
+		fi
+	done
+
+	# duration
+	local scanEndSec scanDuration=""
+	scanEndSec=$(date '+%s' 2>/dev/null)
+	if [ -n "$scanStartSec" ] && [ -n "$scanEndSec" ]; then
+		local durationSec=$((scanEndSec - scanStartSec))
+		if [ "$durationSec" -lt 60 ]; then
+			scanDuration="${durationSec}s"
+		else
+			scanDuration="$((durationSec / 60))m $((durationSec % 60))s"
+		fi
+	fi
+	if [ "$CB_CONTAINER_CSV" != true ]; then
+		echo "$CB_LINE"
+		[ -n "$scanDuration" ] && echo "${CB_LINEHEADER}Scan completed [$scanDuration]"
+	fi
+}
+
+
+#########################################################################
+# scanAllImages — scan all images, display list with VULN column
+#########################################################################
+scanAllImages() {
+	detectTrivy || return 1
+
+	local scanStartSec
+	scanStartSec=$(date '+%s' 2>/dev/null)
+
+	local containerList
+	containerList=$("$CB_CONTAINER_RUNTIME" ps --format '{{.ID}}|{{.Image}}|{{.CreatedAt}}' 2>/dev/null)
+
+	local imageList
+	imageList=$("$CB_CONTAINER_RUNTIME" images --format '{{.ID}}|{{.Repository}}|{{.Tag}}|{{.CreatedAt}}' 2>/dev/null | sort -t'|' -k2,3)
+
+	# apply list filter (prefix match on repository name or image ID)
+	if [ -n "$CB_CONTAINER_LIST_FILTER" ] && [ -n "$imageList" ]; then
+		imageList=$(echo "$imageList" | awk -F'|' -v f="$CB_CONTAINER_LIST_FILTER" \
+			'BEGIN { flen=length(f) } tolower(substr($1,1,flen))==tolower(f) || tolower(substr($2,1,flen))==tolower(f) { print }')
+	fi
+
+	local imageCount=0
+	[ -n "$imageList" ] && imageCount=$(echo "$imageList" | wc -l | tr -d ' ')
+
+	printScanHeader "$imageCount"
+
+	if [ -z "$imageList" ]; then
+		echo "${CB_LINEHEADER}No images found."
+		return
+	fi
+
+	echo "$imageList" | while IFS='|' read -r imageId repo tag imgCreated; do
+		[ -z "$imageId" ] && continue
+		local repoTag="${repo}:${tag}"
+		[ "$repo" = "<none>" ] && repoTag="<none>"
+		local shortId
+		shortId=$(printf "%.12s" "$imageId")
+
+		local cc="-" hc="-" mc="-" lc="-"
+		local counts
+		counts=$(getVulnCounts "$imageId" "$imgCreated" 2>/dev/null)
+		if [ -z "$counts" ]; then
+			CB_SCAN_VERBOSE_PRE=""
+			CB_SCAN_VERBOSE_POST=""
+			scanSingleImage "$repoTag" >/dev/null 2>&1
+			counts=$(getVulnCounts "$imageId" "$imgCreated" 2>/dev/null)
+		fi
+		if [ -n "$counts" ]; then
+			cc=$(echo "$counts" | awk '{print $2}')
+			hc=$(echo "$counts" | awk '{print $3}')
+			mc=$(echo "$counts" | awk '{print $4}')
+			lc=$(echo "$counts" | awk '{print $5}')
+		fi
+
+		local matchLines=""
+		if [ -n "$containerList" ]; then
+			matchLines=$(echo "$containerList" | awk -F'|' -v rt="$repoTag" -v r="$repo" -v iid="$imageId" \
+				'function endsWith(s,e) { return substr(s,length(s)-length(e)+1)==e }
+				 $2==rt || $2==r || $2==iid || endsWith($2,"/"rt) || endsWith($2,"/"r) { print $0 }')
+		fi
+
+		if [ -n "$matchLines" ]; then
+			local first=true
+			echo "$matchLines" | while IFS='|' read -r cid cimage cstatus; do
+				if [ "$first" = true ]; then
+					printScanLine "$shortId" "$cid" "$imgCreated" "$cc" "$hc" "$mc" "$lc" "$repoTag" "true"
+					first=false
+				else
+					printScanLine "$shortId" "$cid" "$imgCreated" "$cc" "$hc" "$mc" "$lc" "$repoTag" "false"
+				fi
+			done
+		else
+			printScanLine "$shortId" "-" "$imgCreated" "$cc" "$hc" "$mc" "$lc" "$repoTag" "true"
+		fi
+	done
+
+	# duration
+	local scanEndSec scanDuration=""
+	scanEndSec=$(date '+%s' 2>/dev/null)
+	if [ -n "$scanStartSec" ] && [ -n "$scanEndSec" ]; then
+		local durationSec=$((scanEndSec - scanStartSec))
+		if [ "$durationSec" -lt 60 ]; then
+			scanDuration="${durationSec}s"
+		else
+			scanDuration="$((durationSec / 60))m $((durationSec % 60))s"
+		fi
+	fi
+	if [ "$CB_CONTAINER_CSV" != true ]; then
+		echo "$CB_LINE"
+		[ -n "$scanDuration" ] && echo "${CB_LINEHEADER}Scan completed [$scanDuration]"
+	fi
 }
 
 
@@ -717,15 +1105,20 @@ scanSingleImage() {
 scanContainer() {
 	local input="$1"
 
-	# detect trivy — try cb --setenv if not in PATH
-	if ! command -v trivy >/dev/null 2>&1; then
-		source cb --setenv >/dev/null 2>&1
-		[ -n "$TRIVY_HOME" ] && export PATH="$TRIVY_HOME:$PATH"
+	# if multiple comma-separated targets, use list-style display
+	local targetCount
+	targetCount=$(echo "$input" | tr ',' '\n' | grep -c '[^ ]')
+	if [ "$targetCount" -gt 1 ]; then
+		CB_CONTAINER_LIST_FILTER=""
+		scanMultipleImages "$input"
+		return $?
 	fi
-	if ! command -v trivy >/dev/null 2>&1; then
-		echo "${CB_LINEHEADER}Trivy is not installed. Install with: cb --install trivy"
-		return 1
-	fi
+
+	detectTrivy || return 1
+
+	# capture start time for duration calculation
+	local scanStartSec
+	scanStartSec=$(date '+%s' 2>/dev/null)
 
 	# scan each image first to collect verbose messages
 	CB_SCAN_VERBOSE_PRE=""
@@ -743,11 +1136,17 @@ scanContainer() {
 	# print verbose pre-messages before header
 	[ -n "$CB_SCAN_VERBOSE_PRE" ] && printf "%b" "$CB_SCAN_VERBOSE_PRE"
 
+	# select line separator (wide or normal)
+	local scanLine="$CB_LINE"
+	[ "$CB_CONTAINER_WIDE" = true ] && scanLine="$CB_LINE_WIDE"
+
 	# print header with timestamp right-aligned
-	echo "$CB_LINE"
-	local lineLen=${#CB_LINE}
+	echo "$scanLine"
+	local lineLen=${#scanLine}
 	local header
-	header=$(printf "%-22s %-4s %-30s %-14s %-14s %s" "CVE ID" "SEV" "PACKAGE" "INSTALLED" "FIXED" "TARGET")
+	local scanPkgColW=30 scanColW=14
+	[ "$CB_CONTAINER_WIDE" = true ] && scanPkgColW=42 && scanColW=30
+	header=$(printf "%-22s %-4s %-${scanPkgColW}s %-${scanColW}s %-${scanColW}s %s" "CVE ID" "SEV" "PACKAGE" "INSTALLED" "FIXED" "TARGET")
 	local now
 	now=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
 	local headerLen=${#header}
@@ -758,7 +1157,7 @@ scanContainer() {
 	else
 		printf "%s  %s\n" "$header" "$now"
 	fi
-	echo "$CB_LINE"
+	echo "$scanLine"
 
 	# display rows
 	if [ -s "$allRows" ]; then
@@ -775,16 +1174,41 @@ scanContainer() {
 	low=$(awk '{if($2=="L")n++} END{print n+0}' "$allRows" 2>/dev/null)
 	total=$((critical + high + medium + low))
 
-	echo "$CB_LINE"
+	# compute duration
+	local scanEndSec scanDuration=""
+	scanEndSec=$(date '+%s' 2>/dev/null)
+	if [ -n "$scanStartSec" ] && [ -n "$scanEndSec" ]; then
+		local durationSec=$((scanEndSec - scanStartSec))
+		if [ "$durationSec" -lt 60 ]; then
+			scanDuration="${durationSec}s"
+		else
+			scanDuration="$((durationSec / 60))m $((durationSec % 60))s"
+		fi
+	fi
+
+	echo "$scanLine"
 	printf "Summary: %d vulnerabilities" "$total"
 	[ "$total" -gt 0 ] && printf " (CRITICAL: %d, HIGH: %d, MEDIUM: %d, LOW: %d)" "$critical" "$high" "$medium" "$low"
+	[ -n "$scanDuration" ] && printf " [%s]" "$scanDuration"
 	echo ""
-	echo "$CB_LINE"
+	echo "$scanLine"
 
 	# print verbose post-messages after summary
 	[ -n "$CB_SCAN_VERBOSE_POST" ] && printf "%b" "$CB_SCAN_VERBOSE_POST"
 
 	rm -f "$allRows" 2>/dev/null
+}
+
+
+#########################################################################
+# resolveProjectName — read rootProject.name from settings.gradle
+#########################################################################
+resolveProjectName() {
+	[ ! -f "settings.gradle" ] && return 1
+	local name
+	name=$(grep 'rootProject\.name' settings.gradle 2>/dev/null | head -n 1 | sed "s/.*=[[:space:]]*['\"]//;s/['\"].*//" | tr -d '[:space:]')
+	[ -n "$name" ] && echo "$name" && return 0
+	return 1
 }
 
 
@@ -915,6 +1339,9 @@ CB_CONTAINER_LOG_LINES=""
 CB_CONTAINER_TAIL=false
 CB_CONTAINER_ALL=false
 CB_CONTAINER_LIST=false
+CB_CONTAINER_WIDE=false
+CB_CONTAINER_FORCE=false
+CB_CONTAINER_CSV=false
 CB_CONTAINER_VERBOSE=false
 
 # read .cb-container config file if present (first line = default parameters)
@@ -930,8 +1357,14 @@ while [ $# -gt 0 ]; do
 	case "$1" in
 		-h|--help)        printUsage; exit 0;;
 		-v|--version)     printVersion; exit 0;;
-		-l|--list)        CB_CONTAINER_LIST=true;;
+		-l|--list)        CB_CONTAINER_LIST=true
+		                  if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
+		                    shift; CB_CONTAINER_LIST_FILTER="$1"
+		                  fi;;
 		-a|--all)         CB_CONTAINER_ALL=true;;
+		-w|--wide)        CB_CONTAINER_WIDE=true;;
+		-f|--force)       CB_CONTAINER_FORCE=true;;
+		--csv)            CB_CONTAINER_CSV=true;;
 		--verbose)        CB_CONTAINER_VERBOSE=true;;
 		-i|--it)          if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
 		                    shift; CB_CONTAINER_ID="$1"
@@ -942,11 +1375,27 @@ while [ $# -gt 0 ]; do
 		-e|--entrypoint)  shift; CB_CONTAINER_ENTRYPOINT="$1";;
 		-p|--port)        shift; CB_CONTAINER_PORTS+=("$1");;
 		--env)            shift; CB_CONTAINER_ENV="$1";;
-		--start)          shift; CB_CONTAINER_START_IMAGE="$1";;
-		--stop)           shift; CB_CONTAINER_STOP_TARGET="$1";;
-		--scan)           shift; CB_CONTAINER_SCAN_TARGET="$1";;
+		--start)          if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
+		                    shift; CB_CONTAINER_START_IMAGE="$1"
+		                  else
+		                    CB_CONTAINER_START_IMAGE="auto"
+		                  fi;;
+		--stop)           if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
+		                    shift; CB_CONTAINER_STOP_TARGET="$1"
+		                  else
+		                    CB_CONTAINER_STOP_TARGET="auto"
+		                  fi;;
+		--scan)           if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
+		                    shift; CB_CONTAINER_SCAN_TARGET="$1"
+		                  else
+		                    CB_CONTAINER_SCAN_TARGET="auto"
+		                  fi;;
 		--clean)          CB_CONTAINER_CLEAN=true;;
-		--delete)         shift; CB_CONTAINER_DELETE_TARGET="$1";;
+		--delete)         if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
+		                    shift; CB_CONTAINER_DELETE_TARGET="$1"
+		                  else
+		                    CB_CONTAINER_DELETE_TARGET="auto"
+		                  fi;;
 		--log)            shift
 		                  if [ -n "$1" ] && echo "$1" | grep -q '^-\?[0-9]\+\(-[0-9]*\)\?$' 2>/dev/null; then
 		                    CB_CONTAINER_LOG_TARGET="auto"
@@ -960,11 +1409,51 @@ while [ $# -gt 0 ]; do
 		                    CB_CONTAINER_LOG_TARGET="auto"
 		                  fi;;
 		-t|--tail)        CB_CONTAINER_TAIL=true;;
-		-*)               echo "Invalid parameter: $1"; echo ""; printUsage; exit 1;;
+		-*)               echo "${CB_LINEHEADER}Invalid parameter: $1"; echo ""; printUsage; exit 1;;
 		*)                CB_CONTAINER_START_IMAGE="$1";;
 	esac
 	shift
 done
+
+# auto-detect project name from settings.gradle for commands without explicit target
+resolvedProject=""
+for autoVar in CB_CONTAINER_START_IMAGE CB_CONTAINER_STOP_TARGET CB_CONTAINER_SCAN_TARGET CB_CONTAINER_DELETE_TARGET; do
+	eval autoVal=\$$autoVar
+	if [ "$autoVal" = "auto" ]; then
+		if [ -z "$resolvedProject" ]; then
+			resolvedProject=$(resolveProjectName 2>/dev/null) || true
+		fi
+		if [ -n "$resolvedProject" ]; then
+			eval $autoVar=\"\$resolvedProject\"
+		fi
+	fi
+done
+# resolve --it and --log only when standalone (not combined with --start)
+if [ -z "$CB_CONTAINER_START_IMAGE" ] || [ "$CB_CONTAINER_START_IMAGE" = "auto" ]; then
+	for autoVar in CB_CONTAINER_ID CB_CONTAINER_LOG_TARGET; do
+		eval autoVal=\$$autoVar
+		if [ "$autoVal" = "auto" ]; then
+			if [ -z "$resolvedProject" ]; then
+				resolvedProject=$(resolveProjectName 2>/dev/null) || true
+			fi
+			[ -n "$resolvedProject" ] && eval $autoVar=\"\$resolvedProject\"
+		fi
+	done
+fi
+# also resolve project name for list/default mode when no filter is set
+if [ -z "$resolvedProject" ] && [ -f "settings.gradle" ]; then
+	resolvedProject=$(resolveProjectName 2>/dev/null) || true
+fi
+
+# use build/container (or build/reports/testing for testing projects) as local cache
+if [ -f "settings.gradle" ]; then
+	CB_CONTAINER_TEMP="$PWD/build/container"
+	if [ -f "gradle.properties" ]; then
+		projectType=$(grep 'projectType' gradle.properties 2>/dev/null | grep '=' | head -n 1 | sed 's/.*=[[:space:]]*//' | tr -d '[:space:]')
+		[ "$projectType" = "testing" ] && CB_CONTAINER_TEMP="$PWD/build/reports/testing"
+	fi
+	mkdir -p "$CB_CONTAINER_TEMP" 2>/dev/null
+fi
 
 # detect runtime
 CB_CONTAINER_RUNTIME=$(detectRuntime)
@@ -1000,8 +1489,9 @@ if [ -n "$CB_CONTAINER_DELETE_TARGET" ]; then
 	exit $?
 fi
 
-# list mode
-if [ "$CB_CONTAINER_LIST" = true ]; then
+# list mode (filter implies --all; skip if scan-all is active)
+if [ "$CB_CONTAINER_LIST" = true ] && [ -z "$CB_CONTAINER_SCAN_TARGET" ]; then
+	[ -n "$CB_CONTAINER_LIST_FILTER" ] && CB_CONTAINER_ALL=true
 	listImages
 	exit 0
 fi
@@ -1014,7 +1504,11 @@ fi
 
 # scan image with trivy
 if [ -n "$CB_CONTAINER_SCAN_TARGET" ]; then
-	scanContainer "$CB_CONTAINER_SCAN_TARGET"
+	if [ "$CB_CONTAINER_ALL" = true ]; then
+		scanAllImages
+	else
+		scanContainer "$CB_CONTAINER_SCAN_TARGET"
+	fi
 	exit $?
 fi
 
@@ -1080,7 +1574,9 @@ elif [ -f "Containerfile" ]; then
 	exit $?
 fi
 
-# no specific action — show the image list as default
+# no specific action — show the image list as default (auto-filter by project name)
+[ -z "$CB_CONTAINER_LIST_FILTER" ] && [ -n "$resolvedProject" ] && CB_CONTAINER_LIST_FILTER="$resolvedProject"
+[ -n "$CB_CONTAINER_LIST_FILTER" ] && CB_CONTAINER_ALL=true
 listImages
 
 

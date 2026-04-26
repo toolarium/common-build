@@ -41,7 +41,7 @@
 
 <h1>cb-container</h1>
 
-<p>A cross-platform container management tool for Docker and nerdctl (Rancher Desktop). Provides a unified CLI to list images, start/stop/run containers, view logs, scan for vulnerabilities, and more.</p>
+<p>A cross-platform container management tool for Docker and nerdctl (Rancher Desktop). Provides a unified CLI to list images, start/stop containers, connect interactively, view logs, scan for vulnerabilities, and more.</p>
 
 <p>Available as <code>cb-container</code> (shell) and <code>cb-container.bat</code> (Windows batch). Both versions provide identical functionality.</p>
 
@@ -61,6 +61,9 @@ cb-container -l
 # List all images
 cb-container -l -a
 
+# Filter images by name prefix
+cb-container -l alpine
+
 # Connect to a container (starts interactively if not running)
 cb-container -i ubuntu
 
@@ -74,7 +77,32 @@ cb-container --stop my-app
 cb-container --log my-app
 
 # Scan for vulnerabilities
-cb-container --scan my-app</code></pre>
+cb-container --scan my-app
+
+# Scan all images
+cb-container --scan -a</code></pre>
+
+<h2>Project-Aware Mode</h2>
+
+<p>When run from a directory containing <code>settings.gradle</code>, <code>cb-container</code> automatically detects the project name from the <code>rootProject.name</code> property.</p>
+
+<pre><code># In a project directory with settings.gradle:
+cb-container                     # lists only this project's images
+cb-container --scan              # scans the project image
+cb-container --start             # starts the project image
+cb-container --stop              # stops the project container
+cb-container --log               # shows logs of the project container
+cb-container --delete            # deletes the project image</code></pre>
+
+<p>The <code>--list</code> / <code>-l</code> flag is <strong>not</strong> affected by project detection &mdash; it always shows all images (or filtered by an explicit prefix).</p>
+
+<h3>Local Cache</h3>
+
+<p>When in a project directory, scan results are stored locally:</p>
+<ul>
+<li><strong>Default</strong>: <code>build/container/</code></li>
+<li><strong>Testing projects</strong> (where <code>gradle.properties</code> has <code>projectType = testing</code>): <code>build/reports/testing/</code></li>
+</ul>
 
 <h2>Commands</h2>
 
@@ -83,20 +111,23 @@ cb-container --scan my-app</code></pre>
 <tbody>
 <tr><td><code>-h</code>, <code>--help</code></td><td>Show the help message.</td></tr>
 <tr><td><code>-v</code>, <code>--version</code></td><td>Print version information.</td></tr>
-<tr><td><code>-l</code>, <code>--list</code></td><td>List images with running containers.</td></tr>
+<tr><td><code>-l</code>, <code>--list [filter]</code></td><td>List images with running containers. Optionally filter by image name prefix.</td></tr>
 <tr><td><code>-a</code>, <code>--all</code></td><td>Show all images (default: running only).</td></tr>
+<tr><td><code>-w</code>, <code>--wide</code></td><td>Show wider columns for installed/fixed versions in scan output.</td></tr>
+<tr><td><code>-f</code>, <code>--force</code></td><td>Force scan, ignore cached results.</td></tr>
+<tr><td><code>--csv</code></td><td>Output as CSV (semicolon-separated). Used with <code>-l</code>/<code>--list -a</code>, <code>--scan -a</code>, or <code>--scan img1,img2</code>.</td></tr>
 <tr><td><code>--verbose</code></td><td>Show additional information (cache status, file paths, list summary).</td></tr>
 <tr><td><code>-i</code>, <code>--it [name|id]</code></td><td>Connect to a running container. If not running, starts it interactively. Supports distro aliases.</td></tr>
 <tr><td><code>-s</code>, <code>--shell &lt;shell&gt;</code></td><td>Shell to use when connecting (default: <code>/bin/sh</code>).</td></tr>
 <tr><td><code>-e</code>, <code>--entrypoint &lt;entry&gt;</code></td><td>Override entrypoint when starting a container.</td></tr>
 <tr><td><code>-p</code>, <code>--port &lt;port&gt;</code></td><td>Publish port. Single port maps to same host port (e.g. <code>-p 8080</code> &rarr; <code>8080:8080</code>). With colon, taken as-is.</td></tr>
 <tr><td><code>--env &lt;vars&gt;</code></td><td>Set environment variables (comma-separated). Example: <code>--env KEY="val",K2="v2"</code></td></tr>
-<tr><td><code>--start &lt;name|id&gt;</code></td><td>Start a container detached by name or id.</td></tr>
-<tr><td><code>--stop &lt;name|id&gt;</code></td><td>Stop a running container by name, image name, or id.</td></tr>
-<tr><td><code>--log &lt;name|id&gt; [n]</code></td><td>Show logs of a container. Supports line ranges: <code>10</code>, <code>5-10</code>, <code>5-</code>, <code>-7</code>.</td></tr>
-<tr><td><code>-t</code>, <code>--tail</code></td><td>Tail (follow) mode, used with <code>-l</code>/<code>--log</code>.</td></tr>
-<tr><td><code>--scan &lt;name|id&gt;</code></td><td>Scan image(s) with trivy. Comma-separated for multiple.</td></tr>
-<tr><td><code>--delete &lt;name|id&gt;</code></td><td>Delete an image by name or id.</td></tr>
+<tr><td><code>--start [name|id]</code></td><td>Start a container detached. Without name, auto-detects from <code>settings.gradle</code>.</td></tr>
+<tr><td><code>--stop [name|id]</code></td><td>Stop a running container. Without name, auto-detects from <code>settings.gradle</code>.</td></tr>
+<tr><td><code>--log [name|id] [n]</code></td><td>Show logs of a container. Supports line ranges: <code>10</code>, <code>5-10</code>, <code>5-</code>, <code>-7</code>.</td></tr>
+<tr><td><code>-t</code>, <code>--tail</code></td><td>Tail (follow) mode, used with <code>--log</code>.</td></tr>
+<tr><td><code>--scan [name|id]</code></td><td>Scan image(s) with trivy. Comma-separated for multiple. Without name, auto-detects from <code>settings.gradle</code>.</td></tr>
+<tr><td><code>--delete [name|id]</code></td><td>Delete an image. Without name, auto-detects from <code>settings.gradle</code>.</td></tr>
 <tr><td><code>--clean</code></td><td>Clean the scan cache and prune dangling images.</td></tr>
 </tbody>
 </table>
@@ -107,9 +138,13 @@ cb-container --scan my-app</code></pre>
 
 <pre><code>cb-container -l                      # running containers only
 cb-container -l -a                   # all images
+cb-container -l alpine               # filter by name prefix (implies -a)
+cb-container -l al                   # partial prefix match
 cb-container -l --verbose            # includes summary: N image(s), M running.</code></pre>
 
-<p>Output columns: IMAGE ID, CONTAINER ID, CREATED, STARTED, SIZE, TAG. The header shows a right-aligned timestamp and image count.</p>
+<p>Output columns: IMAGE ID, CONTAINER ID, CREATED, STARTED, SIZE, TAG. Sorted alphabetically by tag name. The header shows a right-aligned timestamp and image count.</p>
+
+<p>When a filter prefix is provided, only images whose repository name or image ID starts with the prefix are shown, and <code>-a</code> (show all) is implied automatically.</p>
 
 <h2>Starting Containers (<code>--start</code>)</h2>
 
@@ -167,6 +202,7 @@ cb-container --start my-app -i              # start detached + connect</code></p
 cb-container --log my-app 10                 # first 10 lines
 cb-container --log my-app 5-10               # lines 5 to 10
 cb-container --log my-app 5-                 # from line 5 to end
+cb-container --log my-app -7                 # lines 1 to 7
 cb-container --log my-app -t                 # tail (follow) logs
 cb-container --log my-app 10- -t             # tail from line 10</code></pre>
 
@@ -174,11 +210,41 @@ cb-container --log my-app 10- -t             # tail from line 10</code></pre>
 
 <h2>Scanning for Vulnerabilities (<code>--scan</code>)</h2>
 
-<p>Scan images for security vulnerabilities using <a href="https://trivy.dev">trivy</a>. Results are cached per day.</p>
+<p>Scan images for security vulnerabilities using <a href="https://trivy.dev">trivy</a>. Results are cached with automatic invalidation.</p>
 
 <pre><code>cb-container --scan my-app                   # scan single image
 cb-container --scan my-app,nginx:alpine      # scan multiple (comma-separated)
-cb-container --scan alpine:3.16              # pulls if not local</code></pre>
+cb-container --scan alpine:3.16              # pulls if not local
+cb-container --scan -a                       # scan ALL images (CRIT/HIGH/MED/LOW columns)
+cb-container --scan img1,img2                # scan multiple (list-style with severity columns)
+cb-container --scan -a --csv                 # CSV output
+cb-container --list -a --csv                 # list as CSV
+cb-container --scan -a -l my                 # scan all images filtered by prefix
+cb-container --scan my-app -w               # wide output (full column widths)
+cb-container --scan my-app -f               # force rescan (ignore cache)</code></pre>
+
+<h3>Scan All Images (<code>--scan -a</code>)</h3>
+
+<p>When combined with <code>-a</code> / <code>--all</code>, scans every image and displays a list-style table with per-severity columns (<strong>CRIT</strong>, <strong>HIGH</strong>, <strong>MED</strong>, <strong>LOW</strong>) replacing SIZE and STARTED. Scanning multiple comma-separated images uses the same format. Supports image ID prefixes.</p>
+
+<h3>Wide Output (<code>-w</code>, <code>--wide</code>)</h3>
+
+<p>Shows full (untruncated) PACKAGE, INSTALLED, and FIXED columns with a wider separator line.</p>
+
+<h3>Force Rescan (<code>-f</code>, <code>--force</code>)</h3>
+
+<p>Ignores cached results and forces a fresh trivy scan.</p>
+
+<h3>CSV Output (<code>--csv</code>)</h3>
+
+<p>Output as semicolon-separated CSV. Suppresses separator lines and footers. Works with <code>--list -a</code>, <code>--scan -a</code>, and <code>--scan img1,img2</code>.</p>
+
+<pre><code>cb-container --list -a --csv                 # list all images as CSV
+cb-container --scan -a --csv                 # scan all images as CSV
+cb-container --scan img1,img2 --csv          # scan specific images as CSV</code></pre>
+
+<p>List CSV header: <code>IMAGE ID;CONTAINER ID;CREATED;STARTED;SIZE;TAG</code><br>
+Scan CSV header: <code>IMAGE ID;CONTAINER ID;CREATED;CRIT;HIGH;MED;LOW;TAG</code></p>
 
 <h3>Trivy Detection</h3>
 
@@ -189,25 +255,39 @@ cb-container --scan alpine:3.16              # pulls if not local</code></pre>
 <p>Results are sorted by severity (CRITICAL, HIGH, MEDIUM, LOW):</p>
 
 <pre><code>------------------------------------------------------------------------------------------------------------------------
-CVE ID                 SEV  PACKAGE                        INSTALLED      FIXED          TARGET      2026-04-19 16:30:21
+CVE ID                 SEV  PACKAGE                        INSTALLED      FIXED          TARGET      2026-04-23 16:30:21
 ------------------------------------------------------------------------------------------------------------------------
 CVE-2026-28390         H    libcrypto3                     3.5.5-r0       3.5.6-r0       alpine:latest (alpine 3.23.3)
 CVE-2026-28388         M    libcrypto3                     3.5.5-r0       3.5.6-r0       alpine:latest (alpine 3.23.3)
 CVE-2026-2673          L    libcrypto3                     3.5.5-r0       3.5.6-r0       alpine:latest (alpine 3.23.3)
 ------------------------------------------------------------------------------------------------------------------------
-Summary: 20 vulnerabilities (CRITICAL: 0, HIGH: 5, MEDIUM: 11, LOW: 4)
+Summary: 20 vulnerabilities (CRITICAL: 0, HIGH: 5, MEDIUM: 11, LOW: 4) [12s]
 ------------------------------------------------------------------------------------------------------------------------</code></pre>
 
 <ul>
 <li><strong>SEV</strong>: C = CRITICAL, H = HIGH, M = MEDIUM, L = LOW</li>
-<li><strong>PACKAGE</strong>: truncated from left with <code>..</code> if too long</li>
-<li><strong>INSTALLED / FIXED</strong>: truncated from left with <code>..</code> if too long</li>
+<li><strong>PACKAGE</strong>: truncated from left with <code>..</code> if too long (full width with <code>-w</code>)</li>
+<li><strong>INSTALLED / FIXED</strong>: truncated from left with <code>..</code> if too long (full width with <code>-w</code>)</li>
 <li><strong>FIXED</strong>: shows <code>-</code> when no fix is available; multiple fix versions on continuation lines</li>
+<li><strong>Duration</strong>: shown in brackets at the end of the summary line</li>
 </ul>
 
 <h3>Caching</h3>
 
-<p>Scan results are cached in <code>$CB_TEMP/cb-container/</code> with filenames like <code>&lt;imageId&gt;-&lt;YYYYMMDD&gt;-trivy.json</code>. On the same day, subsequent scans show the cached result instantly.</p>
+<p>Scan results are cached with filenames like <code>&lt;imageId&gt;-&lt;YYYYMMDD-HHmmss&gt;-trivy.json</code>, <code>.rows</code>, and <code>.counts</code>.</p>
+
+<p>Cache is stored in:</p>
+<ul>
+<li><strong>Project directory</strong>: <code>build/container/</code> (or <code>build/reports/testing/</code> for testing projects) when <code>settings.gradle</code> is present</li>
+<li><strong>Global temp</strong>: <code>$CB_TEMP/cb-container/</code> otherwise</li>
+</ul>
+
+<p>Cache is automatically invalidated when:</p>
+<ul>
+<li>A new day starts (day boundary)</li>
+<li>The image has been rebuilt (creation timestamp newer than cache)</li>
+<li><code>--force</code> / <code>-f</code> is used</li>
+</ul>
 
 <h2>Deleting Images (<code>--delete</code>)</h2>
 
@@ -224,29 +304,46 @@ cb-container --delete 34b83c5c873f</code></pre>
 <pre><code>cb-container --clean                         # clean + show verbose output
 cb-container --clean --scan my-app           # clean first, then scan</code></pre>
 
+<h2>Additional Options</h2>
+
+<h3>Shell Override (<code>-s</code>, <code>--shell</code>)</h3>
+<pre><code>cb-container -i ubuntu -s /bin/bash</code></pre>
+
+<h3>Entrypoint Override (<code>-e</code>, <code>--entrypoint</code>)</h3>
+<pre><code>cb-container --start my-app -e /bin/bash</code></pre>
+
+<h3>Port Publishing (<code>-p</code>, <code>--port</code>)</h3>
+<pre><code>cb-container --start my-app -p 8080          # maps to -p 8080:8080
+cb-container --start my-app -p 8081:8082     # maps to -p 8081:8082
+cb-container --start my-app -p 8080 -p 9090  # multiple ports</code></pre>
+
+<h3>Environment Variables (<code>--env</code>)</h3>
+<pre><code>cb-container --start my-app --env DB_HOST="localhost",DB_PORT="5432"</code></pre>
+
 <h2>Configuration File (<code>.cb-container</code>)</h2>
 
 <p>If a <code>.cb-container</code> file exists in the current directory, its first line is read and prepended to the CLI arguments as default parameters.</p>
 
 <pre><code>--env DB_HOST="localhost",DB_PORT="5432" -p 8080</code></pre>
 
-<p>CLI arguments supplement/override the config file parameters.</p>
-
 <h2>Image Resolution</h2>
-
-<p>When an image name is provided without a tag, the script resolves the best match:</p>
 
 <ol>
 <li><strong><code>:latest</code></strong> tag is preferred</li>
 <li><strong>Newest available tag</strong> as fallback</li>
 <li><strong>Image ID</strong> &mdash; full or short IDs are matched as prefixes</li>
+<li><strong>Multi-tag matching</strong> &mdash; when an image ID has multiple tags, all are checked against running containers</li>
 </ol>
 
-<p>When an image is not found locally (<code>--start</code>, <code>--run</code>, <code>--scan</code>):</p>
+<p>When an image is not found locally (<code>--start</code>, <code>-i</code>, <code>--scan</code>):</p>
 <ul>
 <li>If the name contains <code>:</code>, tries to pull as-is</li>
 <li>If no <code>:</code>, appends <code>:latest</code> and tries to pull</li>
 </ul>
+
+<h2>Auto-Build from Dockerfile</h2>
+
+<p>If no command is given and a <code>Dockerfile</code>, <code>dockerfile</code>, or <code>Containerfile</code> exists in the current directory, <code>cb-container</code> automatically builds and runs the image.</p>
 
 <h2>Positional Argument</h2>
 
@@ -262,7 +359,17 @@ cb-container --clean --scan my-app           # clean first, then scan</code></pr
 <li><strong>MinGW / Git Bash</strong>: Shell script works on Git Bash for Windows.</li>
 </ul>
 
-<p>All container runtime commands are compatible with both Docker and nerdctl.</p>
+<p>All container runtime commands are compatible with both Docker and nerdctl. Uses <code>|</code> as field separator in format strings for portability (nerdctl doesn't interpret <code>\t</code>).</p>
+
+<h2>Temp Directory</h2>
+
+<p>Temporary and cache files are stored in:</p>
+<ul>
+<li><strong>In a project directory</strong> (with <code>settings.gradle</code>): <code>build/container/</code> (or <code>build/reports/testing/</code> for testing projects)</li>
+<li><strong>Outside a project</strong>: <code>$CB_TEMP/cb-container/</code> (shell) or <code>%CB_TEMP%\cb-container\</code> (batch)</li>
+</ul>
+
+<p>If <code>CB_TEMP</code> is not set, defaults to <code>/tmp/cb-$USER</code> (shell) or <code>%TEMP%\cb</code> (batch).</p>
 
 <hr>
 <p><a href="index.html">&larr; Back to common-build documentation</a></p>

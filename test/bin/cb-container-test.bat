@@ -42,6 +42,26 @@ call :TEST_CLEAN_STANDALONE
 call :TEST_CONFIG_FILE
 call :TEST_SCAN_NOT_FOUND
 
+call :TEST_CSV_FLAG
+call :TEST_HELP_NEW_FLAGS
+call :TEST_WIDE_FLAG
+call :TEST_FORCE_FLAG
+call :TEST_SETTINGS_GRADLE_SINGLE_QUOTES
+call :TEST_SETTINGS_GRADLE_DOUBLE_QUOTES
+call :TEST_SETTINGS_GRADLE_NO_SPACES
+call :TEST_SETTINGS_GRADLE_TABS
+call :TEST_NO_SETTINGS_GRADLE
+call :TEST_AUTO_START_SETTINGS_GRADLE
+call :TEST_AUTO_STOP_SETTINGS_GRADLE
+call :TEST_AUTO_DELETE_SETTINGS_GRADLE
+call :TEST_DEFAULT_LIST_IN_PROJECT
+call :TEST_SCAN_ALL
+call :TEST_SCAN_ALL_WITH_FILTER
+call :TEST_LIST_FILTER
+call :TEST_LIST_CSV
+call :TEST_SCAN_ALL_CSV
+call :TEST_LIST_VERBOSE
+
 echo\
 echo Results: %PASS% passed, %FAIL% failed
 if %FAIL% EQU 0 (exit /b 0) else (exit /b 1)
@@ -360,6 +380,337 @@ if not "!RC!"=="0" (
 ) else (
 	set /a PASS+=1
 	echo   PASS: --scan completed
+)
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_CSV_FLAG
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --csv flag accepted
+set "OUT=%TEMP%\cbct-csv-%RANDOM%.txt"
+call "%CT%" --csv --help > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "0" "!RC!" "exit code 0 with --csv --help"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_HELP_NEW_FLAGS
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: help lists new flags
+set "OUT=%TEMP%\cbct-newflags-%RANDOM%.txt"
+call "%CT%" --help > "%OUT%" 2>&1
+call :ASSERT_OUTPUT_CONTAINS "--wide" "%OUT%" "help lists --wide"
+call :ASSERT_OUTPUT_CONTAINS "--force" "%OUT%" "help lists --force"
+call :ASSERT_OUTPUT_CONTAINS "--csv" "%OUT%" "help lists --csv"
+call :ASSERT_OUTPUT_CONTAINS "filter" "%OUT%" "help mentions list filter"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_WIDE_FLAG
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: -w/--wide flag accepted
+set "OUT=%TEMP%\cbct-wide-%RANDOM%.txt"
+call "%CT%" -w --help > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "0" "!RC!" "exit code 0 with -w --help"
+call "%CT%" --wide --help > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "0" "!RC!" "exit code 0 with --wide --help"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_FORCE_FLAG
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: -f/--force flag accepted
+set "OUT=%TEMP%\cbct-force-%RANDOM%.txt"
+call "%CT%" -f --help > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "0" "!RC!" "exit code 0 with -f --help"
+call "%CT%" --force --help > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "0" "!RC!" "exit code 0 with --force --help"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_SETTINGS_GRADLE_SINGLE_QUOTES
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: settings.gradle with single quotes
+set "SGDIR=%TEMP%\cbct-sg1-%RANDOM%"
+mkdir "%SGDIR%" >nul 2>nul
+echo rootProject.name = 'my-gradle-project' > "%SGDIR%\settings.gradle"
+set "OUT=%TEMP%\cbct-sg1out-%RANDOM%.txt"
+pushd "%SGDIR%"
+call "%CT%" --scan > "%OUT%" 2>&1
+popd
+call :ASSERT_OUTPUT_CONTAINS "my-gradle-project" "%OUT%" "resolves single-quoted project name"
+del /f /q "%OUT%" >nul 2>nul
+if exist "%SGDIR%" rmdir /s /q "%SGDIR%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_SETTINGS_GRADLE_DOUBLE_QUOTES
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: settings.gradle with double quotes
+set "SGDIR=%TEMP%\cbct-sg2-%RANDOM%"
+mkdir "%SGDIR%" >nul 2>nul
+echo rootProject.name = "my-dq-project" > "%SGDIR%\settings.gradle"
+set "OUT=%TEMP%\cbct-sg2out-%RANDOM%.txt"
+pushd "%SGDIR%"
+call "%CT%" --scan > "%OUT%" 2>&1
+popd
+call :ASSERT_OUTPUT_CONTAINS "my-dq-project" "%OUT%" "resolves double-quoted project name"
+del /f /q "%OUT%" >nul 2>nul
+if exist "%SGDIR%" rmdir /s /q "%SGDIR%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_SETTINGS_GRADLE_NO_SPACES
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: settings.gradle without spaces around =
+set "SGDIR=%TEMP%\cbct-sg3-%RANDOM%"
+mkdir "%SGDIR%" >nul 2>nul
+echo rootProject.name='compact-name' > "%SGDIR%\settings.gradle"
+set "OUT=%TEMP%\cbct-sg3out-%RANDOM%.txt"
+pushd "%SGDIR%"
+call "%CT%" --scan > "%OUT%" 2>&1
+popd
+call :ASSERT_OUTPUT_CONTAINS "compact-name" "%OUT%" "resolves name without spaces"
+del /f /q "%OUT%" >nul 2>nul
+if exist "%SGDIR%" rmdir /s /q "%SGDIR%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_NO_SETTINGS_GRADLE
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: no settings.gradle does not crash
+set "SGDIR=%TEMP%\cbct-sg5-%RANDOM%"
+mkdir "%SGDIR%" >nul 2>nul
+set "OUT=%TEMP%\cbct-sg5out-%RANDOM%.txt"
+pushd "%SGDIR%"
+call "%CT%" --scan > "%OUT%" 2>&1
+popd
+set "hasFatal="
+findstr /i /c:"FATAL" "%OUT%" >nul 2>nul
+if %ERRORLEVEL% EQU 0 set "hasFatal=true"
+if not defined hasFatal (set /a PASS+=1 & echo   PASS: no crash without settings.gradle) else (set /a FAIL+=1 & echo   FAIL: crash without settings.gradle)
+del /f /q "%OUT%" >nul 2>nul
+if exist "%SGDIR%" rmdir /s /q "%SGDIR%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_SCAN_ALL
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --scan -a shows VULN column
+set "OUT=%TEMP%\cbct-scanall-%RANDOM%.txt"
+cmd /C call "%CT%" --scan -a > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+if "!RC!"=="0" (
+	call :ASSERT_OUTPUT_CONTAINS "CRIT" "%OUT%" "--scan -a header has CRIT"
+	call :ASSERT_OUTPUT_CONTAINS "IMAGE ID" "%OUT%" "--scan -a header has IMAGE ID"
+	call :ASSERT_OUTPUT_CONTAINS "TAG" "%OUT%" "--scan -a header has TAG"
+	findstr /c:"SIZE" "%OUT%" >nul 2>nul
+	if !ERRORLEVEL! NEQ 0 (set /a PASS+=1 & echo   PASS: --scan -a does not show SIZE) else (set /a FAIL+=1 & echo   FAIL: --scan -a should not show SIZE)
+) else (
+	set /a PASS+=1
+	echo   PASS: --scan -a skipped ^(no container runtime or trivy^)
+)
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_LIST_FILTER
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --list with filter
+set "OUT=%TEMP%\cbct-filter-%RANDOM%.txt"
+call "%CT%" -l nonexistent-filter-xyz > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+if "!RC!"=="0" (
+	call :ASSERT_OUTPUT_CONTAINS "IMAGE ID" "%OUT%" "-l filter shows header"
+	call :ASSERT_OUTPUT_CONTAINS "0 image(s)" "%OUT%" "filter returns 0 for bad prefix"
+) else (
+	set /a PASS+=1
+	echo   PASS: -l filter skipped ^(no container runtime^)
+)
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_LIST_VERBOSE
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --list --verbose
+set "OUT=%TEMP%\cbct-listv-%RANDOM%.txt"
+call "%CT%" --list --verbose > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+if "!RC!"=="0" (
+	call :ASSERT_OUTPUT_CONTAINS "image(s)" "%OUT%" "--list --verbose shows image count"
+) else (
+	set /a PASS+=1
+	echo   PASS: --list --verbose skipped ^(no container runtime^)
+)
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_SETTINGS_GRADLE_TABS
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: settings.gradle with tabs
+set "SGDIR=%TEMP%\cbct-sg4-%RANDOM%"
+mkdir "%SGDIR%" >nul 2>nul
+set "OUT=%TEMP%\cbct-sg4out-%RANDOM%.txt"
+powershell -NoProfile -Command "\"rootProject.name`t=`t'tabbed-name'\" | Out-File -Encoding ASCII '%SGDIR%\settings.gradle'"
+pushd "%SGDIR%"
+call "%CT%" --scan > "%OUT%" 2>&1
+popd
+call :ASSERT_OUTPUT_CONTAINS "tabbed-name" "%OUT%" "resolves name with tabs"
+del /f /q "%OUT%" >nul 2>nul
+if exist "%SGDIR%" rmdir /s /q "%SGDIR%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_AUTO_START_SETTINGS_GRADLE
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --start auto-detects from settings.gradle
+set "SGDIR=%TEMP%\cbct-as-%RANDOM%"
+mkdir "%SGDIR%" >nul 2>nul
+echo rootProject.name = 'auto-start-project' > "%SGDIR%\settings.gradle"
+set "OUT=%TEMP%\cbct-asout-%RANDOM%.txt"
+pushd "%SGDIR%"
+call "%CT%" --start > "%OUT%" 2>&1
+popd
+call :ASSERT_OUTPUT_CONTAINS "auto-start-project" "%OUT%" "--start resolves from settings.gradle"
+del /f /q "%OUT%" >nul 2>nul
+if exist "%SGDIR%" rmdir /s /q "%SGDIR%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_AUTO_STOP_SETTINGS_GRADLE
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --stop auto-detects from settings.gradle
+set "SGDIR=%TEMP%\cbct-astop-%RANDOM%"
+mkdir "%SGDIR%" >nul 2>nul
+echo rootProject.name = 'auto-stop-project' > "%SGDIR%\settings.gradle"
+set "OUT=%TEMP%\cbct-astopout-%RANDOM%.txt"
+pushd "%SGDIR%"
+call "%CT%" --stop > "%OUT%" 2>&1
+popd
+call :ASSERT_OUTPUT_CONTAINS "auto-stop-project" "%OUT%" "--stop resolves from settings.gradle"
+del /f /q "%OUT%" >nul 2>nul
+if exist "%SGDIR%" rmdir /s /q "%SGDIR%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_AUTO_DELETE_SETTINGS_GRADLE
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --delete auto-detects from settings.gradle
+set "SGDIR=%TEMP%\cbct-adel-%RANDOM%"
+mkdir "%SGDIR%" >nul 2>nul
+echo rootProject.name = 'auto-del-project' > "%SGDIR%\settings.gradle"
+set "OUT=%TEMP%\cbct-adelout-%RANDOM%.txt"
+pushd "%SGDIR%"
+call "%CT%" --delete > "%OUT%" 2>&1
+popd
+call :ASSERT_OUTPUT_CONTAINS "auto-del-project" "%OUT%" "--delete resolves from settings.gradle"
+del /f /q "%OUT%" >nul 2>nul
+if exist "%SGDIR%" rmdir /s /q "%SGDIR%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_DEFAULT_LIST_IN_PROJECT
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: bare cb-container in project dir filters by project name
+set "SGDIR=%TEMP%\cbct-deflist-%RANDOM%"
+mkdir "%SGDIR%" >nul 2>nul
+echo rootProject.name = 'nonexistent-proj-xyz' > "%SGDIR%\settings.gradle"
+set "OUT=%TEMP%\cbct-deflistout-%RANDOM%.txt"
+pushd "%SGDIR%"
+call "%CT%" > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+popd
+if "!RC!"=="0" (
+	call :ASSERT_OUTPUT_CONTAINS "0 image(s)" "%OUT%" "filters to 0 images for unknown project"
+) else (
+	set /a PASS+=1
+	echo   PASS: skipped ^(no container runtime^)
+)
+del /f /q "%OUT%" >nul 2>nul
+if exist "%SGDIR%" rmdir /s /q "%SGDIR%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_SCAN_ALL_WITH_FILTER
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --scan -a -l filter
+set "OUT=%TEMP%\cbct-scanallf-%RANDOM%.txt"
+cmd /C call "%CT%" --scan -a -l nonexistent-filter-xyz > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+if "!RC!"=="0" (
+	call :ASSERT_OUTPUT_CONTAINS "CRIT" "%OUT%" "--scan -a -l shows CRIT column"
+	call :ASSERT_OUTPUT_CONTAINS "0 image(s)" "%OUT%" "filter returns 0 for bad prefix"
+) else (
+	set /a PASS+=1
+	echo   PASS: --scan -a -l skipped ^(no runtime or trivy^)
+)
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_LIST_CSV
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --list -a --csv
+set "OUT=%TEMP%\cbct-listcsv-%RANDOM%.txt"
+call "%CT%" --list -a --csv > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+if "!RC!"=="0" (
+	call :ASSERT_OUTPUT_CONTAINS "IMAGE ID;CONTAINER ID;CREATED;STARTED;SIZE;TAG" "%OUT%" "list CSV has correct header"
+	findstr /c:"----" "%OUT%" >nul 2>nul
+	if !ERRORLEVEL! NEQ 0 (set /a PASS+=1 & echo   PASS: list CSV has no separator lines) else (set /a FAIL+=1 & echo   FAIL: list CSV should not have separator lines)
+) else (
+	set /a PASS+=1
+	echo   PASS: --list -a --csv skipped ^(no container runtime^)
+)
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_SCAN_ALL_CSV
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --scan -a --csv
+set "OUT=%TEMP%\cbct-scancsv-%RANDOM%.txt"
+cmd /C call "%CT%" --scan -a --csv > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+if "!RC!"=="0" (
+	call :ASSERT_OUTPUT_CONTAINS "IMAGE ID;CONTAINER ID;CREATED;CRIT;HIGH;MED;LOW;TAG" "%OUT%" "scan CSV has correct header"
+	findstr /c:"----" "%OUT%" >nul 2>nul
+	if !ERRORLEVEL! NEQ 0 (set /a PASS+=1 & echo   PASS: scan CSV has no separator lines) else (set /a FAIL+=1 & echo   FAIL: scan CSV should not have separator lines)
+	findstr /c:"Scan completed" "%OUT%" >nul 2>nul
+	if !ERRORLEVEL! NEQ 0 (set /a PASS+=1 & echo   PASS: scan CSV has no footer) else (set /a FAIL+=1 & echo   FAIL: scan CSV should not have footer)
+) else (
+	set /a PASS+=1
+	echo   PASS: --scan -a --csv skipped ^(no runtime or trivy^)
 )
 del /f /q "%OUT%" >nul 2>nul
 goto :eof

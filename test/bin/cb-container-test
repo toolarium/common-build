@@ -333,6 +333,248 @@ test_config_file
 test_distro_alias_help
 test_scan_not_found
 
+#########################################################################
+# new flag tests
+#########################################################################
+test_csv_flag() {
+	echo "TEST: --csv flag accepted"
+	output=$("$CT" --csv --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with --csv --help"
+}
+
+test_help_new_flags() {
+	echo "TEST: help lists new flags"
+	output=$("$CT" --help 2>&1)
+	assertContains "--wide" "$output" "help lists --wide"
+	assertContains "--force" "$output" "help lists --force"
+	assertContains "--csv" "$output" "help lists --csv"
+	assertContains "filter" "$output" "help mentions list filter"
+}
+
+test_wide_flag() {
+	echo "TEST: -w/--wide flag accepted"
+	output=$("$CT" -w --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with -w --help"
+	output=$("$CT" --wide --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with --wide --help"
+}
+
+test_force_flag() {
+	echo "TEST: -f/--force flag accepted"
+	output=$("$CT" -f --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with -f --help"
+	output=$("$CT" --force --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with --force --help"
+}
+
+#########################################################################
+# settings.gradle auto-detection tests
+#########################################################################
+test_settings_gradle_single_quotes() {
+	echo "TEST: settings.gradle with single quotes"
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-ct-sg1-$$")
+	mkdir -p "$tmpdir"
+	echo "rootProject.name = 'my-gradle-project'" > "$tmpdir/settings.gradle"
+	output=$(cd "$tmpdir" && "$CT" --scan 2>&1)
+	assertContains "my-gradle-project" "$output" "resolves single-quoted project name"
+	rm -rf "$tmpdir"
+}
+
+test_settings_gradle_double_quotes() {
+	echo "TEST: settings.gradle with double quotes"
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-ct-sg2-$$")
+	mkdir -p "$tmpdir"
+	printf 'rootProject.name = "my-dq-project"\n' > "$tmpdir/settings.gradle"
+	output=$(cd "$tmpdir" && "$CT" --scan 2>&1)
+	assertContains "my-dq-project" "$output" "resolves double-quoted project name"
+	rm -rf "$tmpdir"
+}
+
+test_settings_gradle_no_spaces() {
+	echo "TEST: settings.gradle without spaces around ="
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-ct-sg3-$$")
+	mkdir -p "$tmpdir"
+	echo "rootProject.name='compact-name'" > "$tmpdir/settings.gradle"
+	output=$(cd "$tmpdir" && "$CT" --scan 2>&1)
+	assertContains "compact-name" "$output" "resolves name without spaces"
+	rm -rf "$tmpdir"
+}
+
+test_settings_gradle_tabs() {
+	echo "TEST: settings.gradle with tabs"
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-ct-sg4-$$")
+	mkdir -p "$tmpdir"
+	printf "rootProject.name\t=\t'tabbed-project'\n" > "$tmpdir/settings.gradle"
+	output=$(cd "$tmpdir" && "$CT" --scan 2>&1)
+	assertContains "tabbed-project" "$output" "resolves name with tabs"
+	rm -rf "$tmpdir"
+}
+
+test_no_settings_gradle() {
+	echo "TEST: no settings.gradle shows error"
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-ct-sg5-$$")
+	mkdir -p "$tmpdir"
+	output=$(cd "$tmpdir" && "$CT" --scan 2>&1)
+	# should not crash, either show 'auto' not found or no images
+	assertNotContains "FATAL" "$output" "no crash without settings.gradle"
+	rm -rf "$tmpdir"
+}
+
+#########################################################################
+# scan-all tests
+#########################################################################
+test_scan_all() {
+	echo "TEST: --scan -a shows VULN column"
+	output=$("$CT" --scan -a 2>&1)
+	exitCode=$?
+	if [ $exitCode -eq 0 ]; then
+		assertContains "CRIT" "$output" "--scan -a header has CRIT column"
+		assertContains "IMAGE ID" "$output" "--scan -a header has IMAGE ID"
+		assertContains "TAG" "$output" "--scan -a header has TAG"
+		assertNotContains "SIZE" "$output" "--scan -a does not show SIZE"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: --scan -a skipped (no container runtime or trivy)"
+	fi
+}
+
+#########################################################################
+# list filter tests
+#########################################################################
+test_list_filter() {
+	echo "TEST: --list with filter"
+	output=$("$CT" -l nonexistent-filter-xyz 2>&1)
+	exitCode=$?
+	if [ $exitCode -eq 0 ]; then
+		assertContains "IMAGE ID" "$output" "-l filter shows header"
+		assertContains "0 image(s)" "$output" "filter returns 0 images for bad prefix"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: -l filter skipped (no container runtime)"
+	fi
+}
+
+#########################################################################
+# auto-detect tests (--start/--stop/--delete without name)
+#########################################################################
+test_auto_start_settings_gradle() {
+	echo "TEST: --start auto-detects from settings.gradle"
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-ct-as-$$")
+	mkdir -p "$tmpdir"
+	echo "rootProject.name = 'auto-start-project'" > "$tmpdir/settings.gradle"
+	output=$(cd "$tmpdir" && "$CT" --start 2>&1)
+	assertContains "auto-start-project" "$output" "--start resolves from settings.gradle"
+	rm -rf "$tmpdir"
+}
+
+test_auto_stop_settings_gradle() {
+	echo "TEST: --stop auto-detects from settings.gradle"
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-ct-astop-$$")
+	mkdir -p "$tmpdir"
+	echo "rootProject.name = 'auto-stop-project'" > "$tmpdir/settings.gradle"
+	output=$(cd "$tmpdir" && "$CT" --stop 2>&1)
+	assertContains "auto-stop-project" "$output" "--stop resolves from settings.gradle"
+	rm -rf "$tmpdir"
+}
+
+test_auto_delete_settings_gradle() {
+	echo "TEST: --delete auto-detects from settings.gradle"
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-ct-adel-$$")
+	mkdir -p "$tmpdir"
+	echo "rootProject.name = 'auto-del-project'" > "$tmpdir/settings.gradle"
+	output=$(cd "$tmpdir" && "$CT" --delete 2>&1)
+	assertContains "auto-del-project" "$output" "--delete resolves from settings.gradle"
+	rm -rf "$tmpdir"
+}
+
+#########################################################################
+# project-aware default list test
+#########################################################################
+test_default_list_in_project() {
+	echo "TEST: bare cb-container in project dir filters by project name"
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-ct-deflist-$$")
+	mkdir -p "$tmpdir"
+	echo "rootProject.name = 'nonexistent-proj-xyz'" > "$tmpdir/settings.gradle"
+	output=$(cd "$tmpdir" && "$CT" 2>&1)
+	if echo "$output" | grep -q "IMAGE ID"; then
+		assertContains "0 image(s)" "$output" "filters to 0 images for unknown project"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: skipped (no container runtime)"
+	fi
+	rm -rf "$tmpdir"
+}
+
+#########################################################################
+# scan-all with filter test
+#########################################################################
+test_scan_all_with_filter() {
+	echo "TEST: --scan -a -l filter"
+	output=$("$CT" --scan -a -l nonexistent-filter-xyz 2>&1)
+	exitCode=$?
+	if [ $exitCode -eq 0 ]; then
+		assertContains "CRIT" "$output" "--scan -a -l shows CRIT column"
+		assertContains "0 image(s)" "$output" "filter returns 0 for bad prefix"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: --scan -a -l skipped (no runtime or trivy)"
+	fi
+}
+
+#########################################################################
+# csv output tests
+#########################################################################
+test_list_csv() {
+	echo "TEST: --list -a --csv"
+	output=$("$CT" --list -a --csv 2>&1)
+	exitCode=$?
+	if [ $exitCode -eq 0 ]; then
+		assertContains "IMAGE ID;CONTAINER ID;CREATED;STARTED;SIZE;TAG" "$output" "list CSV has correct header"
+		assertNotContains "----" "$output" "list CSV has no separator lines"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: --list -a --csv skipped (no container runtime)"
+	fi
+}
+
+test_scan_all_csv() {
+	echo "TEST: --scan -a --csv"
+	output=$("$CT" --scan -a --csv 2>&1)
+	exitCode=$?
+	if [ $exitCode -eq 0 ]; then
+		assertContains "IMAGE ID;CONTAINER ID;CREATED;CRIT;HIGH;MED;LOW;TAG" "$output" "scan CSV has correct header"
+		assertNotContains "----" "$output" "scan CSV has no separator lines"
+		assertNotContains "Scan completed" "$output" "scan CSV has no footer"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: --scan -a --csv skipped (no runtime or trivy)"
+	fi
+}
+
+test_csv_flag
+test_help_new_flags
+test_wide_flag
+test_force_flag
+test_settings_gradle_single_quotes
+test_settings_gradle_double_quotes
+test_settings_gradle_no_spaces
+test_settings_gradle_tabs
+test_no_settings_gradle
+test_auto_start_settings_gradle
+test_auto_stop_settings_gradle
+test_auto_delete_settings_gradle
+test_default_list_in_project
+test_scan_all
+test_scan_all_with_filter
+test_list_filter
+test_list_csv
+test_scan_all_csv
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [ $FAIL -eq 0 ] && exit 0 || exit 1

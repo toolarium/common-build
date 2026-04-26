@@ -274,7 +274,7 @@ projectReplaceParameters() {
 	actionName="$1"
 	shift
 	command="$*"	
-	command=$(echo "$command" | sed "s/@@projectType@@/$projectType/g;s/@@projectName@@/$projectName/g;s/@@projectRootPackageName@@/$projectRootPackageName/g;s/@@projectGroupId@@/$projectGroupId/g;s/@@projectComponentId@@/$projectComponentId/g;s/@@projectDescription@@/$projectDescription/g;s/@@logFile@@/\/dev\/null/g;s/@@delete@@/rm\ \-rf/g;")
+	command=$(echo "$command" | sed "s/@@projectType@@/$projectType/g;s/@@projectName@@/$projectName/g;s/@@projectRootPackageName@@/$projectRootPackageName/g;s/@@projectGroupId@@/$projectGroupId/g;s/@@projectComponentId@@/$projectComponentId/g;s/@@projectDescription@@/$projectDescription/g;s/@@logFile@@/\/dev\/null/g;s/@@delete@@/rm\ \-rf/g;s/@@mkdir@@/mkdir\ \-p/g;")
 	[ "$CB_VERBOSE" = "true" ] && echo "${CB_LINEHEADER}Prepared $actionName action: $command"	
 	echo $command
 }

@@ -53,6 +53,10 @@ for %%p in (%*) do (
   if "%%~p"=="--packages" set "CB_FAST_EXIT=true"
 )
 
+for %%p in (%*) do (
+  if "%%~p"=="--silent" set "CB_INSTALL_SILENT=true" & set "CB_INSTALL_USER_COMMIT=false"
+)
+
 if ".%CB_FAST_EXIT%"==".true" goto :CB_SKIP_START_TIMESTAMP
 where powershell >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Please install powershell. & goto END_WITH_ERROR
@@ -167,7 +171,8 @@ for /f "tokens=1,* delims=^=" %%i in ('type "%CB_CONFIG_HOME%\conf\%CB_CUSTOM_CO
 	set CB_CUSTOM_CONFIG_LENTGH=!CB_CUSTOM_CONFIG_LENTGH!
 )
 
-if ".%CB_CUSTOM_CONFIG%"=="." echo %CB_LINEHEADER%Ignore empty custom config, see %CB_CONFIG_HOME%\conf\%CB_CUSTOM_CONFIG_FILENAME% & goto CUSTOM_CONFIG_END
+if ".%CB_CUSTOM_CONFIG%"=="." if not [%CB_INSTALL_SILENT%]==[true] echo %CB_LINEHEADER%Ignore empty custom config, see %CB_CONFIG_HOME%\conf\%CB_CUSTOM_CONFIG_FILENAME%
+if ".%CB_CUSTOM_CONFIG%"=="." goto CUSTOM_CONFIG_END
 if .%CB_VERBOSE% == .true echo %CB_LINEHEADER%Select custom config entry [%CB_CUSTOM_CONFIG%]
 if not ".%CB_CUSTOM_CONFIG%"=="." call :CB_CUSTOM_CONFIG_CHECK
 if %errorCode% NEQ 0 goto END_WITH_ERROR

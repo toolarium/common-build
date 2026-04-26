@@ -103,6 +103,9 @@ jobs:
       - name: cb-hashcode-test
         run: test/bin/cb-hashcode-test
 
+      - name: cb-container-test
+        run: test/bin/cb-container-test
+
 
   #######################################################################
   # macOS - shell test scripts (test/bin/*)
@@ -176,6 +179,9 @@ jobs:
 
       - name: cb-hashcode-test
         run: test/bin/cb-hashcode-test
+
+      - name: cb-container-test
+        run: test/bin/cb-container-test
 
 
   #######################################################################
@@ -277,4 +283,8 @@ jobs:
       - name: cb-deltree-test.bat
         shell: cmd
         run: test\bin\cb-deltree-test.bat
+
+      - name: cb-container-test.bat
+        shell: cmd
+        run: test\bin\cb-container-test.bat
 

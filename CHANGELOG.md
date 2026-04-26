@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.4] - 2026-04-26
+### Added
+- `cb-container`: Project-aware mode — when run from a directory with `settings.gradle`, auto-detects the project name from `rootProject.name` (supports single/double quotes, tabs, spaces around `=`).
+  - Bare `cb-container` in a project directory shows only that project's images.
+  - `--scan`, `--start`, `--stop`, `--log`, `--delete` without a name auto-resolve from `settings.gradle`.
+  - Scan output stored locally in `build/container/` (or `build/reports/testing/` for testing projects detected via `gradle.properties` `projectType = testing`).
+- `cb-container`: Scan all images with `--scan -a` (or `--scan --all`). Displays list-style table with per-severity columns (CRIT, HIGH, MED, LOW) replacing SIZE, without STARTED column. Reuses cached scan results per image.
+- `cb-container`: Scanning multiple comma-separated images (`--scan img1,img2`) uses the same list-style format with severity columns. Single image scan retains the detailed CVE table.
+- `cb-container`: CSV output with `--csv` — semicolon-separated output for `--list -a`, `--scan -a`, and `--scan img1,img2`. Clean output without separator lines or footers.
+- `cb-container`: List filter with `-l <prefix>` / `--list <prefix>` — filter images by name prefix or image ID prefix (e.g. `-l alpine`, `-l 25109184`).
+- `cb-container`: Wide scan output with `-w` / `--wide` — shows full (untruncated) PACKAGE, INSTALLED, and FIXED columns with wider separator line.
+- `cb-container`: Force rescan with `-f` / `--force` — ignores cached results and re-runs trivy.
+- `cb-container`: Scan duration shown in summary line (e.g. `Summary: 20 vulnerabilities (...) [12s]`).
+
+### Changed
+- `cb-container`: Trivy detection extracted into shared `detectTrivy` / `:DETECT_TRIVY` to avoid code duplication.
+- `cb-container`: Running container detection now matches by repo name and image ID in addition to exact image string.
+- `cb`: Suppressed "Ignore empty custom config" message when `--silent` is active by detecting `--silent` early in argument parsing (before custom config check).
+
+### Fixed
+- `cb-container`: Fixed `CB_LINEHEADER` (`.: `) being cleared by `call cb --setenv` inside scan, causing verbose messages to lose their prefix.
+- `cb-container`: Fixed scan header padding using dashes instead of spaces in wide mode.
+- `cb-container`: Fixed `--scan -a` missing `scanTimestamp` causing cache filenames without timestamps.
+
 ## [1.1.3] - 2026-04-19
 ### Fixed
 - Fixed release workflow: release title now uses the tag name (e.g. `v1.1.3`) instead of the archive name (`toolarium-common-build-v1.1.3`), restoring compatibility with older `cb-install.bat` versions that read the release `name` field to detect the version.
