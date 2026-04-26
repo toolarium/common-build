@@ -121,9 +121,9 @@ call :RUN_TYPE  6  "my-test-service"             "quarkus"             my.rootpa
 call :RUN_TYPE  3  "my-test-config"              "config"              my my test-description
 call :RUN_TYPE  4  "my-test-bin"                 "script"              my test-description
 call :RUN_TYPE  10 "my-test-app"                 "kubernetes-product"  my my test-description
-call :RUN_TYPE  11 "my-test-documentation"       "documentation"       my test-description
-call :RUN_TYPE  12 "my-test-container"           "container"           my test-description
-call :RUN_TYPE  13 "my-test-org-config"          "organization-config" my test-description
+call :RUN_TYPE  12 "my-test-documentation"       "documentation"       my test-description
+call :RUN_TYPE  13 "my-test-container"           "container"           my test-description
+call :RUN_TYPE  14 "my-test-org-config"          "organization-config" my test-description
 
 if "%CB_PROJECT_TEST_NETWORK%"=="1" if "!HAS_NODE!"=="false" (
 	echo FAIL: node not available - cb --install node failed.
@@ -136,13 +136,14 @@ if "%CB_PROJECT_TEST_NETWORK%"=="1" (
 	echo Group C: Node-based project types
 	echo =========================================
 	echo\
-	call :RUN_TYPE 7  "my-test-vue-ui"   "vuejs"  my test-description
-	call :RUN_TYPE 8  "my-test-nuxt-ui"  "nuxtjs" my test-description
-	call :RUN_TYPE 9  "my-test-react-ui" "react"  my test-description
+	call :RUN_TYPE 7  "my-test-vue-ui"   "vuejs"   my test-description
+	call :RUN_TYPE 8  "my-test-nuxt-ui"  "nuxtjs"  my test-description
+	call :RUN_TYPE 9  "my-test-react-ui" "react"   my test-description
+	call :RUN_TYPE 11 "my-test-testing"  "testing" my test-description
 ) else (
 	echo\
-	echo SKIP: Group C - vuejs, nuxtjs, react - set CB_PROJECT_TEST_NETWORK=1
-	set /a SKIP+=3
+	echo SKIP: Group C - vuejs, nuxtjs, react, testing - set CB_PROJECT_TEST_NETWORK=1
+	set /a SKIP+=4
 )
 
 call :CLEANUP_ALL

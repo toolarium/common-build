@@ -222,9 +222,9 @@ runProjectType 6  "my-test-service"             "$(labelFor 6)"  my.rootpackage.
 runProjectType 3  "my-test-config"              "$(labelFor 3)"  my my test-description
 runProjectType 4  "my-test-bin"                 "$(labelFor 4)"  my test-description
 runProjectType 10 "my-test-app"                 "$(labelFor 10)" my my test-description
-runProjectType 11 "my-test-documentation"       "$(labelFor 11)" my test-description
-runProjectType 12 "my-test-container"           "$(labelFor 12)" my test-description
-runProjectType 13 "my-test-org-config"          "$(labelFor 13)" my test-description
+runProjectType 12 "my-test-documentation"       "$(labelFor 12)" my test-description
+runProjectType 13 "my-test-container"           "$(labelFor 13)" my test-description
+runProjectType 14 "my-test-org-config"          "$(labelFor 14)" my test-description
 
 if [ "$CB_PROJECT_TEST_NETWORK" = "1" ]; then
 	if [ "$HAS_NODE" != "true" ]; then
@@ -236,13 +236,14 @@ if [ "$CB_PROJECT_TEST_NETWORK" = "1" ]; then
 	echo "Group C: Node-based project types"
 	echo "========================================="
 	echo ""
-	runProjectType 7 "my-test-vue-ui"   "$(labelFor 7)" my test-description
-	runProjectType 8 "my-test-nuxt-ui"  "$(labelFor 8)" my test-description
-	runProjectType 9 "my-test-react-ui" "$(labelFor 9)" my test-description
+	runProjectType 7  "my-test-vue-ui"   "$(labelFor 7)"  my test-description
+	runProjectType 8  "my-test-nuxt-ui"  "$(labelFor 8)"  my test-description
+	runProjectType 9  "my-test-react-ui" "$(labelFor 9)"  my test-description
+	runProjectType 11 "my-test-testing"  "$(labelFor 11)" my test-description
 else
 	echo ""
-	echo "SKIP: Group C (vuejs, nuxtjs, react) — set CB_PROJECT_TEST_NETWORK=1"
-	SKIP=$((SKIP+3))
+	echo "SKIP: Group C (vuejs, nuxtjs, react, testing) — set CB_PROJECT_TEST_NETWORK=1"
+	SKIP=$((SKIP+4))
 fi
 
 echo ""
