@@ -422,6 +422,8 @@ set "CB_PYTHON_HOME=%CB_CURRENT_PATH%\python"
 set "PYTHON_HOME=%CB_PYTHON_HOME%"
 echo %PATH% | findstr /C:"%PYTHON_HOME%" >nul 2>nul
 if %ERRORLEVEL% NEQ 0 set "PATH=%PYTHON_HOME%;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add python to path (%PYTHON_HOME%)
+echo %PATH% | findstr /C:"%PYTHON_HOME%\Scripts" >nul 2>nul
+if %ERRORLEVEL% NEQ 0 if exist "%PYTHON_HOME%\Scripts" set "PATH=%PYTHON_HOME%\Scripts;%PATH%" & if [%CB_INSTALL_SILENT%] equ [false] echo %CB_LINEHEADER%Add python scripts to path (%PYTHON_HOME%\Scripts)
 
 :SET_ENV_TRIVY
 if not exist %CB_CURRENT_PATH%\trivy goto :SET_ENV_END
@@ -498,6 +500,7 @@ echo $env.GRAALVM_HOME = '%CB_CURRENT_PATH%\graalvm'
 if not exist %CB_CURRENT_PATH%\python goto :SET_NUSHELL_TRIVY
 echo $env.PYTHON_HOME = '%CB_CURRENT_PATH%\python'
 echo $env.PATH = ($env.PATH ^| prepend '%CB_CURRENT_PATH%\python')
+if exist "%CB_CURRENT_PATH%\python\Scripts" echo $env.PATH = ($env.PATH ^| prepend '%CB_CURRENT_PATH%\python\Scripts')
 
 :SET_NUSHELL_TRIVY
 if not exist %CB_CURRENT_PATH%\trivy goto :SET_NUSHELL_END
@@ -641,6 +644,8 @@ if defined CB_PYTHON_HOME echo %CB_PYTHON_HOME% | findstr /I %CB_DEVTOOLS% >nul 
 ::if defined CB_PYTHON_HOME if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%CB_PYTHON_HOME is not set to a python version in devtools (%CB_DEVTOOLS%): %CB_PYTHON_HOME%. & goto END_WITH_ERROR
 if defined CB_PYTHON_HOME echo %PATH% | findstr /C:"%CB_PYTHON_HOME%" >nul 2>nul
 if defined CB_PYTHON_HOME if %ERRORLEVEL% NEQ 0 set "PATH=%CB_PYTHON_HOME%;%PATH%"
+if defined CB_PYTHON_HOME echo %PATH% | findstr /C:"%CB_PYTHON_HOME%\Scripts" >nul 2>nul
+if defined CB_PYTHON_HOME if %ERRORLEVEL% NEQ 0 if exist "%CB_PYTHON_HOME%\Scripts" set "PATH=%CB_PYTHON_HOME%\Scripts;%PATH%"
 
 :: add trivy to path if available
 if not defined CB_TRIVY_HOME if exist %CB_CURRENT_PATH%\trivy set "CB_TRIVY_HOME=%CB_CURRENT_PATH%\trivy"
