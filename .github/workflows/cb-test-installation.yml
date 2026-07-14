@@ -16,8 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Set permissions
-      - name: Install common-build
+      - name: Set permissions and install common-build
         run: |
           chmod -R +x bin/
           CB_HOME=$GITHUB_WORKSPACE
@@ -179,8 +178,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Set permissions
-      - name: Install common-build
+      - name: Set permissions and install common-build
         run: |
           chmod -R +x bin/
           CB_HOME=$GITHUB_WORKSPACE
