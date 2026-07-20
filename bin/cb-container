@@ -32,6 +32,9 @@ PN=$(basename "$0" 2>/dev/null)
 ! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb-$USER"
 CB_CONTAINER_TEMP="$CB_TEMP/cb-container"
 [ ! -d "$CB_CONTAINER_TEMP" ] && mkdir -p "$CB_CONTAINER_TEMP" 2>/dev/null
+_CB_REGISTRY_URL_ENV="${CB_REGISTRY_URL:-}"
+CB_REGISTRY_URL=""
+CB_REGISTRY_FLAG=false
 
 
 #########################################################################
@@ -50,8 +53,9 @@ printUsage() {
 	echo " -w, --wide                  Show wider columns for installed/fixed versions"
 	echo "                             in scan output."
 	echo " -f, --force                 Force scan, ignore cached results."
-	echo "     --csv                   Output as CSV (semicolon-separated). Used with"
-	echo "                             -l/--list -a, --scan -a, or --scan img1,img2."
+	echo "     --csv                   Output as CSV (semicolon-separated). For single"
+	echo "                             image scan: CVE-level rows. For --list/-l,"
+	echo "                             --scan -a or --scan img1,img2: summary rows."
 	echo "     --verbose               Verbose output."
 	echo " -i, --it [name|id]          Connect to a running container. If not running,"
 	echo "                             starts it interactively. Supports distro aliases."
@@ -70,6 +74,10 @@ printUsage() {
 	echo "                             5- = from line 5 to end."
 	echo " -t, --tail                  Tail (follow) mode, used with -l/--log."
 	echo "     --scan <name|id>        Scan an image with trivy. Comma-separated for multiple."
+	echo "     --registry <url>        Use a remote Docker Registry v2 instead of the local"
+	echo "                             runtime. Combines with --list or --scan. Can also be"
+	echo "                             set via CB_REGISTRY_URL env var. Requires"
+	echo "                             CB_REGISTRY_USER and CB_REGISTRY_PASSWORD env vars."
 	echo "     --clean                 Clean the scan cache and dangling images."
 	echo "     --delete <name|id>      Delete an image by name or id."
 	echo ""
@@ -108,6 +116,10 @@ printUsage() {
 	echo "  $PN --start my-app -t"
 	echo "  $PN --start my-app -l 5"
 	echo ""
+	echo "  Inside a project (auto-detect image from settings.gradle):"
+	echo "  $PN --start --log"
+	echo "  $PN --env SUBPATH=ooo --start --log"
+	echo ""
 	echo "  Stop container:"
 	echo "  $PN --stop my-app"
 	echo "  $PN --stop abc123"
@@ -122,6 +134,10 @@ printUsage() {
 	echo ""
 	echo "  Scan image with trivy:"
 	echo "  $PN --scan my-app"
+	echo ""
+	echo "  Remote registry (Docker Registry v2):"
+	echo "  CB_REGISTRY_USER=user CB_REGISTRY_PASSWORD=pass $PN --list myapp --registry https://reg.example.com"
+	echo "  CB_REGISTRY_USER=user CB_REGISTRY_PASSWORD=pass $PN --scan myapp:1.0 --registry https://reg.example.com"
 	echo ""
 	echo "  Override entrypoint, port, env:"
 	echo "  $PN -e /bin/bash"
@@ -241,10 +257,10 @@ listImages() {
 		fi
 	done
 
-	# verbose summary
+	# verbose summary (count from already-fetched containerList to avoid a second runtime call)
 	if [ "$CB_CONTAINER_VERBOSE" = true ] && [ "$CB_CONTAINER_CSV" != true ]; then
-		local runningCount
-		runningCount=$("$CB_CONTAINER_RUNTIME" ps -q 2>/dev/null | wc -l | tr -d ' ')
+		local runningCount=0
+		[ -n "$containerList" ] && runningCount=$(echo "$containerList" | wc -l | tr -d ' ')
 		echo "$CB_LINE"
 		echo "${CB_LINEHEADER}$imageCount image(s), $runningCount running."
 	fi
@@ -357,6 +373,7 @@ buildAndRun() {
 	else
 		echo "${CB_LINEHEADER}Starting container '$projectName'..."
 	fi
+	[ "$CB_CONTAINER_VERBOSE" = true ] && echo "${CB_LINEHEADER}Execute: $CB_CONTAINER_RUNTIME run ${runArgs[*]} $projectName"
 	"$CB_CONTAINER_RUNTIME" run "${runArgs[@]}" "$projectName"
 }
 
@@ -427,6 +444,7 @@ startContainer() {
 	runningId=$("$CB_CONTAINER_RUNTIME" ps --format '{{.ID}}|{{.Image}}' 2>/dev/null | awk -F'|' -v img="$image" -v repo="$startRepo" -v iid="$startImageId" 'function endsWith(s,e){return substr(s,length(s)-length(e)+1)==e} $2==img || $2==repo || $2==iid || endsWith($2,"/"img) || endsWith($2,"/"repo) { print $1; exit }')
 	if [ -n "$runningId" ]; then
 		echo "${CB_LINEHEADER}Container from '$image' is already running (id: $runningId)."
+		[ -n "$CB_CONTAINER_ENV" ] && echo "${CB_LINEHEADER}Note: --env has no effect on a running container. Stop it first to apply new environment variables."
 		STARTED_CONTAINER_ID="$runningId"
 		return 0
 	fi
@@ -443,6 +461,7 @@ startContainer() {
 	else
 		echo "${CB_LINEHEADER}Starting container from '$image'..."
 	fi
+	[ "$CB_CONTAINER_VERBOSE" = true ] && echo "${CB_LINEHEADER}Execute: $CB_CONTAINER_RUNTIME run ${runArgs[*]} $image"
 	local cid errMsg
 	cid=$("$CB_CONTAINER_RUNTIME" run "${runArgs[@]}" "$image" 2>"$CB_CONTAINER_TEMP/cb-start-err.$$")
 	local rc=$?
@@ -655,10 +674,25 @@ scanSingleImage() {
 		return 1
 	fi
 
-	# resolve image ID for storing the result
+	# resolve image ID for storing the result — pull first if image not in local store
 	local imageId
 	imageId=$("$CB_CONTAINER_RUNTIME" images --format '{{.ID}}' --filter "reference=$resolvedImage" 2>/dev/null | head -n 1)
-	[ -z "$imageId" ] && imageId=$(echo "$resolvedImage" | sed 's|[/:@]|-|g')
+	if [ -z "$imageId" ]; then
+		echo "${CB_LINEHEADER}Image '$resolvedImage' not found locally, pulling..." >&2
+		if "$CB_CONTAINER_RUNTIME" pull "$resolvedImage" >/dev/null 2>&1; then
+			imageId=$("$CB_CONTAINER_RUNTIME" images --format '{{.ID}}' --filter "reference=$resolvedImage" 2>/dev/null | head -n 1)
+		elif [ -n "$_CB_REGISTRY_URL_ENV" ] && [ -n "$CB_REGISTRY_USER" ] && [ -n "$CB_REGISTRY_PASSWORD" ]; then
+			local registryHost
+			registryHost=$(echo "$_CB_REGISTRY_URL_ENV" | sed 's|https\?://||;s|/.*||')
+			"$CB_CONTAINER_RUNTIME" login --username "$CB_REGISTRY_USER" --password "$CB_REGISTRY_PASSWORD" "$registryHost" >/dev/null 2>&1
+			local fullRef="$registryHost/$resolvedImage"
+			if "$CB_CONTAINER_RUNTIME" pull "$fullRef" >/dev/null 2>&1; then
+				resolvedImage="$fullRef"
+				imageId=$("$CB_CONTAINER_RUNTIME" images --format '{{.ID}}' --filter "reference=$resolvedImage" 2>/dev/null | head -n 1)
+			fi
+		fi
+		[ -z "$imageId" ] && imageId=$(echo "$resolvedImage" | sed 's|[/:@]|-|g')
+	fi
 
 	# get image creation timestamp for cache validation
 	local imageCreatedRaw
@@ -714,9 +748,10 @@ scanSingleImage() {
 		scanRows="$CB_CONTAINER_TEMP/${imageId}-${scanTimestamp}-trivy${scanRowsSuffix}.rows"
 	fi
 
-	# derive normal, wide and counts filenames from json path
+	# derive normal, wide, csv and counts filenames from json path
 	local scanRowsNormal="${scanJson%.json}.rows"
 	local scanRowsWide="${scanJson%.json}-wide.rows"
+	local scanRowsCsv="${scanJson%.json}.csv.rows"
 	local scanCounts="${scanJson%.json}.counts"
 	local scanRows="$scanRowsNormal"
 	[ "$CB_CONTAINER_WIDE" = true ] && scanRows="$scanRowsWide"
@@ -724,23 +759,58 @@ scanSingleImage() {
 	# use cached result if rows file exists
 	if [ "$scanCacheValid" = true ] && [ -f "$scanRows" ]; then
 		[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Using cached scan for '$resolvedImage'.\n"
-		cat "$scanRows"
+		if [ "$CB_CONTAINER_CSV" = true ] && [ -f "$scanRowsCsv" ]; then
+			cat "$scanRowsCsv"
+		else
+			cat "$scanRows"
+		fi
 		return 0
 	fi
 
-	[ "$CB_CONTAINER_VERBOSE" = true ] && [ ! -f "$scanJson" ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Scanning '$resolvedImage' with trivy...\n"
+	[ "$CB_CONTAINER_VERBOSE" = true ] && [ ! -f "$scanJson" ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}trivy image --quiet --format json $resolvedImage\n"
 	[ "$CB_CONTAINER_VERBOSE" = true ] && [ -f "$scanJson" ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Using cached scan result for '$resolvedImage', reformatting.\n"
 	# scan only if json not already cached
-	[ ! -f "$scanJson" ] && trivy image --quiet --format json "$resolvedImage" 2>/dev/null > "$scanJson"
+	if [ ! -f "$scanJson" ]; then
+		local trivyStderr
+		# try direct trivy image scan first (works for Docker daemon images)
+		trivyStderr=$(trivy image --quiet --format json "$resolvedImage" 2>&1 > "$scanJson")
+		if [ ! -s "$scanJson" ]; then
+			# fall back: export via runtime and scan the tar (handles nerdctl/containerd where trivy can't access the image directly)
+			rm -f "$scanJson" 2>/dev/null
+			echo "${CB_LINEHEADER}Saving '$resolvedImage' via '$CB_CONTAINER_RUNTIME save' for trivy scan (this may take a while)..." >&2
+			local trivyTar="$CB_CONTAINER_TEMP/${imageId}-save.tar"
+			"$CB_CONTAINER_RUNTIME" save "$resolvedImage" -o "$trivyTar" 2>/dev/null
+			if [ -f "$trivyTar" ]; then
+				trivyStderr=$(trivy image --quiet --format json --input "$trivyTar" 2>&1 > "$scanJson")
+				rm -f "$trivyTar" 2>/dev/null
+			fi
+			if [ ! -s "$scanJson" ]; then
+				rm -f "$scanJson" 2>/dev/null
+				echo "${CB_LINEHEADER}Trivy scan failed for '$resolvedImage'." >&2
+				[ -n "$trivyStderr" ] && echo "${CB_LINEHEADER}  $trivyStderr" >&2
+				return 1
+			fi
+		fi
+	fi
 
-	# generate both normal and wide rows + counts in a single awk pass
-	awk -v normalFile="$scanRowsNormal" -v wideFile="$scanRowsWide" -v countsFile="$scanCounts" '
+	# ensure output files exist even when there are no vulnerabilities
+	> "$scanRowsNormal"; > "$scanRowsWide"; > "$scanRowsCsv"
+
+	# generate normal, wide, csv rows + counts in a single awk pass
+	awk -v normalFile="$scanRowsNormal" -v wideFile="$scanRowsWide" -v csvFile="$scanRowsCsv" -v countsFile="$scanCounts" '
 	function sevChar(s) {
 		if (s=="CRITICAL") return "C"
 		if (s=="HIGH") return "H"
 		if (s=="MEDIUM") return "M"
 		if (s=="LOW") return "L"
 		return "?"
+	}
+	function sevFull(sc) {
+		if (sc=="C") return "CRITICAL"
+		if (sc=="H") return "HIGH"
+		if (sc=="M") return "MEDIUM"
+		if (sc=="L") return "LOW"
+		return "UNKNOWN"
 	}
 	function truncLeft(s, maxlen) {
 		if (maxlen <= 0) return s
@@ -784,10 +854,13 @@ scanSingleImage() {
 		fv = truncLeft(fixes[1], 12)
 		printf "%-22s %-4s %-30s %-14s %-14s %s\n", f[1], f[2], tp, iv, fv, f[6] > normalFile
 		for (j=2; j<=n; j++) { fv = truncLeft(fixes[j], 12); printf "%-22s %-4s %-30s %-14s %-14s\n", "", "", "", "", fv > normalFile }
-		# wide format (no truncation)
+		# wide format
 		fv = fixes[1]
-		printf "%-22s %-4s %-42s %-30s %-30s %s\n", f[1], f[2], f[3], f[4], fv, f[6] > wideFile
+		printf "%-22s %-4s %-42s %-30s %-30s %s\n", f[1], f[2], truncLeft(f[3], 40), f[4], fv, f[6] > wideFile
 		for (j=2; j<=n; j++) { printf "%-22s %-4s %-42s %-30s %-30s\n", "", "", "", "", fixes[j] > wideFile }
+		# csv format (one row per CVE; multiple fix versions joined with /)
+		fxCsv = fixes[1]; for (j=2; j<=n; j++) fxCsv = fxCsv "/" fixes[j]
+		printf "%s;%s;%s;%s;%s;%s\n", f[1], sevFull(f[2]), f[3], f[4], fxCsv, f[6] > csvFile
 	}
 	END {
 		cc=0; hc=0; mc=0; lc=0
@@ -801,9 +874,14 @@ scanSingleImage() {
 	' "$scanJson"
 
 	# display the requested format
-	cat "$scanRows"
+	if [ "$CB_CONTAINER_CSV" = true ]; then
+		cat "$scanRowsCsv"
+	else
+		cat "$scanRows"
+	fi
 
 	[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_POST="${CB_SCAN_VERBOSE_POST}${CB_LINEHEADER}Scan result stored in $scanRows\n${CB_LINEHEADER}Scan json stored in $scanJson\n"
+	return 0
 }
 
 
@@ -849,6 +927,669 @@ detectTrivy() {
 		echo "${CB_LINEHEADER}Trivy is not installed. Install with: cb --install trivy"
 		return 1
 	fi
+	return 0
+}
+
+
+#########################################################################
+# registryAuth — authenticate with a Docker Registry v2
+# Supports Basic auth and token-based (Bearer) auth.
+# Sets CB_REGISTRY_CURL_AUTH array for use with curl.
+#########################################################################
+registryAuth() {
+	local registryUrl="$1"
+	local repo="$2"
+	CB_REGISTRY_CURL_AUTH=()
+
+	if [ -z "$CB_REGISTRY_USER" ] || [ -z "$CB_REGISTRY_PASSWORD" ]; then
+		echo "${CB_LINEHEADER}Registry credentials not set. Set CB_REGISTRY_USER and CB_REGISTRY_PASSWORD." >&2
+		return 1
+	fi
+
+	# Try Basic auth on /v2/
+	local httpCode
+	httpCode=$(curl -s -o /dev/null -w "%{http_code}" -u "$CB_REGISTRY_USER:$CB_REGISTRY_PASSWORD" "$registryUrl/v2/" 2>/dev/null)
+	if [ "$httpCode" = "200" ]; then
+		CB_REGISTRY_CURL_AUTH=(-u "$CB_REGISTRY_USER:$CB_REGISTRY_PASSWORD")
+		return 0
+	fi
+
+	# Parse Www-Authenticate header to determine auth scheme
+	local headers
+	headers=$(curl -s -D - -o /dev/null "$registryUrl/v2/" 2>/dev/null)
+	local wwwAuth
+	wwwAuth=$(echo "$headers" | grep -i 'Www-Authenticate')
+	local authScheme
+	authScheme=$(echo "$wwwAuth" | sed 's/^[Ww][Ww][Ww]-[Aa]uthenticate: *\([A-Za-z]*\).*/\1/' | tr '[:upper:]' '[:lower:]')
+
+	# If registry uses Basic auth, set credentials and proceed — some registries always
+	# challenge /v2/ with 401 but accept Basic credentials on actual API endpoints
+	if [ "$authScheme" = "basic" ]; then
+		CB_REGISTRY_CURL_AUTH=(-u "$CB_REGISTRY_USER:$CB_REGISTRY_PASSWORD")
+		return 0
+	fi
+
+	# Bearer token auth
+	local realm service
+	realm=$(echo "$wwwAuth" | sed 's/.*realm="\([^"]*\)".*/\1/')
+	service=$(echo "$wwwAuth" | sed 's/.*service="\([^"]*\)".*/\1/')
+
+	if [ -z "$realm" ]; then
+		echo "${CB_LINEHEADER}Could not authenticate with registry at $registryUrl (HTTP $httpCode)." >&2
+		return 1
+	fi
+
+	local tokenUrl="$realm?service=$service&scope=repository:$repo:pull"
+	local tokenResponse
+	tokenResponse=$(curl -s -u "$CB_REGISTRY_USER:$CB_REGISTRY_PASSWORD" "$tokenUrl" 2>/dev/null)
+	local token
+	token=$(echo "$tokenResponse" | sed 's/.*"token" *: *"\([^"]*\)".*/\1/')
+	# some registries use access_token instead of token
+	if [ "$token" = "$tokenResponse" ]; then
+		token=$(echo "$tokenResponse" | sed 's/.*"access_token" *: *"\([^"]*\)".*/\1/')
+	fi
+
+	if [ -z "$token" ] || [ "$token" = "$tokenResponse" ]; then
+		echo "${CB_LINEHEADER}Failed to obtain registry token from $realm." >&2
+		return 1
+	fi
+
+	CB_REGISTRY_CURL_AUTH=(-H "Authorization: Bearer $token")
+	return 0
+}
+
+
+#########################################################################
+# formatSize — format byte count to human-readable (KB/MB/GB)
+#########################################################################
+formatSize() {
+	local bytes="$1"
+	if [ "$bytes" -gt 1073741824 ] 2>/dev/null; then
+		awk "BEGIN{printf \"%.1fGB\", $bytes/1073741824}"
+	elif [ "$bytes" -gt 1048576 ] 2>/dev/null; then
+		awk "BEGIN{printf \"%.1fMB\", $bytes/1048576}"
+	elif [ "$bytes" -gt 0 ] 2>/dev/null; then
+		awk "BEGIN{printf \"%.1fKB\", $bytes/1024}"
+	else
+		echo "-"
+	fi
+}
+
+
+#########################################################################
+# listRemoteImages — list tags from a remote Docker Registry v2
+#########################################################################
+listRemoteImages() {
+	local registryUrl="$1"
+	local repo="$2"
+
+	if [ -z "$repo" ]; then
+		echo "${CB_LINEHEADER}Repository name required for remote listing."
+		echo "${CB_LINEHEADER}Usage: $PN --list <repository> --registry <url>"
+		return 1
+	fi
+
+	# split repo:tagfilter if a version filter is specified (e.g. myapp:1.0)
+	local tagFilter=""
+	if echo "$repo" | grep -q ':'; then
+		tagFilter="${repo#*:}"
+		repo="${repo%%:*}"
+	fi
+
+	local registryHost
+	registryHost=$(echo "$registryUrl" | sed 's|https\?://||;s|/.*||')
+
+	# day-scoped cache: reglist-<host>-<repo>[-<filter>]-<YYYYMMDD>.cache
+	local today
+	today=$(date '+%Y%m%d' 2>/dev/null)
+	local cacheSlug
+	cacheSlug=$(printf '%s' "${registryHost}/${repo}${tagFilter:+/${tagFilter}}" | sed 's|[/:@.]|-|g')
+	local cacheFile="$CB_CONTAINER_TEMP/reglist-${cacheSlug}-${today}.cache"
+
+	# clear cache on --force
+	if [ "$CB_CONTAINER_FORCE" = true ]; then
+		rm -f "$CB_CONTAINER_TEMP/reglist-${cacheSlug}"-*.cache 2>/dev/null
+		[ "$CB_CONTAINER_VERBOSE" = true ] && echo "${CB_LINEHEADER}Force refresh, cache cleared for '$repo'."
+	fi
+
+	# print header helper (called from both cache-hit and fetch paths)
+	_regListHeader() {
+		local tagCount="$1"
+		if [ "$CB_CONTAINER_CSV" = true ]; then
+			echo "IMAGE ID;CONTAINER ID;CREATED;STARTED;SIZE;TAG"
+		else
+			echo "$CB_LINE"
+			local header
+			header=$(printf "%-14s %-14s %-18s %-18s %-9s %s" "IMAGE ID" "CONTAINER ID" "CREATED" "STARTED" "SIZE" "TAG")
+			local now
+			now=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
+			local countLabel="$now - $tagCount tag(s) [$registryHost]"
+			local lineLen=${#CB_LINE}
+			local headerLen=${#header}
+			local countLen=${#countLabel}
+			local padding=$((lineLen - headerLen - countLen))
+			if [ "$padding" -gt 0 ] 2>/dev/null; then
+				printf "%s%*s%s\n" "$header" "$padding" "" "$countLabel"
+			else
+				printf "%s  %s\n" "$header" "$countLabel"
+			fi
+			echo "$CB_LINE"
+		fi
+	}
+
+	# cache hit: display from cached data file
+	if [ -f "$cacheFile" ] && [ -s "$cacheFile" ]; then
+		[ "$CB_CONTAINER_VERBOSE" = true ] && echo "${CB_LINEHEADER}Using cached listing for '$repo'."
+		local tagCount
+		tagCount=$(wc -l < "$cacheFile" | tr -d ' ')
+		_regListHeader "$tagCount"
+		while IFS='|' read -r imgId imgCreated sizeStr repoTag; do
+			if [ "$CB_CONTAINER_CSV" = true ]; then
+				printf "%s;-;%s;-;%s;%s\n" "$imgId" "$imgCreated" "$sizeStr" "$repoTag"
+			else
+				printf "%-14s %-14s %-18s %-18s %-9s %s\n" "$imgId" "-" "$imgCreated" "-" "$sizeStr" "$repoTag"
+			fi
+		done < "$cacheFile"
+		return 0
+	fi
+
+	registryAuth "$registryUrl" "$repo" || return 1
+
+	# Fetch tags
+	local tagsJson
+	tagsJson=$(curl -s "${CB_REGISTRY_CURL_AUTH[@]}" "$registryUrl/v2/$repo/tags/list" 2>/dev/null)
+	if ! echo "$tagsJson" | grep -q '"tags"'; then
+		echo "${CB_LINEHEADER}Failed to list tags from registry (authentication error or wrong credentials)." >&2
+		return 1
+	fi
+	local tags
+	tags=$(echo "$tagsJson" | sed 's/.*"tags" *: *\[//;s/\].*//' | tr ',' '\n' | sed 's/"//g;s/ //g' | grep -v '^$')
+
+	if [ -z "$tags" ]; then
+		echo "${CB_LINEHEADER}No tags found for '$repo' on $registryUrl."
+		return 1
+	fi
+
+	# apply version prefix filter if specified
+	if [ -n "$tagFilter" ]; then
+		tags=$(echo "$tags" | while read -r t; do
+			case "$t" in "$tagFilter"*) echo "$t";; esac
+		done)
+		if [ -z "$tags" ]; then
+			echo "${CB_LINEHEADER}No tags found matching '$tagFilter' for '$repo' on $registryUrl."
+			return 1
+		fi
+	fi
+
+	local tagCount
+	tagCount=$(echo "$tags" | wc -l | tr -d ' ')
+	_regListHeader "$tagCount"
+
+	# fetch per-tag data, write to cache temp and print simultaneously
+	local cacheTmp="$CB_CONTAINER_TEMP/reglist-fetch-$$.tmp"
+	: > "$cacheTmp"
+
+	echo "$tags" | while read -r tag; do
+		[ -z "$tag" ] && continue
+
+		local repoTag="${repo}:${tag}"
+
+		# Fetch manifest v2
+		local manifest
+		manifest=$(curl -s "${CB_REGISTRY_CURL_AUTH[@]}" \
+			-H "Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json" \
+			"$registryUrl/v2/$repo/manifests/$tag" 2>/dev/null)
+
+		# Check for manifest list (multi-arch) and resolve to linux/amd64
+		local mediaType
+		mediaType=$(echo "$manifest" | sed -n 's/.*"mediaType" *: *"\([^"]*\)".*/\1/p' | head -n 1)
+		if echo "$mediaType" | grep -q 'manifest\.list\|index'; then
+			local archDigest
+			archDigest=$(echo "$manifest" | awk '
+				/"platform"/{plat=1; os=""; arch=""}
+				plat && /"os" *:/{gsub(/[",]/,"",$0); sub(/.*: */,"",$0); os=$0}
+				plat && /"architecture" *:/{gsub(/[",]/,"",$0); sub(/.*: */,"",$0); arch=$0}
+				plat && /"digest" *:/{gsub(/[",]/,"",$0); sub(/.*: */,"",$0); d=$0}
+				os=="linux" && arch=="amd64" && d!="" {print d; exit}
+			')
+			if [ -n "$archDigest" ]; then
+				manifest=$(curl -s "${CB_REGISTRY_CURL_AUTH[@]}" \
+					-H "Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json" \
+					"$registryUrl/v2/$repo/manifests/$archDigest" 2>/dev/null)
+			fi
+		fi
+
+		# Extract config digest and total size
+		local configDigest
+		configDigest=$(echo "$manifest" | awk -F'"' '/"config"/{c=1} c && /"digest"/{print $(NF-1); exit}')
+		local totalSize
+		totalSize=$(echo "$manifest" | awk '/"size" *:/{gsub(/[^0-9]/,"",$0); s+=$0} END{print s+0}')
+
+		# Image ID from config digest (first 12 hex chars)
+		local imageId="-"
+		if [ -n "$configDigest" ]; then
+			imageId=$(echo "$configDigest" | sed 's/sha256://' | cut -c1-12)
+		fi
+
+		# Get created date from config blob
+		local created="-"
+		if [ -n "$configDigest" ]; then
+			local configBlob
+			configBlob=$(curl -s "${CB_REGISTRY_CURL_AUTH[@]}" \
+				"$registryUrl/v2/$repo/blobs/$configDigest" 2>/dev/null)
+			created=$(echo "$configBlob" | sed 's/.*"created" *: *"\([^"]*\)".*/\1/' | cut -c1-16 | tr 'T' ' ')
+			[ "$created" = "$(echo "$configBlob" | cut -c1-16)" ] && created="-"
+		fi
+
+		# Format size
+		local sizeStr
+		sizeStr=$(formatSize "$totalSize")
+
+		printf '%s|%s|%s|%s\n' "$imageId" "$created" "$sizeStr" "$repoTag" >> "$cacheTmp"
+
+		if [ "$CB_CONTAINER_CSV" = true ]; then
+			printf "%s;-;%s;-;%s;%s\n" "$imageId" "$created" "$sizeStr" "$repoTag"
+		else
+			printf "%-14s %-14s %-18s %-18s %-9s %s\n" "$imageId" "-" "$created" "-" "$sizeStr" "$repoTag"
+		fi
+	done
+
+	# save to cache if data was collected
+	[ -s "$cacheTmp" ] && mv "$cacheTmp" "$cacheFile" 2>/dev/null
+	rm -f "$cacheTmp" 2>/dev/null
+}
+
+
+#########################################################################
+# scanRemoteImages — scan remote image(s) with trivy
+# For a single image (with tag): detailed CVE output
+# For a repo (no tag): scan all tags, list-style output
+# For comma-separated: scan each, list-style output
+#########################################################################
+scanRemoteImages() {
+	local registryUrl="$1"
+	local input="$2"
+
+	if [ -z "$CB_REGISTRY_USER" ] || [ -z "$CB_REGISTRY_PASSWORD" ]; then
+		echo "${CB_LINEHEADER}Registry credentials not set. Set CB_REGISTRY_USER and CB_REGISTRY_PASSWORD."
+		return 1
+	fi
+
+	detectTrivy || return 1
+
+	local registryHost
+	registryHost=$(echo "$registryUrl" | sed 's|https\?://||;s|/.*||')
+
+	# determine if input is a single tagged image, a repo, or comma-separated
+	local targetCount
+	targetCount=$(echo "$input" | tr ',' '\n' | grep -c '[^ ]')
+	local hasColon=false
+	echo "$input" | grep -q ':' && hasColon=true
+
+	# if single target with a tag, use detailed scan output
+	if [ "$targetCount" -le 1 ] && [ "$hasColon" = true ] && [ "$CB_CONTAINER_ALL" != true ]; then
+		scanRemoteSingle "$registryHost" "$input"
+		return $?
+	fi
+
+	# multi-target or repo scan: list-style output
+	local scanStartSec
+	scanStartSec=$(date '+%s' 2>/dev/null)
+
+	# resolve target list
+	local targets=""
+	if [ "$CB_CONTAINER_ALL" = true ] || [ "$hasColon" = false ]; then
+		# scan all tags of the repo
+		local repo="$input"
+		# strip trailing colon if any
+		repo="${repo%:}"
+		registryAuth "$registryUrl" "$repo" || return 1
+		local tagsJson
+		tagsJson=$(curl -s "${CB_REGISTRY_CURL_AUTH[@]}" "$registryUrl/v2/$repo/tags/list" 2>/dev/null)
+		if ! echo "$tagsJson" | grep -q '"tags"'; then
+			echo "${CB_LINEHEADER}Failed to list tags from registry (authentication error or wrong credentials)." >&2
+			return 1
+		fi
+		targets=$(echo "$tagsJson" | sed 's/.*"tags" *: *\[//;s/\].*//' | tr ',' '\n' | sed 's/"//g;s/ //g' | grep -v '^$' | while read -r t; do echo "${repo}:${t}"; done)
+	else
+		# comma-separated targets
+		targets=$(echo "$input" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$')
+	fi
+
+	if [ -z "$targets" ]; then
+		echo "${CB_LINEHEADER}No images found."
+		return 1
+	fi
+
+	local imageCount
+	imageCount=$(echo "$targets" | wc -l | tr -d ' ')
+
+	printScanHeader "$imageCount"
+
+	echo "$targets" | while read -r target; do
+		[ -z "$target" ] && continue
+		local repo="${target%%:*}"
+		local tag="${target#*:}"
+		local repoTag="$target"
+		local remoteRef="$registryHost/$target"
+
+		# get manifest digest for cache key
+		local imageId=""
+		if [ -z "${CB_REGISTRY_CURL_AUTH+x}" ]; then
+			registryAuth "$registryUrl" "$repo" 2>/dev/null
+		fi
+		local manifestHeaders
+		manifestHeaders=$(curl -s -D - -o /dev/null "${CB_REGISTRY_CURL_AUTH[@]}" \
+			-H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+			"$registryUrl/v2/$repo/manifests/$tag" 2>/dev/null)
+		imageId=$(echo "$manifestHeaders" | grep -i 'Docker-Content-Digest' | sed 's/.*sha256:\([a-f0-9]*\).*/\1/' | cut -c1-12)
+		[ -z "$imageId" ] && imageId=$(echo "$remoteRef" | sed 's|[/:@]|-|g')
+
+		local shortId
+		shortId=$(printf "%.12s" "$imageId")
+
+		# get created date from manifest
+		local imgCreated="-"
+		local manifest
+		manifest=$(curl -s "${CB_REGISTRY_CURL_AUTH[@]}" \
+			-H "Accept: application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json" \
+			"$registryUrl/v2/$repo/manifests/$tag" 2>/dev/null)
+		local configDigest
+		configDigest=$(echo "$manifest" | awk -F'"' '/"config"/{c=1} c && /"digest"/{print $(NF-1); exit}')
+		if [ -n "$configDigest" ]; then
+			local configBlob
+			configBlob=$(curl -s "${CB_REGISTRY_CURL_AUTH[@]}" \
+				"$registryUrl/v2/$repo/blobs/$configDigest" 2>/dev/null)
+			imgCreated=$(echo "$configBlob" | sed 's/.*"created" *: *"\([^"]*\)".*/\1/' | cut -c1-16 | tr 'T' ' ')
+		fi
+
+		# try cached counts
+		local cc="-" hc="-" mc="-" lc="-"
+		local counts
+		counts=$(getVulnCounts "$imageId" "" 2>/dev/null)
+		if [ -z "$counts" ]; then
+			# scan with trivy using remote ref
+			CB_SCAN_VERBOSE_PRE=""
+			CB_SCAN_VERBOSE_POST=""
+			scanRemoteSingleInternal "$registryHost" "$target" "$imageId" >/dev/null 2>&1
+			counts=$(getVulnCounts "$imageId" "" 2>/dev/null)
+		fi
+		if [ -n "$counts" ]; then
+			cc=$(echo "$counts" | awk '{print $2}')
+			hc=$(echo "$counts" | awk '{print $3}')
+			mc=$(echo "$counts" | awk '{print $4}')
+			lc=$(echo "$counts" | awk '{print $5}')
+		fi
+
+		printScanLine "$shortId" "-" "$imgCreated" "$cc" "$hc" "$mc" "$lc" "$repoTag" "true"
+	done
+
+	local scanEndSec scanDuration=""
+	scanEndSec=$(date '+%s' 2>/dev/null)
+	if [ -n "$scanStartSec" ] && [ -n "$scanEndSec" ]; then
+		local durationSec=$((scanEndSec - scanStartSec))
+		if [ "$durationSec" -lt 60 ]; then
+			scanDuration="${durationSec}s"
+		else
+			scanDuration="$((durationSec / 60))m $((durationSec % 60))s"
+		fi
+	fi
+	if [ "$CB_CONTAINER_CSV" != true ]; then
+		echo "$CB_LINE"
+		[ -n "$scanDuration" ] && echo "${CB_LINEHEADER}Scan completed [$scanDuration]"
+	fi
+}
+
+
+#########################################################################
+# scanRemoteSingle — scan a single remote image with detailed CVE output
+#########################################################################
+scanRemoteSingle() {
+	local registryHost="$1"
+	local input="$2"
+	local repo="${input%%:*}"
+
+	# resolve image ID from registry
+	registryAuth "$CB_REGISTRY_URL" "$repo" || return 1
+	local tag="${input#*:}"
+	local manifestHeaders
+	manifestHeaders=$(curl -s -D - -o /dev/null "${CB_REGISTRY_CURL_AUTH[@]}" \
+		-H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+		"$CB_REGISTRY_URL/v2/$repo/manifests/$tag" 2>/dev/null)
+	local imageId
+	imageId=$(echo "$manifestHeaders" | grep -i 'Docker-Content-Digest' | sed 's/.*sha256:\([a-f0-9]*\).*/\1/' | cut -c1-12)
+	[ -z "$imageId" ] && imageId=$(echo "$registryHost/$input" | sed 's|[/:@]|-|g')
+
+	local scanStartSec
+	scanStartSec=$(date '+%s' 2>/dev/null)
+
+	CB_SCAN_VERBOSE_PRE=""
+	CB_SCAN_VERBOSE_POST=""
+	[ "$CB_CONTAINER_VERBOSE" = true ] && echo "${CB_LINEHEADER}Scanning remote image '$input' via trivy (this may take several minutes for large images)..."
+	local allRows="$CB_CONTAINER_TEMP/scan-remote-$$.tmp"
+	scanRemoteSingleInternal "$registryHost" "$input" "$imageId" > "$allRows"
+	local internalRet=$?
+	if [ $internalRet -ne 0 ]; then
+		rm -f "$allRows" 2>/dev/null
+		return $internalRet
+	fi
+
+	# print verbose pre-messages before header
+	[ -n "$CB_SCAN_VERBOSE_PRE" ] && printf "%b" "$CB_SCAN_VERBOSE_PRE"
+
+	# select line separator (wide or normal)
+	local scanLine="$CB_LINE"
+	[ "$CB_CONTAINER_WIDE" = true ] && scanLine="$CB_LINE_WIDE"
+
+	# print header with timestamp right-aligned
+	echo "$scanLine"
+	local lineLen=${#scanLine}
+	local scanPkgColW=30 scanColW=14
+	[ "$CB_CONTAINER_WIDE" = true ] && scanPkgColW=42 && scanColW=30
+	local header
+	header=$(printf "%-22s %-4s %-${scanPkgColW}s %-${scanColW}s %-${scanColW}s %s" "CVE ID" "SEV" "PACKAGE" "INSTALLED" "FIXED" "TARGET")
+	local now
+	now=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
+	local headerLen=${#header}
+	local nowLen=${#now}
+	local padding=$((lineLen - headerLen - nowLen))
+	if [ "$padding" -gt 0 ] 2>/dev/null; then
+		printf "%s%*s%s\n" "$header" "$padding" "" "$now"
+	else
+		printf "%s  %s\n" "$header" "$now"
+	fi
+	echo "$scanLine"
+
+	if [ -s "$allRows" ]; then
+		cat "$allRows"
+	else
+		echo "No vulnerabilities found."
+	fi
+
+	# compute summary counts
+	local critical high medium low total
+	critical=$(awk '{if($2=="C")n++} END{print n+0}' "$allRows" 2>/dev/null)
+	high=$(awk '{if($2=="H")n++} END{print n+0}' "$allRows" 2>/dev/null)
+	medium=$(awk '{if($2=="M")n++} END{print n+0}' "$allRows" 2>/dev/null)
+	low=$(awk '{if($2=="L")n++} END{print n+0}' "$allRows" 2>/dev/null)
+	total=$((critical + high + medium + low))
+
+	# compute duration
+	local scanEndSec scanDuration=""
+	scanEndSec=$(date '+%s' 2>/dev/null)
+	if [ -n "$scanStartSec" ] && [ -n "$scanEndSec" ]; then
+		local durationSec=$((scanEndSec - scanStartSec))
+		if [ "$durationSec" -lt 60 ]; then
+			scanDuration="${durationSec}s"
+		else
+			scanDuration="$((durationSec / 60))m $((durationSec % 60))s"
+		fi
+	fi
+
+	echo "$scanLine"
+	printf "Summary: %d vulnerabilities" "$total"
+	[ "$total" -gt 0 ] && printf " (CRITICAL: %d, HIGH: %d, MEDIUM: %d, LOW: %d)" "$critical" "$high" "$medium" "$low"
+	[ -n "$scanDuration" ] && printf " [%s]" "$scanDuration"
+	echo ""
+	echo "$scanLine"
+
+	# print verbose post-messages after summary
+	[ -n "$CB_SCAN_VERBOSE_POST" ] && printf "%b" "$CB_SCAN_VERBOSE_POST"
+
+	rm -f "$allRows" 2>/dev/null
+}
+
+
+#########################################################################
+# scanRemoteSingleInternal — internal: scan remote image, reuse scan logic
+# $1=registryHost $2=repo:tag $3=imageId
+#########################################################################
+scanRemoteSingleInternal() {
+	local registryHost="$1"
+	local repoTag="$2"
+	local imageId="$3"
+	local remoteRef="$registryHost/$repoTag"
+
+	local scanRowsSuffix=""
+	[ "$CB_CONTAINER_WIDE" = true ] && scanRowsSuffix="-wide"
+
+	# cache handling (same as local but no image creation timestamp check)
+	local scanJson="" scanCacheValid=false
+	if [ "$CB_CONTAINER_FORCE" = true ]; then
+		rm -f "$CB_CONTAINER_TEMP/${imageId}"-*-trivy.json 2>/dev/null
+		rm -f "$CB_CONTAINER_TEMP/${imageId}"-*-trivy*.rows 2>/dev/null
+		[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Force scan, cache cleared for '$repoTag'.\n"
+	fi
+	local cachedJson=""
+	[ "$CB_CONTAINER_FORCE" != true ] && cachedJson=$(ls -1r "$CB_CONTAINER_TEMP/${imageId}"-*-trivy.json 2>/dev/null | head -n 1)
+	local scanCacheTs=""
+	if [ -n "$cachedJson" ]; then
+		scanCacheTs=$(basename "$cachedJson" | sed "s/^${imageId}-//;s/-trivy\.json$//")
+		local cacheDay="${scanCacheTs%%-*}"
+		local today
+		today=$(date '+%Y%m%d' 2>/dev/null)
+		if [ -n "$today" ] && [ "$cacheDay" != "$today" ]; then
+			[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Cache expired (from $cacheDay, today $today), rescanning.\n"
+			rm -f "$cachedJson" 2>/dev/null
+			rm -f "$CB_CONTAINER_TEMP/${imageId}-${scanCacheTs}-trivy"*.rows 2>/dev/null
+			rm -f "$CB_CONTAINER_TEMP/${imageId}-${scanCacheTs}-trivy"*.counts 2>/dev/null
+		else
+			scanJson="$cachedJson"
+			scanCacheValid=true
+		fi
+	fi
+
+	if [ -z "$scanJson" ]; then
+		local scanTimestamp
+		scanTimestamp=$(date '+%Y%m%d-%H%M%S' 2>/dev/null)
+		scanJson="$CB_CONTAINER_TEMP/${imageId}-${scanTimestamp}-trivy.json"
+	fi
+
+	local scanRowsNormal="${scanJson%.json}.rows"
+	local scanRowsWide="${scanJson%.json}-wide.rows"
+	local scanCounts="${scanJson%.json}.counts"
+	local scanRows="$scanRowsNormal"
+	[ "$CB_CONTAINER_WIDE" = true ] && scanRows="$scanRowsWide"
+
+	if [ "$scanCacheValid" = true ] && [ -f "$scanRows" ]; then
+		[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Using cached scan for '$repoTag'.\n"
+		cat "$scanRows"
+		return 0
+	fi
+
+	[ "$CB_CONTAINER_VERBOSE" = true ] && [ -f "$scanJson" ] && CB_SCAN_VERBOSE_PRE="${CB_SCAN_VERBOSE_PRE}${CB_LINEHEADER}Using cached scan result for '$repoTag', reformatting.\n"
+	# scan with trivy using a temporary Docker config file for credentials
+	# (avoids --username/--password flag count mismatch in newer trivy versions)
+	if [ ! -f "$scanJson" ]; then
+		local trivyDockerDir="$CB_CONTAINER_TEMP/trivy-docker-$$"
+		mkdir -p "$trivyDockerDir"
+		local regBase64
+		regBase64=$(printf '%s:%s' "$CB_REGISTRY_USER" "$CB_REGISTRY_PASSWORD" | base64 | tr -d '\n')
+		printf '{"auths":{"%s":{"auth":"%s"}}}\n' "$registryHost" "$regBase64" > "$trivyDockerDir/config.json"
+		local trivyTimeout="${CB_TRIVY_TIMEOUT:-30m}"
+		[ "$CB_CONTAINER_VERBOSE" = true ] && echo "${CB_LINEHEADER}trivy image --quiet --format json --timeout $trivyTimeout $remoteRef" >&2
+		DOCKER_CONFIG="$trivyDockerDir" \
+			trivy image --quiet --format json --timeout "$trivyTimeout" \
+			"$remoteRef" < /dev/null > "$scanJson"
+		rm -rf "$trivyDockerDir" 2>/dev/null
+		if [ ! -s "$scanJson" ]; then
+			rm -f "$scanJson" 2>/dev/null
+			echo "${CB_LINEHEADER}Trivy scan failed for '$remoteRef'." >&2
+			return 1
+		fi
+	fi
+
+	# ensure output files exist even when there are no vulnerabilities
+	> "$scanRowsNormal"; > "$scanRowsWide"
+
+	# generate rows + counts (same awk as local scanSingleImage)
+	awk -v normalFile="$scanRowsNormal" -v wideFile="$scanRowsWide" -v countsFile="$scanCounts" '
+	function sevChar(s) {
+		if (s=="CRITICAL") return "C"
+		if (s=="HIGH") return "H"
+		if (s=="MEDIUM") return "M"
+		if (s=="LOW") return "L"
+		return "?"
+	}
+	function truncLeft(s, maxlen) {
+		if (maxlen <= 0) return s
+		if (length(s) <= maxlen) return s
+		return ".." substr(s, length(s) - maxlen + 3)
+	}
+	function extractVal(line, key,    tmp) {
+		if (index(line, "\"" key "\"") == 0) return ""
+		tmp = line
+		sub(".*\"" key "\": *\"", "", tmp)
+		sub("\".*", "", tmp)
+		return tmp
+	}
+	BEGIN { ci=0; hi=0; mi=0; li=0; ui=0; TAB=sprintf("%c",9) }
+	{
+		v = extractVal($0, "Target");           if (v != "") target = v
+		v = extractVal($0, "VulnerabilityID");  if (v != "") { vid = v; fix = "" }
+		v = extractVal($0, "PkgName");          if (v != "") pkg = v
+		v = extractVal($0, "InstalledVersion"); if (v != "") ver = v
+		v = extractVal($0, "FixedVersion");     if (v != "") fix = v
+		v = extractVal($0, "Severity");         if (v != "") sev = v; else sev = ""
+		if (sev != "" && vid != "") {
+			sc = sevChar(sev)
+			if (fix == "") fix = "-"
+			gsub(/, */, "|", fix)
+			entry = vid TAB sc TAB pkg TAB ver TAB fix TAB target
+			if (sev=="CRITICAL") clines[ci++]=entry
+			else if (sev=="HIGH") hlines[hi++]=entry
+			else if (sev=="MEDIUM") mlines[mi++]=entry
+			else if (sev=="LOW") llines[li++]=entry
+			else ulines[ui++]=entry
+			vid=""
+		}
+	}
+	function printEntry(entry,    f, fixes, n, j, iv, fv, tp) {
+		n = split(entry, f, TAB)
+		n = split(f[5], fixes, "[|]")
+		tp = truncLeft(f[3], 28)
+		iv = truncLeft(f[4], 12)
+		fv = truncLeft(fixes[1], 12)
+		printf "%-22s %-4s %-30s %-14s %-14s %s\n", f[1], f[2], tp, iv, fv, f[6] > normalFile
+		for (j=2; j<=n; j++) { fv = truncLeft(fixes[j], 12); printf "%-22s %-4s %-30s %-14s %-14s\n", "", "", "", "", fv > normalFile }
+		fv = fixes[1]
+		printf "%-22s %-4s %-42s %-30s %-30s %s\n", f[1], f[2], truncLeft(f[3], 40), f[4], fv, f[6] > wideFile
+		for (j=2; j<=n; j++) { printf "%-22s %-4s %-42s %-30s %-30s\n", "", "", "", "", fixes[j] > wideFile }
+	}
+	END {
+		cc=0; hc=0; mc=0; lc=0
+		for (i=0;i<ci;i++) { printEntry(clines[i]); cc++ }
+		for (i=0;i<hi;i++) { printEntry(hlines[i]); hc++ }
+		for (i=0;i<mi;i++) { printEntry(mlines[i]); mc++ }
+		for (i=0;i<li;i++) { printEntry(llines[i]); lc++ }
+		for (i=0;i<ui;i++) printEntry(ulines[i])
+		printf "%d %d %d %d %d\n", cc+hc+mc+lc, cc, hc, mc, lc > countsFile
+	}
+	' "$scanJson"
+
+	cat "$scanRows"
+
+	[ "$CB_CONTAINER_VERBOSE" = true ] && CB_SCAN_VERBOSE_POST="${CB_SCAN_VERBOSE_POST}${CB_LINEHEADER}Scan result stored in $scanRows\n${CB_LINEHEADER}Scan json stored in $scanJson\n"
 	return 0
 }
 
@@ -958,10 +1699,7 @@ scanMultipleImages() {
 			counts=$(getVulnCounts "$imageId" "$imgCreated" 2>/dev/null)
 		fi
 		if [ -n "$counts" ]; then
-			cc=$(echo "$counts" | awk '{print $2}')
-			hc=$(echo "$counts" | awk '{print $3}')
-			mc=$(echo "$counts" | awk '{print $4}')
-			lc=$(echo "$counts" | awk '{print $5}')
+			read -r _ cc hc mc lc <<< "$counts"
 		fi
 
 		# find matching containers
@@ -1053,10 +1791,7 @@ scanAllImages() {
 			counts=$(getVulnCounts "$imageId" "$imgCreated" 2>/dev/null)
 		fi
 		if [ -n "$counts" ]; then
-			cc=$(echo "$counts" | awk '{print $2}')
-			hc=$(echo "$counts" | awk '{print $3}')
-			mc=$(echo "$counts" | awk '{print $4}')
-			lc=$(echo "$counts" | awk '{print $5}')
+			read -r _ cc hc mc lc <<< "$counts"
 		fi
 
 		local matchLines=""
@@ -1125,75 +1860,88 @@ scanContainer() {
 	CB_SCAN_VERBOSE_POST=""
 	local allRows="$CB_CONTAINER_TEMP/scan-all-$$.tmp"
 	> "$allRows"
+	local scanFailed=0
 	local IFS=','
 	for target in $input; do
 		target="${target#"${target%%[![:space:]]*}"}"; target="${target%"${target##*[![:space:]]}"}"
 		[ -z "$target" ] && continue
 		scanSingleImage "$target" >> "$allRows"
+		[ $? -ne 0 ] && scanFailed=1
 	done
 	unset IFS
+
+	if [ $scanFailed -ne 0 ]; then
+		rm -f "$allRows" 2>/dev/null
+		return 1
+	fi
 
 	# print verbose pre-messages before header
 	[ -n "$CB_SCAN_VERBOSE_PRE" ] && printf "%b" "$CB_SCAN_VERBOSE_PRE"
 
-	# select line separator (wide or normal)
-	local scanLine="$CB_LINE"
-	[ "$CB_CONTAINER_WIDE" = true ] && scanLine="$CB_LINE_WIDE"
-
-	# print header with timestamp right-aligned
-	echo "$scanLine"
-	local lineLen=${#scanLine}
-	local header
-	local scanPkgColW=30 scanColW=14
-	[ "$CB_CONTAINER_WIDE" = true ] && scanPkgColW=42 && scanColW=30
-	header=$(printf "%-22s %-4s %-${scanPkgColW}s %-${scanColW}s %-${scanColW}s %s" "CVE ID" "SEV" "PACKAGE" "INSTALLED" "FIXED" "TARGET")
-	local now
-	now=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
-	local headerLen=${#header}
-	local nowLen=${#now}
-	local padding=$((lineLen - headerLen - nowLen))
-	if [ "$padding" -gt 0 ] 2>/dev/null; then
-		printf "%s%*s%s\n" "$header" "$padding" "" "$now"
+	if [ "$CB_CONTAINER_CSV" = true ]; then
+		# CSV output: header + rows, no separators or summary
+		echo "CVE_ID;SEVERITY;PACKAGE;INSTALLED;FIXED;TARGET"
+		[ -s "$allRows" ] && cat "$allRows"
 	else
-		printf "%s  %s\n" "$header" "$now"
-	fi
-	echo "$scanLine"
+		# select line separator (wide or normal)
+		local scanLine="$CB_LINE"
+		[ "$CB_CONTAINER_WIDE" = true ] && scanLine="$CB_LINE_WIDE"
 
-	# display rows
-	if [ -s "$allRows" ]; then
-		cat "$allRows"
-	else
-		echo "No vulnerabilities found."
-	fi
-
-	# compute combined summary
-	local critical high medium low total
-	critical=$(awk '{if($2=="C")n++} END{print n+0}' "$allRows" 2>/dev/null)
-	high=$(awk '{if($2=="H")n++} END{print n+0}' "$allRows" 2>/dev/null)
-	medium=$(awk '{if($2=="M")n++} END{print n+0}' "$allRows" 2>/dev/null)
-	low=$(awk '{if($2=="L")n++} END{print n+0}' "$allRows" 2>/dev/null)
-	total=$((critical + high + medium + low))
-
-	# compute duration
-	local scanEndSec scanDuration=""
-	scanEndSec=$(date '+%s' 2>/dev/null)
-	if [ -n "$scanStartSec" ] && [ -n "$scanEndSec" ]; then
-		local durationSec=$((scanEndSec - scanStartSec))
-		if [ "$durationSec" -lt 60 ]; then
-			scanDuration="${durationSec}s"
+		# print header with timestamp right-aligned
+		echo "$scanLine"
+		local lineLen=${#scanLine}
+		local header
+		local scanPkgColW=30 scanColW=14
+		[ "$CB_CONTAINER_WIDE" = true ] && scanPkgColW=42 && scanColW=30
+		header=$(printf "%-22s %-4s %-${scanPkgColW}s %-${scanColW}s %-${scanColW}s %s" "CVE ID" "SEV" "PACKAGE" "INSTALLED" "FIXED" "TARGET")
+		local now
+		now=$(date '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
+		local headerLen=${#header}
+		local nowLen=${#now}
+		local padding=$((lineLen - headerLen - nowLen))
+		if [ "$padding" -gt 0 ] 2>/dev/null; then
+			printf "%s%*s%s\n" "$header" "$padding" "" "$now"
 		else
-			scanDuration="$((durationSec / 60))m $((durationSec % 60))s"
+			printf "%s  %s\n" "$header" "$now"
 		fi
+		echo "$scanLine"
+
+		# display rows
+		if [ -s "$allRows" ]; then
+			cat "$allRows"
+		else
+			echo "No vulnerabilities found."
+		fi
+
+		# compute combined summary
+		local critical high medium low total
+		critical=$(awk '{if($2=="C")n++} END{print n+0}' "$allRows" 2>/dev/null)
+		high=$(awk '{if($2=="H")n++} END{print n+0}' "$allRows" 2>/dev/null)
+		medium=$(awk '{if($2=="M")n++} END{print n+0}' "$allRows" 2>/dev/null)
+		low=$(awk '{if($2=="L")n++} END{print n+0}' "$allRows" 2>/dev/null)
+		total=$((critical + high + medium + low))
+
+		# compute duration
+		local scanEndSec scanDuration=""
+		scanEndSec=$(date '+%s' 2>/dev/null)
+		if [ -n "$scanStartSec" ] && [ -n "$scanEndSec" ]; then
+			local durationSec=$((scanEndSec - scanStartSec))
+			if [ "$durationSec" -lt 60 ]; then
+				scanDuration="${durationSec}s"
+			else
+				scanDuration="$((durationSec / 60))m $((durationSec % 60))s"
+			fi
+		fi
+
+		echo "$scanLine"
+		printf "Summary: %d vulnerabilities" "$total"
+		[ "$total" -gt 0 ] && printf " (CRITICAL: %d, HIGH: %d, MEDIUM: %d, LOW: %d)" "$critical" "$high" "$medium" "$low"
+		[ -n "$scanDuration" ] && printf " [%s]" "$scanDuration"
+		echo ""
+		echo "$scanLine"
 	fi
 
-	echo "$scanLine"
-	printf "Summary: %d vulnerabilities" "$total"
-	[ "$total" -gt 0 ] && printf " (CRITICAL: %d, HIGH: %d, MEDIUM: %d, LOW: %d)" "$critical" "$high" "$medium" "$low"
-	[ -n "$scanDuration" ] && printf " [%s]" "$scanDuration"
-	echo ""
-	echo "$scanLine"
-
-	# print verbose post-messages after summary
+	# print verbose post-messages after output
 	[ -n "$CB_SCAN_VERBOSE_POST" ] && printf "%b" "$CB_SCAN_VERBOSE_POST"
 
 	rm -f "$allRows" 2>/dev/null
@@ -1257,6 +2005,7 @@ runContainer() {
 	else
 		echo "${CB_LINEHEADER}Running container from '$image'..."
 	fi
+	[ "$CB_CONTAINER_VERBOSE" = true ] && echo "${CB_LINEHEADER}Execute: $CB_CONTAINER_RUNTIME run ${runArgs[*]} $image $shell"
 	"$CB_CONTAINER_RUNTIME" run "${runArgs[@]}" "$image" "$shell"
 }
 
@@ -1319,7 +2068,6 @@ cleanCache() {
 		fi
 	fi
 }
-
 
 #########################################################################
 # main
@@ -1390,6 +2138,12 @@ while [ $# -gt 0 ]; do
 		                  else
 		                    CB_CONTAINER_SCAN_TARGET="auto"
 		                  fi;;
+		--registry)       CB_REGISTRY_FLAG=true
+		                  if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
+		                    shift; CB_REGISTRY_URL="$1"
+		                  else
+		                    CB_REGISTRY_URL="$_CB_REGISTRY_URL_ENV"
+		                  fi;;
 		--clean)          CB_CONTAINER_CLEAN=true;;
 		--delete)         if [ -n "$2" ] && [ "${2#-}" = "$2" ]; then
 		                    shift; CB_CONTAINER_DELETE_TARGET="$1"
@@ -1414,6 +2168,12 @@ while [ $# -gt 0 ]; do
 	esac
 	shift
 done
+
+# validate --registry was not used with an empty URL
+if [ "$CB_REGISTRY_FLAG" = true ] && [ -z "$CB_REGISTRY_URL" ]; then
+	echo "${CB_LINEHEADER}--registry requires a URL or CB_REGISTRY_URL must be set."
+	exit 1
+fi
 
 # auto-detect project name from settings.gradle for commands without explicit target
 resolvedProject=""
@@ -1445,23 +2205,16 @@ if [ -z "$resolvedProject" ] && [ -f "settings.gradle" ]; then
 	resolvedProject=$(resolveProjectName 2>/dev/null) || true
 fi
 
-# use build/container (or build/reports/testing for testing projects) as local cache
-if [ -f "settings.gradle" ]; then
-	CB_CONTAINER_TEMP="$PWD/build/container"
-	if [ -f "gradle.properties" ]; then
-		projectType=$(grep 'projectType' gradle.properties 2>/dev/null | grep '=' | head -n 1 | sed 's/.*=[[:space:]]*//' | tr -d '[:space:]')
-		[ "$projectType" = "testing" ] && CB_CONTAINER_TEMP="$PWD/build/reports/testing"
-	fi
-	mkdir -p "$CB_CONTAINER_TEMP" 2>/dev/null
-fi
 
-# detect runtime
-CB_CONTAINER_RUNTIME=$(detectRuntime)
-if [ -z "$CB_CONTAINER_RUNTIME" ]; then
-	echo "$CB_LINE"
-	echo "${CB_LINEHEADER}Neither nerdctl nor docker found in PATH."
-	echo "$CB_LINE"
-	exit 1
+# detect runtime (not needed in registry-only mode)
+if [ -z "$CB_REGISTRY_URL" ]; then
+	CB_CONTAINER_RUNTIME=$(detectRuntime)
+	if [ -z "$CB_CONTAINER_RUNTIME" ]; then
+		echo "$CB_LINE"
+		echo "${CB_LINEHEADER}Neither nerdctl nor docker found in PATH."
+		echo "$CB_LINE"
+		exit 1
+	fi
 fi
 
 # clean cache (can be combined with other actions)
@@ -1491,6 +2244,10 @@ fi
 
 # list mode (filter implies --all; skip if scan-all is active)
 if [ "$CB_CONTAINER_LIST" = true ] && [ -z "$CB_CONTAINER_SCAN_TARGET" ]; then
+	if [ -n "$CB_REGISTRY_URL" ]; then
+		listRemoteImages "$CB_REGISTRY_URL" "$CB_CONTAINER_LIST_FILTER"
+		exit $?
+	fi
 	[ -n "$CB_CONTAINER_LIST_FILTER" ] && CB_CONTAINER_ALL=true
 	listImages
 	exit 0
@@ -1504,6 +2261,10 @@ fi
 
 # scan image with trivy
 if [ -n "$CB_CONTAINER_SCAN_TARGET" ]; then
+	if [ -n "$CB_REGISTRY_URL" ]; then
+		scanRemoteImages "$CB_REGISTRY_URL" "$CB_CONTAINER_SCAN_TARGET"
+		exit $?
+	fi
 	if [ "$CB_CONTAINER_ALL" = true ]; then
 		scanAllImages
 	else

@@ -59,13 +59,6 @@ cb-container --delete            # deletes the project image
 
 The `--list` / `-l` flag is **not** affected by project detection — it always shows all images (or filtered by an explicit prefix).
 
-### Local Cache
-
-When in a project directory, scan results are stored locally:
-- **Default**: `build/container/`
-- **Testing projects** (where `gradle.properties` has `projectType = testing`): `build/reports/testing/`
-
-This keeps scan artifacts with the project instead of in the global temp directory.
 
 ## Commands
 
@@ -188,6 +181,7 @@ Scan images for security vulnerabilities using [trivy](https://trivy.dev). Resul
 cb-container --scan my-app                   # scan single image
 cb-container --scan my-app,nginx:alpine      # scan multiple (comma-separated)
 cb-container --scan alpine:3.16              # pulls if not local
+cb-container --scan my-app:1.4.3-SNAPSHOT   # auto-pulls from private registry if CB_REGISTRY_* set
 cb-container --scan 34b83c5c873f             # by image ID
 cb-container --scan -a                       # scan ALL images (list view with VULN column)
 cb-container --scan -a -l my                 # scan all images filtered by prefix
@@ -248,6 +242,23 @@ cb-container --scan img1,img2 --csv          # scan specific images as CSV
 List CSV header: `IMAGE ID;CONTAINER ID;CREATED;STARTED;SIZE;TAG`
 Scan CSV header: `IMAGE ID;CONTAINER ID;CREATED;CRIT;HIGH;MED;LOW;TAG`
 
+#### Auto-Pull for Private Registries
+
+When scanning an image that is not in the local store, `cb-container` automatically tries to pull it:
+
+1. Plain `docker pull <image>` — works for public images and registries where Docker is already logged in.
+2. If that fails and `CB_REGISTRY_URL` / `CB_REGISTRY_USER` / `CB_REGISTRY_PASSWORD` are set — logs in to the configured registry and retries as `<registry-host>/<image>:<tag>`.
+
+```bash
+export CB_REGISTRY_URL=https://registry.example.com
+export CB_REGISTRY_USER=myuser
+export CB_REGISTRY_PASSWORD=mytoken
+
+cb-container --scan my-app:1.4.3-SNAPSHOT   # pulls from registry.example.com if not local
+```
+
+This is distinct from `--registry`, which bypasses local storage entirely and scans directly against the registry API. The auto-pull path always results in a local image that trivy scans via the Docker daemon.
+
 #### Trivy Detection
 
 If `trivy` is not in PATH, the script tries `source cb --setenv` (shell) or `call cb --setenv` (batch) to load the environment including `TRIVY_HOME`.
@@ -281,9 +292,7 @@ Summary: 20 vulnerabilities (CRITICAL: 0, HIGH: 5, MEDIUM: 11, LOW: 4) [12s]
 
 Scan results are cached with filenames like `<imageId>-<YYYYMMDD-HHmmss>-trivy.json`, `.rows`, and `.counts`.
 
-Cache is stored in:
-- **Project directory**: `build/container/` (or `build/reports/testing/` for testing projects) when `settings.gradle` is present
-- **Global temp**: `$CB_TEMP/cb-container/` otherwise
+Cache is stored in `$CB_TEMP/cb-container/` (shell) or `%TEMP%\cb\cb-container\` (batch).
 
 Cache is automatically invalidated when:
 - A new day starts (day boundary)
@@ -391,6 +400,7 @@ When an image name is provided without a tag, the script resolves the best match
 When an image is not found locally (`--start`, `-i`, `--scan`):
 - If the name contains `:` (explicit tag), tries to pull as-is
 - If no `:`, appends `:latest` and tries to pull
+- For `--scan`: if the bare pull fails and `CB_REGISTRY_URL` / `CB_REGISTRY_USER` / `CB_REGISTRY_PASSWORD` are configured, automatically logs in to the private registry and retries as `<registry-host>/<image>:<tag>`
 
 ## Positional Argument
 
@@ -412,11 +422,111 @@ If no command is given and a `Dockerfile`, `dockerfile`, or `Containerfile` exis
 
 All container runtime commands are compatible with both Docker and nerdctl. Uses `|` as field separator in format strings for portability (nerdctl doesn't interpret `\t`).
 
+## Remote Docker Registry
+
+`cb-container` can list and scan images directly from a Docker Registry v2 (e.g. Harbor, GitLab Container Registry, Docker Hub) without requiring a local pull.
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `CB_REGISTRY_URL` | Registry base URL, e.g. `https://registry.example.com` |
+| `CB_REGISTRY_USER` | Registry username |
+| `CB_REGISTRY_PASSWORD` | Registry password or access token |
+
+Set them in your shell before running the command, or export them permanently in your profile.
+
+The `--registry <url>` flag overrides `CB_REGISTRY_URL` for a single invocation.
+
+### Listing Remote Images (`--list --registry`)
+
+```bash
+# List all tags for a repository
+export CB_REGISTRY_URL=https://registry.example.com
+export CB_REGISTRY_USER=myuser
+export CB_REGISTRY_PASSWORD=mytoken
+
+cb-container --list myapp --registry https://registry.example.com
+
+# Or with CB_REGISTRY_URL already set:
+cb-container --list myapp
+
+# Filter to a specific version (prefix match)
+cb-container --list myapp:1.0               # only tags starting with "1.0"
+cb-container --list myapp:1.0.2             # only tags starting with "1.0.2"
+
+# With --verbose to see cache status
+cb-container --list myapp --verbose
+
+# Force refresh (bypass cache)
+cb-container --list myapp --force
+```
+
+Output columns: IMAGE ID, CONTAINER ID (always `-`), CREATED, STARTED (always `-`), SIZE, TAG.
+
+#### Listing Cache
+
+Remote listing results are cached day-scoped in `$CB_TEMP/cb-container/` as `reglist-<host>-<repo>[-<filter>]-<YYYYMMDD>.cache`. A second call on the same day is served instantly from cache without any network requests. The cache is automatically bypassed the next day.
+
+Use `--force` / `-f` to clear the cache and re-fetch:
+
+```bash
+cb-container --list myapp --force
+```
+
+### Scanning Remote Images (`--scan --registry`)
+
+Scans a remote image via trivy using registry credentials — no local pull required.
+
+```bash
+# Scan a specific version (detailed CVE table)
+export CB_REGISTRY_URL=https://registry.example.com
+export CB_REGISTRY_USER=myuser
+export CB_REGISTRY_PASSWORD=mytoken
+
+cb-container --scan myapp:1.0.2
+
+# Or pass the registry URL explicitly
+cb-container --scan myapp:1.0.2 --registry https://registry.example.com
+
+# Wide output (full package/version columns)
+cb-container --scan myapp:1.0.2 --wide
+
+# Force rescan (ignore cached result)
+cb-container --scan myapp:1.0.2 --force
+
+# Scan all tags of a repository (list-style with CRIT/HIGH/MED/LOW columns)
+cb-container --scan myapp
+
+# Scan multiple specific versions
+cb-container --scan myapp:1.0.1,myapp:1.0.2,myapp:1.1.0
+```
+
+A single `repo:tag` target produces the detailed CVE table (same as local scan). Multiple targets or a bare repository name produce the list-style summary table.
+
+#### Scan Cache
+
+Remote scan results follow the same caching rules as local scans (day-scoped, keyed on image manifest digest). Use `--force` / `-f` to bypass.
+
+### Windows (cb-container.bat)
+
+```batch
+set CB_REGISTRY_URL=https://registry.example.com
+set CB_REGISTRY_USER=myuser
+set CB_REGISTRY_PASSWORD=mytoken
+
+cb-container --list myapp
+cb-container --list myapp:1.0
+cb-container --scan myapp:1.0.2
+cb-container --scan myapp
+```
+
+### Authentication
+
+The registry must support Docker Registry v2. Token-based (Bearer) and Basic authentication are both supported and detected automatically.
+
 ## Temp Directory
 
-Temporary and cache files are stored in:
-
-- **In a project directory** (with `settings.gradle`): `build/container/` (or `build/reports/testing/` for testing projects)
-- **Outside a project**: `$CB_TEMP/cb-container/` (shell) or `%CB_TEMP%\cb-container\` (batch)
+Temporary and cache files are stored in `$CB_TEMP/cb-container/` (shell) or `%TEMP%\cb\cb-container\` (batch).
 
 If `CB_TEMP` is not set, defaults to `/tmp/cb-$USER` (shell) or `%TEMP%\cb` (batch).

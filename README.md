@@ -93,7 +93,7 @@ The following packages can be installed via `cb --install <package>`:
 | [btrace](https://github.com/btraceio/btrace) | 2.2.6 | BTrace dynamic tracing tool |
 | [docker](https://www.docker.com/) | | Docker |
 | [eclipse](https://www.eclipse.org/) | 2026-03 | Eclipse IDE (JEE package) |
-| [flutter](https://flutter.dev/) | 3.41.5 | Flutter SDK |
+| [flutter](https://flutter.dev/) | 3.41.6 | Flutter SDK |
 | [gaiden](https://github.com/kobo/gaiden) | 1.3 | Gaiden documentation tool |
 | [gradle](https://gradle.org/) | 8.13 | Gradle build tool |
 | [groovy](https://groovy-lang.org/) | 4.0.31 | Apache Groovy |
@@ -103,15 +103,15 @@ The following packages can be installed via `cb --install <package>`:
 | [java](https://adoptium.net/) | 21 | Java JDK |
 | [jmeter](https://jmeter.apache.org/) | 5.6.3 | Apache JMeter |
 | [maven](https://maven.apache.org/) | 3.9.14 | Apache Maven |
-| [micronaut](https://micronaut.io/) | 4.10.18 | Micronaut framework CLI |
+| [micronaut](https://micronaut.io/) | 4.10.10 | Micronaut framework CLI |
 | [mucommander](https://www.mucommander.com/) | 1.6.0-1 | muCommander file manager |
 | [node](https://nodejs.org/) | 24.14.1 | Node.js |
 | [postman](https://www.postman.com/) | | Postman API client |
-| [python](https://www.python.org/) | 3.13.12 | Python |
+| [python](https://www.python.org/) | 3.14.6 | Python |
 | [rust](https://www.rust-lang.org/) | | Rust toolchain |
 | [sbt](https://www.scala-sbt.org/) | 1.12.8 | Scala Build Tool |
 | [squirrel](https://squirrel-sql.sourceforge.io/) | 5.1.0 | SQuirreL SQL Client |
-| [trivy](https://trivy.dev/) | 0.69.3 | Trivy security scanner |
+| [trivy](https://trivy.dev/) | 0.72.0 | Trivy security scanner |
 | [visualvm](https://visualvm.github.io/) | 2.2.1 | VisualVM profiler |
 | [vscode](https://code.visualstudio.com/) | 1.113.0 | Visual Studio Code |
 
@@ -310,7 +310,7 @@ toolarium common build 1.0.14
     - maven: 3.9.14
     - node: 24.14.1
     - python: 3.13.12
-    - trivy: 0.69.3
+    - trivy: 0.72.0
 ================================================================================
 ```
 

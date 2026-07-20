@@ -5,12 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5] - 2026-07-20
+### Added
+- `cb-container`: Remote Docker Registry v2 support via `--registry <url>` flag and `CB_REGISTRY_URL` / `CB_REGISTRY_USER` / `CB_REGISTRY_PASSWORD` environment variables.
+  - `--list <repo> --registry <url>`: list all tags of a repository with image ID, created date, and size fetched from the registry manifests. Supports multi-arch images (resolves to linux/amd64).
+  - `--list <repo>:<filter> --registry <url>`: filter listed tags by version prefix (e.g. `myapp:1.0` shows only tags starting with `1.0`).
+  - `--scan <repo>:<tag> --registry <url>`: scan a specific remote image with trivy using registry credentials — no local pull required. Single tag produces detailed CVE table; bare repo or multiple targets produce list-style summary.
+  - `--scan <repo> --registry <url>`: scan all tags of a repository (list-style with CRIT/HIGH/MED/LOW columns).
+  - Remote listing cache: day-scoped cache (`reglist-<host>-<repo>[-<filter>]-<YYYYMMDD>.cache`) eliminates repeated registry calls within the same day. `--force` clears the cache.
+  - Token-based (Bearer) and Basic authentication are both detected and handled automatically.
+- `cb-container`: `--scan` without `--registry` now auto-pulls images not found in the local store before scanning. If the bare pull fails and `CB_REGISTRY_URL` / `CB_REGISTRY_USER` / `CB_REGISTRY_PASSWORD` are configured, logs in to the private registry and retries with the registry-prefixed image reference.
+
+### Fixed
+- `cb-container`: Scan cache is now always stored in the global temp directory (`$CB_TEMP/cb-container/` / `%TEMP%\cb\cb-container\`). Previously the cache was redirected to `build/container/` inside a project directory, which caused cache loss every time `gradle clean` removed the `build/` tree.
+- `cb-container`: Fixed `--scan <image>` when image is not found: now exits with non-zero and prints an error instead of showing an empty CVE table with exit 0.
+- `cb-container`: Fixed silent first-call failure for `--scan` — when a non-cached scan produced no output and returned exit 0 from trivy but the function's last statement `[ "$CB_CONTAINER_VERBOSE" = true ] && ...` (bash short-circuit `&&`) set exit code 1, causing `scanFailed=1` and suppressing all output. Subsequent calls hit the cache path (explicit `return 0`) and worked correctly. Both `scanSingleImage` and `scanRemoteSingleInternal` affected; fixed by adding explicit `return 0` at the end of each function.
+
 ## [1.1.4] - 2026-04-26
 ### Added
 - `cb-container`: Project-aware mode — when run from a directory with `settings.gradle`, auto-detects the project name from `rootProject.name` (supports single/double quotes, tabs, spaces around `=`).
   - Bare `cb-container` in a project directory shows only that project's images.
   - `--scan`, `--start`, `--stop`, `--log`, `--delete` without a name auto-resolve from `settings.gradle`.
-  - Scan output stored locally in `build/container/` (or `build/reports/testing/` for testing projects detected via `gradle.properties` `projectType = testing`).
 - `cb-container`: Scan all images with `--scan -a` (or `--scan --all`). Displays list-style table with per-severity columns (CRIT, HIGH, MED, LOW) replacing SIZE, without STARTED column. Reuses cached scan results per image.
 - `cb-container`: Scanning multiple comma-separated images (`--scan img1,img2`) uses the same list-style format with severity columns. Single image scan retains the detailed CVE table.
 - `cb-container`: CSV output with `--csv` — semicolon-separated output for `--list -a`, `--scan -a`, and `--scan img1,img2`. Clean output without separator lines or footers.

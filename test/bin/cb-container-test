@@ -556,6 +556,65 @@ test_scan_all_csv() {
 	fi
 }
 
+#########################################################################
+# remote registry tests (flag acceptance and help, no network calls)
+#########################################################################
+test_registry_flag() {
+	echo "TEST: --registry flag accepted"
+	output=$("$CT" --registry https://reg.example.com --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with --registry --help"
+}
+
+test_help_registry() {
+	echo "TEST: help lists --registry"
+	output=$("$CT" --help 2>&1)
+	assertContains "--registry" "$output" "help lists --registry"
+	assertContains "CB_REGISTRY_USER" "$output" "help mentions CB_REGISTRY_USER"
+	assertContains "CB_REGISTRY_PASSWORD" "$output" "help mentions CB_REGISTRY_PASSWORD"
+	assertContains "Docker Registry v2" "$output" "help mentions Docker Registry v2"
+}
+
+test_registry_list_requires_repo() {
+	echo "TEST: --list --registry without repo shows error"
+	output=$("$CT" --list --registry https://reg.example.com 2>&1)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit code 1 when repo missing"
+	assertContains "Repository name required" "$output" "shows repo required message"
+}
+
+test_registry_list_requires_credentials() {
+	echo "TEST: --list --registry without credentials shows error"
+	# unset credentials to ensure clean test
+	output=$(unset CB_REGISTRY_USER CB_REGISTRY_PASSWORD && "$CT" --list myrepo --registry https://reg.example.com 2>&1)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit code 1 when credentials missing"
+	assertContains "credentials not set" "$output" "shows credentials error"
+}
+
+test_registry_scan_requires_credentials() {
+	echo "TEST: --scan --registry without credentials shows error"
+	output=$(unset CB_REGISTRY_USER CB_REGISTRY_PASSWORD && "$CT" --scan myapp:latest --registry https://reg.example.com 2>&1)
+	exitCode=$?
+	assertEquals "1" "$exitCode" "exit code 1 when credentials missing for scan"
+	assertContains "credentials not set" "$output" "shows credentials error for scan"
+}
+
+test_registry_combined_flags() {
+	echo "TEST: --registry combined with other flags accepted"
+	output=$("$CT" --registry https://reg.example.com --wide --force --csv --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with --registry and other flags"
+	assertContains "usage:" "$output" "combined registry flags do not break --help"
+}
+
+test_registry_flag
+test_help_registry
+test_registry_list_requires_repo
+test_registry_list_requires_credentials
+test_registry_scan_requires_credentials
+test_registry_combined_flags
+
 test_csv_flag
 test_help_new_flags
 test_wide_flag
@@ -574,6 +633,420 @@ test_scan_all_with_filter
 test_list_filter
 test_list_csv
 test_scan_all_csv
+
+
+#########################################################################
+# cache behaviour tests (mock docker + trivy via PATH injection)
+#########################################################################
+
+# _scanCacheMockSetup <tmpdir> <imgCreated>
+# Creates mock docker, nerdctl, and trivy scripts under <tmpdir>/bin.
+# imgCreated is the CreatedAt value the mock docker returns.
+_scanCacheMockSetup() {
+	local tmpdir="$1"
+	local imgCreated="${2:-2026-01-01 08:00:00 +0000 UTC}"
+	local imageId="testimg1234567890ab"
+	local mockbin="$tmpdir/bin"
+	mkdir -p "$mockbin"
+
+	# mock docker / nerdctl — handles scan-all list and filter calls
+	cat > "$mockbin/docker" <<EOF
+#!/usr/bin/env bash
+[ "\$1" = "ps" ] && exit 0
+[ "\$1" = "images" ] || exit 0
+hasFilt=false
+for a in "\$@"; do [ "\$a" = "--filter" ] && hasFilt=true; done
+if \$hasFilt; then
+  fmt="\$3"
+  echo "\$fmt" | grep -qF '{{.ID}}' && echo "$imageId"
+  echo "\$fmt" | grep -qF '{{.CreatedAt}}' && echo "$imgCreated"
+else
+  echo "$imageId|mytestrepo|latest|$imgCreated"
+fi
+exit 0
+EOF
+	chmod +x "$mockbin/docker"
+	cp "$mockbin/docker" "$mockbin/nerdctl"
+	chmod +x "$mockbin/nerdctl"
+
+	# mock trivy — outputs valid empty JSON; touches marker if TRIVY_CALLED_MARKER set
+	cat > "$mockbin/trivy" <<'EOF'
+#!/usr/bin/env bash
+printf '{"Results":[]}'
+[ -n "$TRIVY_CALLED_MARKER" ] && touch "$TRIVY_CALLED_MARKER"
+exit 0
+EOF
+	chmod +x "$mockbin/trivy"
+}
+
+test_scan_cache_filename_extraction() {
+	echo "TEST: cache filename day extraction (~-28,8 equivalent)"
+	local f1="abc123-20261201-143022-trivy.counts"
+	local day1="${f1: -28:8}"
+	assertEquals "20261201" "$day1" "day from short imageId filename"
+
+	local f2="abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789-20261201-143022-trivy.counts"
+	local day2="${f2: -28:8}"
+	assertEquals "20261201" "$day2" "day from long imageId filename"
+}
+
+test_scan_all_cache_reuse() {
+	echo "TEST: --scan -a cache reuse (trivy not called when cache valid)"
+	local tmpdir
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-cache-reuse-$$")
+	mkdir -p "$tmpdir"
+	_scanCacheMockSetup "$tmpdir"
+
+	local imageId="testimg1234567890ab"
+	local cachedir="$tmpdir/cb-container"
+	mkdir -p "$cachedir"
+	local today
+	today=$(date '+%Y%m%d')
+	local cacheTs="${today}-120000"
+	printf '{"Results":[]}\n' > "$cachedir/${imageId}-${cacheTs}-trivy.json"
+	printf '0 0 0 0 0\n'     > "$cachedir/${imageId}-${cacheTs}-trivy.counts"
+
+	local marker="$tmpdir/trivy-called"
+	rm -f "$marker"
+	CB_TEMP="$tmpdir" TRIVY_CALLED_MARKER="$marker" PATH="$tmpdir/bin:$PATH" \
+		"$CT" --scan -a >/dev/null 2>&1
+
+	if [ -f "$marker" ]; then
+		FAIL=$((FAIL+1))
+		echo "  FAIL: cache reuse - trivy was called but cache was valid"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: cache reuse - trivy not called (cache hit)"
+	fi
+	rm -rf "$tmpdir"
+}
+
+test_scan_all_cache_day_expired() {
+	echo "TEST: --scan -a stale-day cache triggers rescan"
+	local tmpdir
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-cache-day-$$")
+	mkdir -p "$tmpdir"
+	_scanCacheMockSetup "$tmpdir"
+
+	local imageId="testimg1234567890ab"
+	local cachedir="$tmpdir/cb-container"
+	mkdir -p "$cachedir"
+	local yesterday
+	yesterday=$(date -d 'yesterday' '+%Y%m%d' 2>/dev/null \
+		|| date -v-1d '+%Y%m%d' 2>/dev/null \
+		|| echo "19700101")
+	local cacheTs="${yesterday}-120000"
+	printf '{"Results":[]}\n' > "$cachedir/${imageId}-${cacheTs}-trivy.json"
+	printf '0 0 0 0 0\n'     > "$cachedir/${imageId}-${cacheTs}-trivy.counts"
+
+	local marker="$tmpdir/trivy-called"
+	rm -f "$marker"
+	CB_TEMP="$tmpdir" TRIVY_CALLED_MARKER="$marker" PATH="$tmpdir/bin:$PATH" \
+		"$CT" --scan -a >/dev/null 2>&1
+
+	if [ -f "$marker" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: stale-day cache - trivy rescanned"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: stale-day cache - trivy was NOT called (should rescan)"
+	fi
+	rm -rf "$tmpdir"
+}
+
+test_scan_all_cache_image_newer() {
+	echo "TEST: --scan -a image-newer-than-cache triggers rescan"
+	local tmpdir
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-cache-newer-$$")
+	mkdir -p "$tmpdir"
+	# image created today at 09:00, cache was written today at 08:00 → stale
+	local todayFmt
+	todayFmt=$(date '+%Y-%m-%d')
+	_scanCacheMockSetup "$tmpdir" "${todayFmt} 09:00:00 +0000 UTC"
+
+	local imageId="testimg1234567890ab"
+	local cachedir="$tmpdir/cb-container"
+	mkdir -p "$cachedir"
+	local today
+	today=$(date '+%Y%m%d')
+	local cacheTs="${today}-080000"
+	printf '{"Results":[]}\n' > "$cachedir/${imageId}-${cacheTs}-trivy.json"
+	printf '0 0 0 0 0\n'     > "$cachedir/${imageId}-${cacheTs}-trivy.counts"
+
+	local marker="$tmpdir/trivy-called"
+	rm -f "$marker"
+	CB_TEMP="$tmpdir" TRIVY_CALLED_MARKER="$marker" PATH="$tmpdir/bin:$PATH" \
+		"$CT" --scan -a >/dev/null 2>&1
+
+	if [ -f "$marker" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: image-newer cache - trivy rescanned"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: image-newer cache - trivy was NOT called (should rescan)"
+	fi
+	rm -rf "$tmpdir"
+}
+
+test_scan_all_cache_force() {
+	echo "TEST: --scan -a --force bypasses valid cache"
+	local tmpdir
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-cache-force-$$")
+	mkdir -p "$tmpdir"
+	_scanCacheMockSetup "$tmpdir"
+
+	local imageId="testimg1234567890ab"
+	local cachedir="$tmpdir/cb-container"
+	mkdir -p "$cachedir"
+	local today
+	today=$(date '+%Y%m%d')
+	local cacheTs="${today}-120000"
+	printf '{"Results":[]}\n' > "$cachedir/${imageId}-${cacheTs}-trivy.json"
+	printf '0 0 0 0 0\n'     > "$cachedir/${imageId}-${cacheTs}-trivy.counts"
+
+	local marker="$tmpdir/trivy-called"
+	rm -f "$marker"
+	CB_TEMP="$tmpdir" TRIVY_CALLED_MARKER="$marker" PATH="$tmpdir/bin:$PATH" \
+		"$CT" --scan -a --force >/dev/null 2>&1
+
+	if [ -f "$marker" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: --force bypasses cache - trivy was called"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: --force should bypass cache but trivy was NOT called"
+	fi
+	rm -rf "$tmpdir"
+}
+
+test_scan_cache_filename_extraction
+test_scan_all_cache_reuse
+test_scan_all_cache_day_expired
+test_scan_all_cache_image_newer
+test_scan_all_cache_force
+
+#########################################################################
+# verbose / env tests (mock docker/nerdctl)
+#########################################################################
+
+# _startMockSetup <tmpdir>
+# Creates mock docker and nerdctl scripts that return empty for ps/images,
+# exit 0 for rm, and output a fake container ID for run.
+_startMockSetup() {
+	local tmpdir="$1"
+	local mockbin="$tmpdir/bin"
+	mkdir -p "$mockbin"
+	cat > "$mockbin/docker" <<'EOF'
+#!/usr/bin/env bash
+[ "$1" = "ps" ]     && exit 0
+[ "$1" = "images" ] && exit 0
+[ "$1" = "rm" ]     && exit 0
+echo "mockcid123456"
+exit 0
+EOF
+	chmod +x "$mockbin/docker"
+	cp "$mockbin/docker" "$mockbin/nerdctl"
+	chmod +x "$mockbin/nerdctl"
+}
+
+test_help_inside_project_example() {
+	echo "TEST: help contains 'Inside a project' example"
+	output=$("$CT" --help 2>&1)
+	assertContains "Inside a project" "$output" "help shows 'Inside a project' section"
+	assertContains "SUBPATH=ooo --start" "$output" "help shows env+start example"
+}
+
+test_verbose_start_shows_execute() {
+	echo "TEST: --verbose --start shows Execute: line"
+	local tmpdir
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-vstart-$$")
+	_startMockSetup "$tmpdir"
+	output=$(CB_TEMP="$tmpdir" PATH="$tmpdir/bin:$PATH" "$CT" --verbose --start testimage:latest 2>&1)
+	assertContains "Execute:" "$output" "--verbose --start shows Execute: line"
+	rm -rf "$tmpdir"
+}
+
+test_env_value_in_execute() {
+	echo "TEST: --env SUBPATH=ooo shows -e SUBPATH=ooo in Execute line"
+	local tmpdir
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-envexec-$$")
+	_startMockSetup "$tmpdir"
+	output=$(CB_TEMP="$tmpdir" PATH="$tmpdir/bin:$PATH" "$CT" --verbose --env SUBPATH=ooo --start testimage:latest 2>&1)
+	assertContains "Execute:" "$output" "--verbose --env --start shows Execute: line"
+	assertContains "-e SUBPATH=ooo" "$output" "--env SUBPATH=ooo produces -e SUBPATH=ooo in Execute"
+	rm -rf "$tmpdir"
+}
+
+test_env_multiple_values_in_execute() {
+	echo "TEST: --env KEY1=val1,KEY2=val2 shows both -e args in Execute line"
+	local tmpdir
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-envmulti-$$")
+	_startMockSetup "$tmpdir"
+	output=$(CB_TEMP="$tmpdir" PATH="$tmpdir/bin:$PATH" "$CT" --verbose --env KEY1=val1,KEY2=val2 --start testimage:latest 2>&1)
+	assertContains "Execute:" "$output" "--verbose multi-env --start shows Execute:"
+	assertContains "-e KEY1=val1" "$output" "multi env shows -e KEY1=val1"
+	assertContains "-e KEY2=val2" "$output" "multi env shows -e KEY2=val2"
+	rm -rf "$tmpdir"
+}
+
+test_help_inside_project_example
+test_verbose_start_shows_execute
+test_env_value_in_execute
+test_env_multiple_values_in_execute
+
+#########################################################################
+# flag acceptance gap tests
+#########################################################################
+
+test_tail_flag() {
+	echo "TEST: -t/--tail flag accepted"
+	output=$("$CT" --tail --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with --tail --help"
+	assertContains "usage:" "$output" "--tail does not prevent --help"
+}
+
+test_all_flag() {
+	echo "TEST: -a/--all flag accepted"
+	output=$("$CT" -a --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with -a --help"
+	output=$("$CT" --all --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with --all --help"
+}
+
+test_it_flag() {
+	echo "TEST: -i/--it flag accepted"
+	output=$("$CT" -i ubuntu --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with -i <image> --help"
+	output=$("$CT" --it ubuntu --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with --it <image> --help"
+}
+
+test_port_colon_flag() {
+	echo "TEST: -p port:port (colon syntax) accepted"
+	output=$("$CT" -p 8081:8082 --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with -p 8081:8082 --help"
+}
+
+test_multiple_ports_flag() {
+	echo "TEST: multiple -p flags accepted"
+	output=$("$CT" -p 8080 -p 9090 --help 2>&1)
+	exitCode=$?
+	assertEquals "0" "$exitCode" "exit code 0 with -p 8080 -p 9090 --help"
+}
+
+#########################################################################
+# --env already-running container warning test
+#########################################################################
+
+test_env_already_running_warning() {
+	echo "TEST: --env with already-running container shows warning"
+	local tmpdir
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-envrun-$$")
+	local mockbin="$tmpdir/bin"
+	mkdir -p "$mockbin"
+	# mock ps returns a running container matching testimage:latest
+	cat > "$mockbin/docker" <<'EOF'
+#!/usr/bin/env bash
+if [ "$1" = "ps" ]; then
+    echo "abc123def456|testimage:latest"
+    exit 0
+fi
+[ "$1" = "images" ] && exit 0
+[ "$1" = "rm" ] && exit 0
+echo "mockcid123456"
+exit 0
+EOF
+	chmod +x "$mockbin/docker"
+	cp "$mockbin/docker" "$mockbin/nerdctl"
+	chmod +x "$mockbin/nerdctl"
+	output=$(CB_TEMP="$tmpdir" PATH="$tmpdir/bin:$PATH" "$CT" --env MYKEY=val --start testimage:latest 2>&1)
+	assertContains "already running" "$output" "--env with running container shows 'already running'"
+	assertContains "no effect" "$output" "--env with running container shows env-has-no-effect warning"
+	rm -rf "$tmpdir"
+}
+
+#########################################################################
+# --log line-range tests
+#########################################################################
+
+test_log_range_not_found() {
+	echo "TEST: --log with line ranges (10, 5-10, 5-) does not crash"
+	local output exitCode
+	output=$("$CT" --log nonexistent-log-xyz 10 2>&1)
+	exitCode=$?
+	if [ $exitCode -ne 0 ]; then
+		assertContains "not found" "$output" "--log img 10 shows not found"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: --log img 10 handled (runtime available)"
+	fi
+	output=$("$CT" --log nonexistent-log-xyz 5-10 2>&1)
+	exitCode=$?
+	if [ $exitCode -ne 0 ]; then
+		assertContains "not found" "$output" "--log img 5-10 shows not found"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: --log img 5-10 handled (runtime available)"
+	fi
+	output=$("$CT" --log nonexistent-log-xyz 5- 2>&1)
+	exitCode=$?
+	if [ $exitCode -ne 0 ]; then
+		assertContains "not found" "$output" "--log img 5- shows not found"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: --log img 5- handled (runtime available)"
+	fi
+}
+
+#########################################################################
+# --scan comma-separated multi-image test
+#########################################################################
+
+test_scan_multiple_images() {
+	echo "TEST: --scan img1,img2 parsed correctly (comma-separated filter)"
+	local output exitCode
+	output=$("$CT" --scan nonexistent-scan-xyz1,nonexistent-scan-xyz2 2>&1)
+	exitCode=$?
+	# comma-separated targets are treated as scan-all with filter; both names filter to 0 results
+	assertNotContains "Invalid parameter" "$output" "multi-scan not treated as invalid parameter"
+	if [ $exitCode -eq 0 ]; then
+		assertContains "image(s)" "$output" "multi-scan shows image count"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: --scan multiple shows error (no runtime or images not found)"
+	fi
+}
+
+#########################################################################
+# --start --log combined (in-project auto-detect)
+#########################################################################
+
+test_start_log_combined() {
+	echo "TEST: --start --log combined auto-detects project name"
+	local tmpdir
+	tmpdir=$(mktemp -d 2>/dev/null || echo "/tmp/cb-stlog-$$")
+	mkdir -p "$tmpdir"
+	echo "rootProject.name = 'auto-stlog-project'" > "$tmpdir/settings.gradle"
+	output=$(cd "$tmpdir" && "$CT" --start --log 2>&1)
+	assertContains "auto-stlog-project" "$output" "--start --log shows project name from settings.gradle"
+	rm -rf "$tmpdir"
+}
+
+test_tail_flag
+test_all_flag
+test_it_flag
+test_port_colon_flag
+test_multiple_ports_flag
+test_env_already_running_warning
+test_log_range_not_found
+test_scan_multiple_images
+test_start_log_combined
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

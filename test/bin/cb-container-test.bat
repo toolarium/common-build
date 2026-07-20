@@ -42,6 +42,13 @@ call :TEST_CLEAN_STANDALONE
 call :TEST_CONFIG_FILE
 call :TEST_SCAN_NOT_FOUND
 
+call :TEST_REGISTRY_FLAG
+call :TEST_HELP_REGISTRY
+call :TEST_REGISTRY_LIST_REQUIRES_REPO
+call :TEST_REGISTRY_LIST_REQUIRES_CREDENTIALS
+call :TEST_REGISTRY_SCAN_REQUIRES_CREDENTIALS
+call :TEST_REGISTRY_COMBINED_FLAGS
+
 call :TEST_CSV_FLAG
 call :TEST_HELP_NEW_FLAGS
 call :TEST_WIDE_FLAG
@@ -61,6 +68,26 @@ call :TEST_LIST_FILTER
 call :TEST_LIST_CSV
 call :TEST_SCAN_ALL_CSV
 call :TEST_LIST_VERBOSE
+
+call :TEST_SCAN_CACHE_FILENAME_EXTRACTION
+call :TEST_SCAN_ALL_CACHE_REUSE
+call :TEST_SCAN_ALL_CACHE_DAY_EXPIRED
+call :TEST_SCAN_ALL_CACHE_IMAGE_NEWER
+call :TEST_SCAN_ALL_CACHE_FORCE
+
+call :TEST_HELP_INSIDE_PROJECT_EXAMPLE
+call :TEST_VERBOSE_START_SHOWS_EXECUTE
+call :TEST_ENV_VALUE_IN_EXECUTE
+call :TEST_ENV_MULTIPLE_VALUES_IN_EXECUTE
+
+call :TEST_TAIL_FLAG
+call :TEST_ALL_FLAG
+call :TEST_IT_FLAG
+call :TEST_PORT_COLON_FLAG
+call :TEST_MULTIPLE_PORTS_FLAG
+call :TEST_LOG_RANGE_NOT_FOUND
+call :TEST_SCAN_MULTIPLE_IMAGES
+call :TEST_START_LOG_COMBINED
 
 echo\
 echo Results: %PASS% passed, %FAIL% failed
@@ -713,4 +740,541 @@ if "!RC!"=="0" (
 	echo   PASS: --scan -a --csv skipped ^(no runtime or trivy^)
 )
 del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_REGISTRY_FLAG
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --registry flag accepted
+set "OUT=%TEMP%\cbct-regflag-%RANDOM%.txt"
+call "%CT%" --registry https://reg.example.com --help > "%OUT%" 2>&1
+call :ASSERT_EXIT_CODE "0" "%ERRORLEVEL%" "exit code 0 with --registry --help"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_HELP_REGISTRY
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: help lists --registry
+set "OUT=%TEMP%\cbct-helpregistry-%RANDOM%.txt"
+call "%CT%" --help > "%OUT%" 2>&1
+call :ASSERT_OUTPUT_CONTAINS "--registry" "%OUT%" "help lists --registry"
+call :ASSERT_OUTPUT_CONTAINS "CB_REGISTRY_USER" "%OUT%" "help mentions CB_REGISTRY_USER"
+call :ASSERT_OUTPUT_CONTAINS "CB_REGISTRY_PASSWORD" "%OUT%" "help mentions CB_REGISTRY_PASSWORD"
+call :ASSERT_OUTPUT_CONTAINS "Docker Registry v2" "%OUT%" "help mentions Docker Registry v2"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_REGISTRY_LIST_REQUIRES_REPO
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --list --registry without repo shows error
+set "OUT=%TEMP%\cbct-regrepo-%RANDOM%.txt"
+call "%CT%" --list --registry https://reg.example.com > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "1" "!RC!" "exit code 1 when repo missing"
+call :ASSERT_OUTPUT_CONTAINS "Repository name required" "%OUT%" "shows repo required message"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_REGISTRY_LIST_REQUIRES_CREDENTIALS
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --list --registry without credentials shows error
+set "OUT=%TEMP%\cbct-regcred-%RANDOM%.txt"
+cmd /C "set "CB_REGISTRY_USER=" & set "CB_REGISTRY_PASSWORD=" & call "%CT%" --list myrepo --registry https://reg.example.com" > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "1" "!RC!" "exit code 1 when credentials missing"
+call :ASSERT_OUTPUT_CONTAINS "credentials not set" "%OUT%" "shows credentials error"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_REGISTRY_SCAN_REQUIRES_CREDENTIALS
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --scan --registry without credentials shows error
+set "OUT=%TEMP%\cbct-regscan-%RANDOM%.txt"
+cmd /C "set "CB_REGISTRY_USER=" & set "CB_REGISTRY_PASSWORD=" & call "%CT%" --scan myapp:latest --registry https://reg.example.com" > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "1" "!RC!" "exit code 1 when credentials missing for scan"
+call :ASSERT_OUTPUT_CONTAINS "credentials not set" "%OUT%" "shows credentials error for scan"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_REGISTRY_COMBINED_FLAGS
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --registry combined with other flags accepted
+set "OUT=%TEMP%\cbct-regcomb-%RANDOM%.txt"
+call "%CT%" --registry https://reg.example.com --wide --force --csv --help > "%OUT%" 2>&1
+call :ASSERT_EXIT_CODE "0" "%ERRORLEVEL%" "exit code 0 with --registry and other flags"
+call :ASSERT_OUTPUT_CONTAINS "usage:" "%OUT%" "combined registry flags do not break --help"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_SCAN_CACHE_FILENAME_EXTRACTION
+:: Verifies that extracting day from cache filename via :~-28,8 works
+:: for both short and long image IDs (regression for the %var% bug fix).
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: cache filename day extraction ^(~-28,8^)
+set "f1=abc123-20261201-143022-trivy.counts"
+set "day1=!f1:~-28,8!"
+call :ASSERT_EXIT_CODE "20261201" "!day1!" "day from short imageId filename"
+set "f2=abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789-20261201-143022-trivy.counts"
+set "day2=!f2:~-28,8!"
+call :ASSERT_EXIT_CODE "20261201" "!day2!" "day from long imageId filename"
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_SCAN_ALL_CACHE_REUSE
+:: Pre-seeds a valid today-stamped .counts file and verifies trivy is
+:: NOT called (cache hit).
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --scan -a cache reuse ^(trivy not called when cache valid^)
+set "CRTMPDIR=%TEMP%\cbct-cr-%RANDOM%%RANDOM%"
+set "MOCKBIN=!CRTMPDIR!\bin"
+mkdir "!MOCKBIN!" >nul 2>nul
+set "CACHEDIR=!CRTMPDIR!\cb-container"
+mkdir "!CACHEDIR!" >nul 2>nul
+rem get today's date for cache timestamp
+for /f "tokens=*" %%d in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd"') do set "CR_TODAY=%%d"
+set "CR_CACHE_TS=!CR_TODAY!-120000"
+set "CR_IMAGEID=testimg1234567890ab"
+rem write pre-seeded cache files
+echo {"Results":[]} > "!CACHEDIR!\!CR_IMAGEID!-!CR_CACHE_TS!-trivy.json"
+echo 0 0 0 0 0 > "!CACHEDIR!\!CR_IMAGEID!-!CR_CACHE_TS!-trivy.counts"
+rem write mock docker.bat
+echo @echo off > "!MOCKBIN!\docker.bat"
+echo if "%%1"=="ps" exit /b 0 >> "!MOCKBIN!\docker.bat"
+echo if not "%%1"=="images" exit /b 0 >> "!MOCKBIN!\docker.bat"
+echo if "%%4"=="--filter" goto FILTER_OUT >> "!MOCKBIN!\docker.bat"
+echo echo !CR_IMAGEID!^^^|mytestrepo^^^|latest^^^|100MB^^^|2026-01-01 08:00:00 +0000 UTC >> "!MOCKBIN!\docker.bat"
+echo exit /b 0 >> "!MOCKBIN!\docker.bat"
+echo :FILTER_OUT >> "!MOCKBIN!\docker.bat"
+echo echo !CR_IMAGEID! >> "!MOCKBIN!\docker.bat"
+echo exit /b 0 >> "!MOCKBIN!\docker.bat"
+copy "!MOCKBIN!\docker.bat" "!MOCKBIN!\nerdctl.bat" >nul 2>nul
+rem write mock trivy.bat
+echo @echo off > "!MOCKBIN!\trivy.bat"
+echo echo {"Results":[]} >> "!MOCKBIN!\trivy.bat"
+echo if defined TRIVY_CALLED_MARKER type nul ^> "%%TRIVY_CALLED_MARKER%%" >> "!MOCKBIN!\trivy.bat"
+echo exit /b 0 >> "!MOCKBIN!\trivy.bat"
+set "CR_MARKER=!CRTMPDIR!\trivy-called"
+del /f /q "!CR_MARKER!" 2>nul
+set "OUT=%TEMP%\cbct-cr-out-%RANDOM%.txt"
+rem use wrapper script to avoid nested-quote issues in cmd /c "set "VAR=VALUE" & ..."
+echo @echo off > "!CRTMPDIR!\run.bat"
+echo set "CB_TEMP=!CRTMPDIR!" >> "!CRTMPDIR!\run.bat"
+echo set "TRIVY_CALLED_MARKER=!CR_MARKER!" >> "!CRTMPDIR!\run.bat"
+echo set "PATH=!MOCKBIN!;%%PATH%%" >> "!CRTMPDIR!\run.bat"
+echo call "!CT!" --scan -a >> "!CRTMPDIR!\run.bat"
+cmd /c "!CRTMPDIR!\run.bat" > "!OUT!" 2>&1
+if exist "!CR_MARKER!" (
+    set /a FAIL+=1
+    echo   FAIL: cache reuse - trivy was called but cache was valid
+) else (
+    set /a PASS+=1
+    echo   PASS: cache reuse - trivy not called ^(cache hit^)
+)
+del /f /q "!OUT!" 2>nul
+if exist "!CRTMPDIR!" rmdir /s /q "!CRTMPDIR!" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_SCAN_ALL_CACHE_DAY_EXPIRED
+:: Pre-seeds a yesterday-stamped .counts file and verifies trivy IS
+:: called (day boundary expired).
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --scan -a stale-day cache triggers rescan
+set "CDTMPDIR=%TEMP%\cbct-cd-%RANDOM%%RANDOM%"
+set "MOCKBIN=!CDTMPDIR!\bin"
+mkdir "!MOCKBIN!" >nul 2>nul
+set "CACHEDIR=!CDTMPDIR!\cb-container"
+mkdir "!CACHEDIR!" >nul 2>nul
+for /f "tokens=*" %%d in ('powershell -NoProfile -Command "$d=(Get-Date).AddDays(-1);$d.Year*10000+$d.Month*100+$d.Day"') do set "CD_YEST=%%d"
+set "CD_CACHE_TS=!CD_YEST!-120000"
+set "CD_IMAGEID=testimg1234567890ab"
+echo 0 0 0 0 0 > "!CACHEDIR!\!CD_IMAGEID!-!CD_CACHE_TS!-trivy.counts"
+rem write mock docker.bat
+echo @echo off > "!MOCKBIN!\docker.bat"
+echo if "%%1"=="ps" exit /b 0 >> "!MOCKBIN!\docker.bat"
+echo if not "%%1"=="images" exit /b 0 >> "!MOCKBIN!\docker.bat"
+echo if "%%4"=="--filter" goto FILTER_OUT >> "!MOCKBIN!\docker.bat"
+echo echo !CD_IMAGEID!^^^|mytestrepo^^^|latest^^^|100MB^^^|2026-01-01 08:00:00 +0000 UTC >> "!MOCKBIN!\docker.bat"
+echo exit /b 0 >> "!MOCKBIN!\docker.bat"
+echo :FILTER_OUT >> "!MOCKBIN!\docker.bat"
+echo echo !CD_IMAGEID! >> "!MOCKBIN!\docker.bat"
+echo exit /b 0 >> "!MOCKBIN!\docker.bat"
+copy "!MOCKBIN!\docker.bat" "!MOCKBIN!\nerdctl.bat" >nul 2>nul
+echo @echo off > "!MOCKBIN!\trivy.bat"
+echo echo {"Results":[]} >> "!MOCKBIN!\trivy.bat"
+echo if defined TRIVY_CALLED_MARKER type nul ^> "%%TRIVY_CALLED_MARKER%%" >> "!MOCKBIN!\trivy.bat"
+echo exit /b 0 >> "!MOCKBIN!\trivy.bat"
+set "CD_MARKER=!CDTMPDIR!\trivy-called"
+del /f /q "!CD_MARKER!" 2>nul
+set "OUT=%TEMP%\cbct-cd-out-%RANDOM%.txt"
+echo @echo off > "!CDTMPDIR!\run.bat"
+echo set "CB_TEMP=!CDTMPDIR!" >> "!CDTMPDIR!\run.bat"
+echo set "TRIVY_CALLED_MARKER=!CD_MARKER!" >> "!CDTMPDIR!\run.bat"
+echo set "PATH=!MOCKBIN!;%%PATH%%" >> "!CDTMPDIR!\run.bat"
+echo call "!CT!" --scan -a >> "!CDTMPDIR!\run.bat"
+cmd /c "!CDTMPDIR!\run.bat" > "!OUT!" 2>&1
+if exist "!CD_MARKER!" (
+    set /a PASS+=1
+    echo   PASS: stale-day cache - trivy rescanned
+) else (
+    set /a FAIL+=1
+    echo   FAIL: stale-day cache - trivy was NOT called ^(should rescan^)
+)
+del /f /q "!OUT!" 2>nul
+if exist "!CDTMPDIR!" rmdir /s /q "!CDTMPDIR!" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_SCAN_ALL_CACHE_IMAGE_NEWER
+:: Pre-seeds a today-08:00 .counts file but mock docker reports image
+:: created at today 09:00 → cache is stale, trivy IS called.
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --scan -a image-newer-than-cache triggers rescan
+set "CNTMPDIR=%TEMP%\cbct-cn-%RANDOM%%RANDOM%"
+set "MOCKBIN=!CNTMPDIR!\bin"
+mkdir "!MOCKBIN!" >nul 2>nul
+set "CACHEDIR=!CNTMPDIR!\cb-container"
+mkdir "!CACHEDIR!" >nul 2>nul
+for /f "tokens=*" %%d in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd"') do set "CN_TODAY=%%d"
+for /f "tokens=*" %%d in ('powershell -NoProfile -Command "Get-Date -Format yyyy-MM-dd"') do set "CN_TODAY_FMT=%%d"
+set "CN_CACHE_TS=!CN_TODAY!-080000"
+set "CN_IMAGEID=testimg1234567890ab"
+echo 0 0 0 0 0 > "!CACHEDIR!\!CN_IMAGEID!-!CN_CACHE_TS!-trivy.counts"
+rem write mock docker.bat — image created today at 09:00 (after cache at 08:00)
+echo @echo off > "!MOCKBIN!\docker.bat"
+echo if "%%1"=="ps" exit /b 0 >> "!MOCKBIN!\docker.bat"
+echo if not "%%1"=="images" exit /b 0 >> "!MOCKBIN!\docker.bat"
+echo if "%%4"=="--filter" goto FILTER_OUT >> "!MOCKBIN!\docker.bat"
+echo echo !CN_IMAGEID!^^^|mytestrepo^^^|latest^^^|100MB^^^|!CN_TODAY_FMT! 09:00:00 +0000 UTC >> "!MOCKBIN!\docker.bat"
+echo exit /b 0 >> "!MOCKBIN!\docker.bat"
+echo :FILTER_OUT >> "!MOCKBIN!\docker.bat"
+echo echo !CN_IMAGEID! >> "!MOCKBIN!\docker.bat"
+echo exit /b 0 >> "!MOCKBIN!\docker.bat"
+copy "!MOCKBIN!\docker.bat" "!MOCKBIN!\nerdctl.bat" >nul 2>nul
+echo @echo off > "!MOCKBIN!\trivy.bat"
+echo echo {"Results":[]} >> "!MOCKBIN!\trivy.bat"
+echo if defined TRIVY_CALLED_MARKER type nul ^> "%%TRIVY_CALLED_MARKER%%" >> "!MOCKBIN!\trivy.bat"
+echo exit /b 0 >> "!MOCKBIN!\trivy.bat"
+set "CN_MARKER=!CNTMPDIR!\trivy-called"
+del /f /q "!CN_MARKER!" 2>nul
+set "OUT=%TEMP%\cbct-cn-out-%RANDOM%.txt"
+echo @echo off > "!CNTMPDIR!\run.bat"
+echo set "CB_TEMP=!CNTMPDIR!" >> "!CNTMPDIR!\run.bat"
+echo set "TRIVY_CALLED_MARKER=!CN_MARKER!" >> "!CNTMPDIR!\run.bat"
+echo set "PATH=!MOCKBIN!;%%PATH%%" >> "!CNTMPDIR!\run.bat"
+echo call "!CT!" --scan -a >> "!CNTMPDIR!\run.bat"
+cmd /c "!CNTMPDIR!\run.bat" > "!OUT!" 2>&1
+if exist "!CN_MARKER!" (
+    set /a PASS+=1
+    echo   PASS: image-newer cache - trivy rescanned
+) else (
+    set /a FAIL+=1
+    echo   FAIL: image-newer cache - trivy was NOT called ^(should rescan^)
+    echo   DEBUG CN_MARKER=!CN_MARKER!
+    echo   DEBUG CACHEDIR=!CACHEDIR!
+    echo   DEBUG cb-container output:
+    if exist "!OUT!" type "!OUT!"
+    echo   DEBUG CACHEDIR contents:
+    dir /b "!CACHEDIR!" 2>nul
+)
+del /f /q "!OUT!" 2>nul
+if exist "!CNTMPDIR!" rmdir /s /q "!CNTMPDIR!" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_SCAN_ALL_CACHE_FORCE
+:: Pre-seeds a valid today-stamped .counts file but passes --force,
+:: verifying trivy IS called regardless.
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --scan -a --force bypasses valid cache
+set "CFTMPDIR=%TEMP%\cbct-cf-%RANDOM%%RANDOM%"
+set "MOCKBIN=!CFTMPDIR!\bin"
+mkdir "!MOCKBIN!" >nul 2>nul
+set "CACHEDIR=!CFTMPDIR!\cb-container"
+mkdir "!CACHEDIR!" >nul 2>nul
+for /f "tokens=*" %%d in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd"') do set "CF_TODAY=%%d"
+set "CF_CACHE_TS=!CF_TODAY!-120000"
+set "CF_IMAGEID=testimg1234567890ab"
+echo {"Results":[]} > "!CACHEDIR!\!CF_IMAGEID!-!CF_CACHE_TS!-trivy.json"
+echo 0 0 0 0 0 > "!CACHEDIR!\!CF_IMAGEID!-!CF_CACHE_TS!-trivy.counts"
+rem write mock docker.bat
+echo @echo off > "!MOCKBIN!\docker.bat"
+echo if "%%1"=="ps" exit /b 0 >> "!MOCKBIN!\docker.bat"
+echo if not "%%1"=="images" exit /b 0 >> "!MOCKBIN!\docker.bat"
+echo if "%%4"=="--filter" goto FILTER_OUT >> "!MOCKBIN!\docker.bat"
+echo echo !CF_IMAGEID!^^^|mytestrepo^^^|latest^^^|100MB^^^|2026-01-01 08:00:00 +0000 UTC >> "!MOCKBIN!\docker.bat"
+echo exit /b 0 >> "!MOCKBIN!\docker.bat"
+echo :FILTER_OUT >> "!MOCKBIN!\docker.bat"
+echo echo !CF_IMAGEID! >> "!MOCKBIN!\docker.bat"
+echo exit /b 0 >> "!MOCKBIN!\docker.bat"
+copy "!MOCKBIN!\docker.bat" "!MOCKBIN!\nerdctl.bat" >nul 2>nul
+echo @echo off > "!MOCKBIN!\trivy.bat"
+echo echo {"Results":[]} >> "!MOCKBIN!\trivy.bat"
+echo if defined TRIVY_CALLED_MARKER type nul ^> "%%TRIVY_CALLED_MARKER%%" >> "!MOCKBIN!\trivy.bat"
+echo exit /b 0 >> "!MOCKBIN!\trivy.bat"
+set "CF_MARKER=!CFTMPDIR!\trivy-called"
+del /f /q "!CF_MARKER!" 2>nul
+set "OUT=%TEMP%\cbct-cf-out-%RANDOM%.txt"
+echo @echo off > "!CFTMPDIR!\run.bat"
+echo set "CB_TEMP=!CFTMPDIR!" >> "!CFTMPDIR!\run.bat"
+echo set "TRIVY_CALLED_MARKER=!CF_MARKER!" >> "!CFTMPDIR!\run.bat"
+echo set "PATH=!MOCKBIN!;%%PATH%%" >> "!CFTMPDIR!\run.bat"
+echo call "!CT!" --scan -a --force >> "!CFTMPDIR!\run.bat"
+cmd /c "!CFTMPDIR!\run.bat" > "!OUT!" 2>&1
+if exist "!CF_MARKER!" (
+    set /a PASS+=1
+    echo   PASS: --force bypasses cache - trivy was called
+) else (
+    set /a FAIL+=1
+    echo   FAIL: --force should bypass cache but trivy was NOT called
+    echo   DEBUG CF_MARKER=!CF_MARKER!
+    echo   DEBUG cb-container output:
+    if exist "!OUT!" type "!OUT!"
+    echo   DEBUG CACHEDIR contents:
+    dir /b "!CACHEDIR!" 2>nul
+)
+del /f /q "!OUT!" 2>nul
+if exist "!CFTMPDIR!" rmdir /s /q "!CFTMPDIR!" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_HELP_INSIDE_PROJECT_EXAMPLE
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: help contains 'Inside a project' example
+set "OUT=%TEMP%\cbct-iproj-%RANDOM%.txt"
+call "%CT%" --help > "%OUT%" 2>&1
+call :ASSERT_OUTPUT_CONTAINS "Inside a project" "%OUT%" "help shows 'Inside a project' section"
+call :ASSERT_OUTPUT_CONTAINS "SUBPATH=ooo --start" "%OUT%" "help shows env+start example"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_VERBOSE_START_SHOWS_EXECUTE
+:: Calls cb-container with real docker (EXE) so that the runtime detection
+:: does not exit early (unlike .bat mocks which lack implicit 'call').
+:: Execute: is printed before docker run attempts the image pull, so it
+:: appears in the output even when the image doesn't exist.
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --verbose --start shows Execute: line
+set "VSTMPDIR=%TEMP%\cbct-vs-%RANDOM%%RANDOM%"
+mkdir "!VSTMPDIR!" >nul 2>nul
+set "OUT=%TEMP%\cbct-vs-out-%RANDOM%.txt"
+echo @echo off > "!VSTMPDIR!\run.bat"
+echo set "CB_TEMP=!VSTMPDIR!" >> "!VSTMPDIR!\run.bat"
+echo call "!CT!" --verbose --start nonexistent-cbtest-xyz:latest >> "!VSTMPDIR!\run.bat"
+cmd /c "!VSTMPDIR!\run.bat" > "!OUT!" 2>&1
+call :ASSERT_OUTPUT_CONTAINS "Execute:" "!OUT!" "--verbose --start shows Execute: line"
+del /f /q "!OUT!" 2>nul
+if exist "!VSTMPDIR!" rmdir /s /q "!VSTMPDIR!" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_ENV_VALUE_IN_EXECUTE
+:: Verifies that unquoted --env SUBPATH=ooo (cmd.exe splits KEY=VAL on =)
+:: is correctly reconstructed to -e SUBPATH=ooo in the Execute: line.
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --env SUBPATH=ooo shows -e SUBPATH=ooo in Execute line
+set "EVTMPDIR=%TEMP%\cbct-ev-%RANDOM%%RANDOM%"
+mkdir "!EVTMPDIR!" >nul 2>nul
+set "OUT=%TEMP%\cbct-ev-out-%RANDOM%.txt"
+echo @echo off > "!EVTMPDIR!\run.bat"
+echo set "CB_TEMP=!EVTMPDIR!" >> "!EVTMPDIR!\run.bat"
+echo call "!CT!" --verbose --env SUBPATH=ooo --start nonexistent-cbtest-xyz:latest >> "!EVTMPDIR!\run.bat"
+cmd /c "!EVTMPDIR!\run.bat" > "!OUT!" 2>&1
+call :ASSERT_OUTPUT_CONTAINS "Execute:" "!OUT!" "--verbose --env --start shows Execute: line"
+call :ASSERT_OUTPUT_CONTAINS "-e SUBPATH=ooo" "!OUT!" "--env SUBPATH=ooo produces -e SUBPATH=ooo in Execute"
+del /f /q "!OUT!" 2>nul
+if exist "!EVTMPDIR!" rmdir /s /q "!EVTMPDIR!" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_ENV_MULTIPLE_VALUES_IN_EXECUTE
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --env "KEY1=val1,KEY2=val2" shows both -e args in Execute line
+set "EMTMPDIR=%TEMP%\cbct-em-%RANDOM%%RANDOM%"
+mkdir "!EMTMPDIR!" >nul 2>nul
+set "OUT=%TEMP%\cbct-em-out-%RANDOM%.txt"
+echo @echo off > "!EMTMPDIR!\run.bat"
+echo set "CB_TEMP=!EMTMPDIR!" >> "!EMTMPDIR!\run.bat"
+echo call "!CT!" --verbose --env "KEY1=val1,KEY2=val2" --start nonexistent-cbtest-xyz:latest >> "!EMTMPDIR!\run.bat"
+cmd /c "!EMTMPDIR!\run.bat" > "!OUT!" 2>&1
+call :ASSERT_OUTPUT_CONTAINS "Execute:" "!OUT!" "--verbose multi-env --start shows Execute:"
+call :ASSERT_OUTPUT_CONTAINS "-e KEY1=val1" "!OUT!" "multi env shows -e KEY1=val1"
+call :ASSERT_OUTPUT_CONTAINS "-e KEY2=val2" "!OUT!" "multi env shows -e KEY2=val2"
+del /f /q "!OUT!" 2>nul
+if exist "!EMTMPDIR!" rmdir /s /q "!EMTMPDIR!" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_TAIL_FLAG
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: -t/--tail flag accepted
+set "OUT=%TEMP%\cbct-tail-%RANDOM%.txt"
+call "%CT%" --tail --help > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "0" "!RC!" "exit code 0 with --tail --help"
+call :ASSERT_OUTPUT_CONTAINS "usage:" "%OUT%" "--tail does not prevent --help"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_ALL_FLAG
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: -a/--all flag accepted
+set "OUT=%TEMP%\cbct-all-%RANDOM%.txt"
+call "%CT%" -a --help > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "0" "!RC!" "exit code 0 with -a --help"
+call "%CT%" --all --help > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "0" "!RC!" "exit code 0 with --all --help"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_IT_FLAG
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: -i/--it flag accepted
+set "OUT=%TEMP%\cbct-it-%RANDOM%.txt"
+call "%CT%" -i --help > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "0" "!RC!" "exit code 0 with -i --help"
+call "%CT%" --it --help > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "0" "!RC!" "exit code 0 with --it --help"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_PORT_COLON_FLAG
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: -p port:port ^(colon syntax^) accepted
+set "OUT=%TEMP%\cbct-pcolon-%RANDOM%.txt"
+call "%CT%" -p 8081:8082 --help > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "0" "!RC!" "exit code 0 with -p 8081:8082 --help"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_MULTIPLE_PORTS_FLAG
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: multiple -p flags accepted
+set "OUT=%TEMP%\cbct-mp-%RANDOM%.txt"
+call "%CT%" -p 8080 -p 9090 --help > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "0" "!RC!" "exit code 0 with -p 8080 -p 9090 --help"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_LOG_RANGE_NOT_FOUND
+:: Verifies --log with line-range args (10, 5-10, 5-) does not crash.
+:: Expects "not found" for a non-existent image with a real runtime.
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --log with line ranges ^(10, 5-10, 5-^) does not crash
+set "OUT=%TEMP%\cbct-logr-%RANDOM%.txt"
+call "%CT%" --log nonexistent-log-xyz 10 > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+if not "!RC!"=="0" (
+    call :ASSERT_OUTPUT_CONTAINS "not found" "%OUT%" "--log img 10 shows not found"
+) else (
+    set /a PASS+=1
+    echo   PASS: --log img 10 handled ^(runtime available^)
+)
+call "%CT%" --log nonexistent-log-xyz 5-10 > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+if not "!RC!"=="0" (
+    call :ASSERT_OUTPUT_CONTAINS "not found" "%OUT%" "--log img 5-10 shows not found"
+) else (
+    set /a PASS+=1
+    echo   PASS: --log img 5-10 handled ^(runtime available^)
+)
+call "%CT%" --log nonexistent-log-xyz 5- > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+if not "!RC!"=="0" (
+    call :ASSERT_OUTPUT_CONTAINS "not found" "%OUT%" "--log img 5- shows not found"
+) else (
+    set /a PASS+=1
+    echo   PASS: --log img 5- handled ^(runtime available^)
+)
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_SCAN_MULTIPLE_IMAGES
+:: Verifies --scan img1,img2 (cmd.exe splits on comma; PARSE_SCAN_REJOIN
+:: re-joins them) is parsed correctly and does not give 'Invalid parameter'.
+:: Comma-separated targets run as scan-all with filter -> 0 image(s).
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --scan img1,img2 parsed correctly ^(comma-separated filter^)
+set "OUT=%TEMP%\cbct-scanmulti-%RANDOM%.txt"
+call "%CT%" --scan nonexistent-scan-xyz1,nonexistent-scan-xyz2 > "%OUT%" 2>&1
+set "RC=!ERRORLEVEL!"
+rem verify it was not treated as an invalid parameter
+set "hasInvalid="
+findstr /i /c:"Invalid parameter" "%OUT%" >nul 2>nul
+if %ERRORLEVEL% EQU 0 set "hasInvalid=true"
+if defined hasInvalid (
+    set /a FAIL+=1
+    echo   FAIL: multi-scan treated as invalid parameter
+) else (
+    set /a PASS+=1
+    echo   PASS: multi-scan not treated as invalid parameter
+)
+if "!RC!"=="0" (
+    call :ASSERT_OUTPUT_CONTAINS "image(s)" "%OUT%" "multi-scan shows image count"
+) else (
+    set /a PASS+=1
+    echo   PASS: --scan multiple shows error ^(no runtime or images not found^)
+)
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_START_LOG_COMBINED
+:: Verifies --start --log combined auto-detects project name from
+:: settings.gradle (the "Inside a project" example in the help).
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --start --log combined auto-detects project name
+set "SLDIR=%TEMP%\cbct-sl-%RANDOM%"
+mkdir "%SLDIR%" >nul 2>nul
+echo rootProject.name = 'auto-stlog-project' > "%SLDIR%\settings.gradle"
+set "OUT=%TEMP%\cbct-slout-%RANDOM%.txt"
+pushd "%SLDIR%"
+call "%CT%" --start --log > "%OUT%" 2>&1
+popd
+call :ASSERT_OUTPUT_CONTAINS "auto-stlog-project" "%OUT%" "--start --log shows project name from settings.gradle"
+del /f /q "%OUT%" >nul 2>nul
+if exist "%SLDIR%" rmdir /s /q "%SLDIR%" >nul 2>nul
 goto :eof

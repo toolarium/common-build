@@ -65,6 +65,9 @@ set "CB_CONTAINER_WIDE=false"
 set "CB_CONTAINER_FORCE=false"
 set "CB_CONTAINER_CSV=false"
 set "CB_CONTAINER_VERBOSE=false"
+if not defined CB_REGISTRY_URL set "CB_REGISTRY_URL="
+set "CB_REGISTRY_URL_ENV=!CB_REGISTRY_URL!"
+set "CB_REGISTRY_FLAG=false"
 
 rem read .cb-container config file if present (first line = default parameters)
 if not defined CB_CONTAINER_CONFIG_LOADED if exist ".cb-container" (
@@ -121,10 +124,11 @@ if /I "%~1"=="-e" (set "CB_CONTAINER_ENTRYPOINT=%~2" & shift & shift & goto PARS
 if /I "%~1"=="--entrypoint" (set "CB_CONTAINER_ENTRYPOINT=%~2" & shift & shift & goto PARSE_ARGS)
 if /I "%~1"=="-p" (call :PARSE_PORT "%~2" & shift & shift & goto PARSE_ARGS)
 if /I "%~1"=="--port" (call :PARSE_PORT "%~2" & shift & shift & goto PARSE_ARGS)
-if /I "%~1"=="--env" (set "CB_CONTAINER_ENV=%~2" & shift & shift & goto PARSE_ARGS)
+if /I "%~1"=="--env" goto PARSE_ENV_ARG
 if /I "%~1"=="--start" goto PARSE_START_ARG
 if /I "%~1"=="--stop" goto PARSE_STOP_ARG
 if /I "%~1"=="--scan" goto PARSE_SCAN_ARG
+if /I "%~1"=="--registry" goto PARSE_REGISTRY_ARG
 if /I "%~1"=="--clean" (set "CB_CONTAINER_CLEAN=true" & shift & goto PARSE_ARGS)
 if /I "%~1"=="--delete" goto PARSE_DELETE_ARG
 goto SKIP_PARSE_OPT_ARGS
@@ -149,11 +153,32 @@ set "scanNextArg=%~1"
 if not defined scanNextArg goto PARSE_ARGS
 if "!scanNextArg:~0,1!"=="-" goto PARSE_ARGS
 set "CB_CONTAINER_SCAN_TARGET=!CB_CONTAINER_SCAN_TARGET!,!scanNextArg!" & shift & goto PARSE_SCAN_REJOIN
+:PARSE_REGISTRY_ARG
+set "CB_REGISTRY_FLAG=true"
+set "argNext=%~2"
+if not defined argNext (set "CB_REGISTRY_URL=!CB_REGISTRY_URL_ENV!" & shift & goto PARSE_ARGS)
+if "!argNext:~0,1!"=="-" (set "CB_REGISTRY_URL=!CB_REGISTRY_URL_ENV!" & shift & goto PARSE_ARGS)
+set "CB_REGISTRY_URL=%~2" & shift & shift & goto PARSE_ARGS
 :PARSE_DELETE_ARG
 set "argNext=%~2"
 if not defined argNext (set "CB_CONTAINER_DELETE_TARGET=auto" & shift & goto PARSE_ARGS)
 if "!argNext:~0,1!"=="-" (set "CB_CONTAINER_DELETE_TARGET=auto" & shift & goto PARSE_ARGS)
 set "CB_CONTAINER_DELETE_TARGET=%~2" & shift & shift & goto PARSE_ARGS
+:PARSE_ENV_ARG
+rem cmd.exe treats = as a delimiter, so --env KEY=VAL becomes %~2=KEY %~3=VAL
+rem detect this case: if %~2 contains no =, try to reconstruct KEY=VAL from %~2 and %~3
+set "_envVal=%~2"
+set "_envHasEq=false"
+for /f "tokens=1* delims==" %%a in ("!_envVal!") do if not "%%b"=="" set "_envHasEq=true"
+if "!_envHasEq!"=="false" (
+	set "_envNext=%~3"
+	if defined _envNext if not "!_envNext:~0,1!"=="-" (
+		set "CB_CONTAINER_ENV=!_envVal!=!_envNext!"
+		shift & shift & shift & goto PARSE_ARGS
+	)
+)
+set "CB_CONTAINER_ENV=!_envVal!"
+shift & shift & goto PARSE_ARGS
 :SKIP_PARSE_OPT_ARGS
 if /I "%~1"=="--log" (shift & goto PARSE_LOG_TARGET)
 if /I "%~1"=="-t" (set "CB_CONTAINER_TAIL=true" & shift & goto PARSE_ARGS)
@@ -221,6 +246,12 @@ if "!logLineStripped!"=="" if not "!logLineCheck!"=="-" (
 goto PARSE_ARGS
 :PARSE_ARGS_END
 
+rem validate --registry was not used with an empty URL
+if "!CB_REGISTRY_FLAG!"=="true" if not defined CB_REGISTRY_URL (
+	echo %CB_LINEHEADER%--registry requires a URL or CB_REGISTRY_URL must be set.
+	endlocal & exit /b 1
+)
+
 :: auto-detect project name from settings.gradle for commands without explicit target
 set "needProjectName=false"
 if "!CB_CONTAINER_START_IMAGE!"=="auto" set "needProjectName=true"
@@ -249,25 +280,18 @@ if not defined CB_CONTAINER_START_IMAGE if "!CB_CONTAINER_LOG_TARGET!"=="auto" (
 	if not defined CB_PROJECT_NAME call :RESOLVE_PROJECT_NAME
 	if defined CB_PROJECT_NAME set "CB_CONTAINER_LOG_TARGET=!CB_PROJECT_NAME!"
 )
-:: use build/container (or build/reports/testing for testing projects) as local cache
-if exist "settings.gradle" (
-	set "CB_CONTAINER_TEMP=%CD%\build\container"
-	if exist "gradle.properties" (
-		type "gradle.properties" | findstr "projectType" | findstr "testing" >nul 2>nul
-		if not errorlevel 1 set "CB_CONTAINER_TEMP=%CD%\build\reports\testing"
-	)
-	if not exist "!CB_CONTAINER_TEMP!" mkdir "!CB_CONTAINER_TEMP!" >nul 2>nul
-)
 
-:: detect container runtime: try nerdctl first, fall back to docker
+:: detect container runtime (not needed in registry-only mode)
 set "CB_CONTAINER_RUNTIME="
-where nerdctl >nul 2>nul && nerdctl info >nul 2>nul && set "CB_CONTAINER_RUNTIME=nerdctl"
-if not defined CB_CONTAINER_RUNTIME where docker >nul 2>nul && docker info >nul 2>nul && set "CB_CONTAINER_RUNTIME=docker"
-if not defined CB_CONTAINER_RUNTIME (
-	echo %CB_LINE%
-	echo %CB_LINEHEADER%Neither nerdctl nor docker found in PATH.
-	echo %CB_LINE%
-	endlocal & exit /b 1
+if not defined CB_REGISTRY_URL (
+	where nerdctl >nul 2>nul && nerdctl info >nul 2>nul && set "CB_CONTAINER_RUNTIME=nerdctl"
+	if not defined CB_CONTAINER_RUNTIME where docker >nul 2>nul && docker info >nul 2>nul && set "CB_CONTAINER_RUNTIME=docker"
+	if not defined CB_CONTAINER_RUNTIME (
+		echo %CB_LINE%
+		echo %CB_LINEHEADER%Neither nerdctl nor docker found in PATH.
+		echo %CB_LINE%
+		endlocal & exit /b 1
+	)
 )
 
 :: ensure temp directory is available
@@ -319,6 +343,10 @@ endlocal & exit /b %ERRORLEVEL%
 :: list mode (filter implies --all; skip if scan-all is active)
 if /I not "%CB_CONTAINER_LIST%"=="true" goto SKIP_LIST
 if defined CB_CONTAINER_SCAN_TARGET goto SKIP_LIST
+if not defined CB_REGISTRY_URL goto SKIP_REMOTE_LIST
+call :LIST_REMOTE_IMAGES
+endlocal & exit /b %ERRORLEVEL%
+:SKIP_REMOTE_LIST
 if defined CB_CONTAINER_LIST_FILTER set "CB_CONTAINER_ALL=true"
 call :LIST_IMAGES
 endlocal & exit /b 0
@@ -333,6 +361,10 @@ endlocal & exit /b %ERRORLEVEL%
 
 :: scan image with trivy
 if not defined CB_CONTAINER_SCAN_TARGET goto SKIP_SCAN
+if not defined CB_REGISTRY_URL goto SKIP_REMOTE_SCAN
+call :SCAN_REMOTE_IMAGES
+endlocal & exit /b %ERRORLEVEL%
+:SKIP_REMOTE_SCAN
 if /I not "!CB_CONTAINER_ALL!"=="true" goto SKIP_SCAN_ALL
 call :SCAN_ALL_IMAGES
 endlocal & exit /b %ERRORLEVEL%
@@ -425,8 +457,9 @@ echo  -a, --all                   Show all images (default: running only).
 echo  -w, --wide                  Show wider columns for installed/fixed versions
 echo                              in scan output.
 echo  -f, --force                 Force scan, ignore cached results.
-echo      --csv                   Output as CSV (semicolon-separated). Used with
-echo                              -l/--list -a, --scan -a, or --scan img1,img2.
+echo      --csv                   Output as CSV (semicolon-separated). For single
+echo                              image scan: CVE-level rows. For --list/-l,
+echo                              --scan -a or --scan img1,img2: summary rows.
 echo      --verbose               Verbose output.
 echo  -i, --it [name^|id]          Connect to a running container. If not running,
 echo                              starts it interactively. Supports distro aliases.
@@ -445,6 +478,10 @@ echo                              10 = first 10 lines, 5-10 = lines 5 to 10,
 echo                              5- = from line 5 to end.
 echo  -t, --tail                  Tail (follow) mode, used with -l/--log.
 echo      --scan ^<name^|id^>        Scan an image with trivy. Comma-separated for multiple.
+echo      --registry ^<url^>        Use a remote Docker Registry v2 instead of the local
+echo                              runtime. Combines with --list or --scan. Can also be
+echo                              set via CB_REGISTRY_URL env var. Requires
+echo                              CB_REGISTRY_USER and CB_REGISTRY_PASSWORD env vars.
 echo      --clean                 Clean the scan cache and dangling images.
 echo      --delete ^<name^|id^>      Delete an image by name or id.
 echo\
@@ -483,6 +520,10 @@ echo   %PN% --start my-app -i
 echo   %PN% --start my-app -t
 echo   %PN% --start my-app -l 5
 echo\
+echo   Inside a project (auto-detect image from settings.gradle):
+echo   %PN% --start --log
+echo   %PN% --env SUBPATH=ooo --start --log
+echo\
 echo   Stop container:
 echo   %PN% --stop my-app
 echo   %PN% --stop abc123
@@ -497,6 +538,10 @@ echo   %PN% -l my-app 10- -t
 echo\
 echo   Scan image with trivy:
 echo   %PN% --scan my-app
+echo\
+echo   Remote registry (Docker Registry v2):
+echo   set CB_REGISTRY_USER=user ^& set CB_REGISTRY_PASSWORD=pass ^& %PN% --list myapp --registry https://reg.example.com
+echo   set CB_REGISTRY_USER=user ^& set CB_REGISTRY_PASSWORD=pass ^& %PN% --scan myapp:1.0 --registry https://reg.example.com
 echo\
 echo   Override entrypoint, port, env:
 echo   %PN% -e /bin/bash
@@ -655,13 +700,10 @@ for /f "usebackq tokens=1,2,3,4,5 delims=|" %%a in ("!CB_IMAGES_TMPFILE!") do (
 	)
 )
 
-rem verbose summary
+rem verbose summary (count from already-fetched CB_CONTAINER_TMPFILE to avoid a second runtime call)
 if /I "!CB_CONTAINER_VERBOSE!"=="true" (
 	set /a runCount=0
-	set "CB_RUN_TMPFILE=!CB_CONTAINER_TEMP!\cb-run-count-%RANDOM%%RANDOM%.tmp"
-	!CB_CONTAINER_RUNTIME! ps -q >"!CB_RUN_TMPFILE!" 2>nul
-	for /f "usebackq tokens=*" %%a in ("!CB_RUN_TMPFILE!") do set /a runCount+=1
-	del /f /q "!CB_RUN_TMPFILE!" 2>nul
+	for /f "usebackq tokens=*" %%a in ("!CB_CONTAINER_TMPFILE!") do set /a runCount+=1
 	echo %CB_LINE%
 	echo %CB_LINEHEADER%!imgCount! image^(s^), !runCount! running.
 )
@@ -836,6 +878,7 @@ if defined CB_CONTAINER_ENTRYPOINT (
 ) else (
 	echo %CB_LINEHEADER%Starting container '%projectName%'...
 )
+if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%Execute: %CB_CONTAINER_RUNTIME% run !runArgs! %projectName%
 %CB_CONTAINER_RUNTIME% run !runArgs! %projectName%
 exit /b %ERRORLEVEL%
 
@@ -889,11 +932,8 @@ for /f "usebackq tokens=1,2 delims=|" %%a in ("!CB_RESOLVE_ID_TMPFILE!") do (
 		set "imgIdPrefix=%%a"
 		set "imgIdPrefix=!imgIdPrefix:~0,%resolveInputLen%!"
 		if "!imgIdPrefix!"=="!resolveInput!" (
-			if not "%%b"=="^<none^>:^<none^>" (
-				set "CB_CONTAINER_RESOLVED_IMAGE=%%b"
-			) else (
-				set "CB_CONTAINER_RESOLVED_IMAGE=!resolveInput!"
-			)
+			set "CB_CONTAINER_RESOLVED_IMAGE=%%b"
+			if "%%b"=="^<none^>:^<none^>" set "CB_CONTAINER_RESOLVED_IMAGE=!resolveInput!"
 		)
 	)
 )
@@ -933,6 +973,7 @@ if defined CB_CONTAINER_ENTRYPOINT (
 ) else (
 	echo %CB_LINEHEADER%Running container from '!CB_CONTAINER_RUN_IMAGE!'...
 )
+if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%Execute: !CB_CONTAINER_RUNTIME! run !runArgs! !CB_CONTAINER_RUN_IMAGE! !CB_CONTAINER_SHELL!
 !CB_CONTAINER_RUNTIME! run !runArgs! !CB_CONTAINER_RUN_IMAGE! !CB_CONTAINER_SHELL!
 exit /b !ERRORLEVEL!
 
@@ -962,6 +1003,7 @@ for /f "usebackq tokens=1,2 delims=|" %%a in ("!CB_PS_TMPFILE!") do (
 del /f /q "!CB_PS_TMPFILE!" 2>nul
 if not defined existingCid goto START_NEW_CONTAINER
 echo %CB_LINEHEADER%Container from '!CB_CONTAINER_START_IMAGE!' is already running ^(id: !existingCid!^).
+if defined CB_CONTAINER_ENV echo %CB_LINEHEADER%Note: --env has no effect on a running container. Stop it first to apply new environment variables.
 set "STARTED_CID=!existingCid!"
 exit /b 0
 :START_NEW_CONTAINER
@@ -982,6 +1024,7 @@ if defined CB_CONTAINER_ENTRYPOINT (
 ) else (
 	echo %CB_LINEHEADER%Starting container from '!CB_CONTAINER_START_IMAGE!'...
 )
+if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%Execute: !CB_CONTAINER_RUNTIME! run !runArgs! !CB_CONTAINER_START_IMAGE!
 set "startedCid="
 set "CB_START_OUT_TMPFILE=!CB_CONTAINER_TEMP!\cb-start-out-%RANDOM%%RANDOM%.tmp"
 set "CB_START_ERR_TMPFILE=!CB_CONTAINER_TEMP!\cb-start-err-%RANDOM%%RANDOM%.tmp"
@@ -1160,11 +1203,9 @@ set /a logLineNum=0
 for /f "usebackq delims=" %%a in ("!CB_LOG_TMPFILE!") do (
 	set /a logLineNum+=1
 	if !logLineNum! GEQ !rangeStart! (
-		if defined rangeEnd (
-			if !logLineNum! LEQ !rangeEnd! echo %%a
-		) else (
-			echo %%a
-		)
+		set "_printLine=1"
+		if defined rangeEnd if !logLineNum! GTR !rangeEnd! set "_printLine="
+		if defined _printLine echo %%a
 	)
 )
 del /f /q "!CB_LOG_TMPFILE!" 2>nul
@@ -1297,25 +1338,33 @@ for /f "usebackq tokens=1,2,3,4,5 delims=|" %%a in ("!CB_SCANMULTI_IMG!") do (
 	set "smTag=%%c"
 	set "smSize=%%d"
 	set "smCreated=%%e"
-	if "!smRepo!"=="^<none^>" (set "smRepoTag=^<none^>") else (set "smRepoTag=!smRepo!:!smTag!")
+	set "smRepoTag=!smRepo!:!smTag!"
+	if "!smRepo!"=="^<none^>" set "smRepoTag=^<none^>"
 	set "smShortId=!smImageId:~0,12!"
 	set "smCC=-"
 	set "smHC=-"
 	set "smMC=-"
 	set "smLC=-"
-	rem try cached counts (day-validated)
+	rem try cached counts (day-validated, skip if --force)
 	set "smCountsFile="
-	for /f "tokens=*" %%f in ('dir /b /o-n "!CB_CONTAINER_TEMP!\!smImageId!-*-trivy.counts" 2^>nul') do (
+	if /I not "!CB_CONTAINER_FORCE!"=="true" for /f "tokens=*" %%f in ('dir /b /o-n "!CB_CONTAINER_TEMP!\!smImageId!-*-trivy.counts" 2^>nul') do (
 		if not defined smCountsFile (
 			set "smCountsCacheTs=%%f"
-			set "smCountsCacheTs=!smCountsCacheTs:%smImageId%-=!"
-			set "smCountsCacheTs=!smCountsCacheTs:-trivy.counts=!"
-			set "smCountsCacheDay=!smCountsCacheTs:~0,8!"
+			set "smCountsCacheDay=!smCountsCacheTs:~-28,8!"
 			set "smCountsToday=!scanMultiNow:~0,4!!scanMultiNow:~5,2!!scanMultiNow:~8,2!"
-			if "!smCountsCacheDay!"=="!smCountsToday!" set "smCountsFile=!CB_CONTAINER_TEMP!\%%f"
+			if "!smCountsCacheDay!"=="!smCountsToday!" (
+				set "smCountsFile=!CB_CONTAINER_TEMP!\%%f"
+				set "_smDate=!smCreated:~0,10!"
+				set "_smTime=!smCreated:~11,8!"
+				set "_smDate=!_smDate:-=!"
+				set "_smTime=!_smTime::=!"
+				set "_smCreatedNorm=!_smDate!-!_smTime!"
+				set "_smCacheStamp=!smCountsCacheTs:~-28,15!"
+				if "!_smCreatedNorm!" GTR "!_smCacheStamp!" set "smCountsFile="
+			)
 		)
 	)
-	if defined smCountsFile for /f "usebackq tokens=1,2,3,4,5" %%a in ("!smCountsFile!") do (set "smCC=%%b" & set "smHC=%%c" & set "smMC=%%d" & set "smLC=%%e")
+	if /I not "!CB_CONTAINER_FORCE!"=="true" if defined smCountsFile for /f "usebackq tokens=1,2,3,4,5" %%a in ("!smCountsFile!") do (set "smCC=%%b" & set "smHC=%%c" & set "smMC=%%d" & set "smLC=%%e")
 	rem if no cached counts, scan the image
 	if "!smCC!"=="-" (
 		set "scanAllRows=!CB_CONTAINER_TEMP!\cb-scanmulti-rows-%RANDOM%%RANDOM%.tmp"
@@ -1366,7 +1415,8 @@ set /a "scanMultiEndSec=(1!scanMultiEndTime:~0,2!-100)*3600+(1!scanMultiEndTime:
 set "scanMultiDuration="
 if defined scanMultiStartSec if defined scanMultiEndSec (
 	set /a scanMultiDurSec=!scanMultiEndSec! - !scanMultiStartSec!
-	if !scanMultiDurSec! LSS 60 (set "scanMultiDuration=!scanMultiDurSec!s") else (
+	set "scanMultiDuration=!scanMultiDurSec!s"
+	if !scanMultiDurSec! GEQ 60 (
 		set /a scanMultiDurMin=!scanMultiDurSec! / 60
 		set /a scanMultiDurRem=!scanMultiDurSec! %% 60
 		set "scanMultiDuration=!scanMultiDurMin!m !scanMultiDurRem!s"
@@ -1453,26 +1503,34 @@ for /f "usebackq tokens=1,2,3,4,5 delims=|" %%a in ("!CB_SCANALL_IMG!") do (
 	set "saSize=%%d"
 	set "saCreated=%%e"
 
-	if "!saRepo!"=="^<none^>" (set "saRepoTag=^<none^>") else (set "saRepoTag=!saRepo!:!saTag!")
+	set "saRepoTag=!saRepo!:!saTag!"
+	if "!saRepo!"=="^<none^>" set "saRepoTag=^<none^>"
 	set "saShortId=!saImageId:~0,12!"
 	set "saCC=-"
 	set "saHC=-"
 	set "saMC=-"
 	set "saLC=-"
 
-	rem try cached counts (validate day boundary)
+	rem try cached counts (validate day boundary, skip if --force)
 	set "saCountsFile="
-	for /f "tokens=*" %%f in ('dir /b /o-n "!CB_CONTAINER_TEMP!\!saImageId!-*-trivy.counts" 2^>nul') do (
+	if /I not "!CB_CONTAINER_FORCE!"=="true" for /f "tokens=*" %%f in ('dir /b /o-n "!CB_CONTAINER_TEMP!\!saImageId!-*-trivy.counts" 2^>nul') do (
 		if not defined saCountsFile (
 			set "saCountsCacheTs=%%f"
-			set "saCountsCacheTs=!saCountsCacheTs:%saImageId%-=!"
-			set "saCountsCacheTs=!saCountsCacheTs:-trivy.counts=!"
-			set "saCountsCacheDay=!saCountsCacheTs:~0,8!"
+			set "saCountsCacheDay=!saCountsCacheTs:~-28,8!"
 			set "saCountsToday=!scanAllNow:~0,4!!scanAllNow:~5,2!!scanAllNow:~8,2!"
-			if "!saCountsCacheDay!"=="!saCountsToday!" set "saCountsFile=!CB_CONTAINER_TEMP!\%%f"
+			if "!saCountsCacheDay!"=="!saCountsToday!" (
+				set "saCountsFile=!CB_CONTAINER_TEMP!\%%f"
+				set "_saDate=!saCreated:~0,10!"
+				set "_saTime=!saCreated:~11,8!"
+				set "_saDate=!_saDate:-=!"
+				set "_saTime=!_saTime::=!"
+				set "_saCreatedNorm=!_saDate!-!_saTime!"
+				set "_saCacheStamp=!saCountsCacheTs:~-28,15!"
+				if "!_saCreatedNorm!" GTR "!_saCacheStamp!" set "saCountsFile="
+			)
 		)
 	)
-	if defined saCountsFile for /f "usebackq tokens=1,2,3,4,5" %%a in ("!saCountsFile!") do (set "saCC=%%b" & set "saHC=%%c" & set "saMC=%%d" & set "saLC=%%e")
+	if /I not "!CB_CONTAINER_FORCE!"=="true" if defined saCountsFile for /f "usebackq tokens=1,2,3,4,5" %%a in ("!saCountsFile!") do (set "saCC=%%b" & set "saHC=%%c" & set "saMC=%%d" & set "saLC=%%e")
 
 	rem if no cached counts, scan the image
 	if "!saCC!"=="-" (
@@ -1525,7 +1583,8 @@ set /a "scanAllEndSec=(1!scanAllEndTime:~0,2!-100)*3600+(1!scanAllEndTime:~3,2!-
 set "scanAllDuration="
 if defined scanAllStartSec if defined scanAllEndSec (
 	set /a scanAllDurSec=!scanAllEndSec! - !scanAllStartSec!
-	if !scanAllDurSec! LSS 60 (set "scanAllDuration=!scanAllDurSec!s") else (
+	set "scanAllDuration=!scanAllDurSec!s"
+	if !scanAllDurSec! GEQ 60 (
 		set /a scanAllDurMin=!scanAllDurSec! / 60
 		set /a scanAllDurRem=!scanAllDurSec! %% 60
 		set "scanAllDuration=!scanAllDurMin!m !scanAllDurRem!s"
@@ -1594,6 +1653,7 @@ type nul > "!scanAllRows!"
 type nul > "!scanVerbosePre!"
 type nul > "!scanVerbosePost!"
 set "scanTargets=!CB_CONTAINER_SCAN_TARGET!"
+set "scanFailed="
 :SCAN_LOOP
 if not defined scanTargets goto SCAN_SUMMARY
 for /f "tokens=1* delims=," %%a in ("!scanTargets!") do (
@@ -1605,13 +1665,26 @@ call :TRIM scanOneTarget
 if not defined scanOneTarget goto SCAN_LOOP
 set "CB_SCAN_CURRENT=!scanOneTarget!"
 call :SCAN_SINGLE_IMAGE
+if errorlevel 1 set "scanFailed=true"
 goto SCAN_LOOP
 :SCAN_SUMMARY
+if /I "!scanFailed!"=="true" (
+	del /f /q "!scanAllRows!" "!scanVerbosePre!" "!scanVerbosePost!" 2>nul
+	exit /b 1
+)
+rem print verbose pre-messages
+if /I "!CB_CONTAINER_VERBOSE!"=="true" type "!scanVerbosePre!" 2>nul
+rem CSV mode: print header + rows only, no separators or summary
+if /I "!CB_CONTAINER_CSV!"=="true" (
+	echo CVE_ID;SEVERITY;PACKAGE;INSTALLED;FIXED;TARGET
+	if exist "!scanAllRows!" for /f "usebackq" %%a in ("!scanAllRows!") do set "hasRows=1"
+	if defined hasRows type "!scanAllRows!"
+	del /f /q "!scanAllRows!" "!scanVerbosePre!" "!scanVerbosePost!" 2>nul
+	exit /b 0
+)
 rem select line separator (wide or normal)
 set "scanLine=%CB_LINE%"
 if /I "!CB_CONTAINER_WIDE!"=="true" set "scanLine=%CB_LINE_WIDE%"
-rem print verbose pre-messages
-if /I "!CB_CONTAINER_VERBOSE!"=="true" type "!scanVerbosePre!" 2>nul
 rem print header with timestamp right-aligned
 echo !scanLine!
 set "scanHeader=CVE ID                 SEV  PACKAGE                        INSTALLED      FIXED          TARGET"
@@ -1650,9 +1723,8 @@ set "scanEndTime=%TIME: =0%"
 set /a "scanEndSec=(1!scanEndTime:~0,2!-100)*3600+(1!scanEndTime:~3,2!-100)*60+(1!scanEndTime:~6,2!-100)" 2>nul
 if defined scanStartSec if defined scanEndSec (
 	set /a scanDurationSec=!scanEndSec! - !scanStartSec!
-	if !scanDurationSec! LSS 60 (
-		set "scanDuration=!scanDurationSec!s"
-	) else (
+	set "scanDuration=!scanDurationSec!s"
+	if !scanDurationSec! GEQ 60 (
 		set /a scanDurationMin=!scanDurationSec! / 60
 		set /a scanDurationRemSec=!scanDurationSec! %% 60
 		set "scanDuration=!scanDurationMin!m !scanDurationRemSec!s"
@@ -1687,14 +1759,35 @@ if not defined CB_CONTAINER_RESOLVED_IMAGE (
 )
 if not defined CB_CONTAINER_RESOLVED_IMAGE (
 	echo %CB_LINEHEADER%Image '!CB_SCAN_CURRENT!' not found.
-	goto :eof
+	exit /b 1
 )
-rem resolve image ID
+rem resolve image ID — pull first if image not in local store
 set "scanImageId="
 set "CB_SCAN_TMPFILE=!CB_CONTAINER_TEMP!\cb-scan-id-%RANDOM%%RANDOM%.tmp"
 %CB_CONTAINER_RUNTIME% images --format "!CB_FMT_SCAN_ID!" --filter "reference=!CB_CONTAINER_RESOLVED_IMAGE!" >"!CB_SCAN_TMPFILE!" 2>nul
 for /f "usebackq tokens=*" %%a in ("!CB_SCAN_TMPFILE!") do if not defined scanImageId set "scanImageId=%%a"
 del /f /q "!CB_SCAN_TMPFILE!" 2>nul
+if defined scanImageId goto SCAN_ID_REPULL
+echo %CB_LINEHEADER%Image '!CB_CONTAINER_RESOLVED_IMAGE!' not found locally, pulling...
+!CB_CONTAINER_RUNTIME! pull !CB_CONTAINER_RESOLVED_IMAGE! >nul 2>nul
+if not errorlevel 1 goto SCAN_ID_REPULL
+if not defined CB_REGISTRY_URL_ENV goto SCAN_ID_SLUG
+if not defined CB_REGISTRY_USER goto SCAN_ID_SLUG
+if not defined CB_REGISTRY_PASSWORD goto SCAN_ID_SLUG
+set "scanRegHost=!CB_REGISTRY_URL_ENV:https://=!"
+set "scanRegHost=!scanRegHost:http://=!"
+for /f "tokens=1 delims=/" %%h in ("!scanRegHost!") do set "scanRegHost=%%h"
+!CB_CONTAINER_RUNTIME! login --username "!CB_REGISTRY_USER!" --password "!CB_REGISTRY_PASSWORD!" !scanRegHost! >nul 2>nul
+set "CB_SCAN_FULLREF=!scanRegHost!/!CB_CONTAINER_RESOLVED_IMAGE!"
+!CB_CONTAINER_RUNTIME! pull !CB_SCAN_FULLREF! >nul 2>nul
+if errorlevel 1 goto SCAN_ID_SLUG
+set "CB_CONTAINER_RESOLVED_IMAGE=!CB_SCAN_FULLREF!"
+:SCAN_ID_REPULL
+set "CB_SCAN_TMPFILE=!CB_CONTAINER_TEMP!\cb-scan-id-%RANDOM%%RANDOM%.tmp"
+%CB_CONTAINER_RUNTIME% images --format "!CB_FMT_SCAN_ID!" --filter "reference=!CB_CONTAINER_RESOLVED_IMAGE!" >"!CB_SCAN_TMPFILE!" 2>nul
+for /f "usebackq tokens=*" %%a in ("!CB_SCAN_TMPFILE!") do if not defined scanImageId set "scanImageId=%%a"
+del /f /q "!CB_SCAN_TMPFILE!" 2>nul
+:SCAN_ID_SLUG
 if not defined scanImageId set "scanImageId=!CB_CONTAINER_RESOLVED_IMAGE:/=-!"
 set "scanImageId=!scanImageId::=-!"
 rem get image creation timestamp for cache validation (format: YYYY-MM-DD HH:MM:SS ...)
@@ -1735,25 +1828,25 @@ for /f "tokens=*" %%f in ('dir /b /o-n "!CB_CONTAINER_TEMP!\!scanImageId!-*-triv
 		rem check day boundary: cache from a previous day is expired
 		set "scanCacheDay=!scanCacheTs:~0,8!"
 		set "scanToday=!scanTimestamp:~0,8!"
-		if not "!scanCacheDay!"=="!scanToday!" (
+		set "_cacheExpired=false"
+		set "_cacheNewer=false"
+		if not "!scanCacheDay!"=="!scanToday!" set "_cacheExpired=true"
+		if defined scanImageCreated if "!scanImageCreated!" GTR "!scanCacheTs!" if "!_cacheExpired!"=="false" set "_cacheNewer=true"
+		if "!_cacheExpired!"=="true" (
 			if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%Cache expired ^(from !scanCacheDay!, today !scanToday!^), rescanning. >> "!scanVerbosePre!"
 			del /f /q "!scanJson!" 2>nul
 			del /f /q "!CB_CONTAINER_TEMP!\!scanImageId!-!scanCacheTs!-trivy*.rows" 2>nul
 			del /f /q "!CB_CONTAINER_TEMP!\!scanImageId!-!scanCacheTs!-trivy*.counts" 2>nul
 			set "scanJson="
-		) else if defined scanImageCreated (
-			if "!scanImageCreated!" GTR "!scanCacheTs!" (
-				if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%Image is newer than cache ^(!scanImageCreated! ^> !scanCacheTs!^), rescanning. >> "!scanVerbosePre!"
-				del /f /q "!scanJson!" 2>nul
-				del /f /q "!CB_CONTAINER_TEMP!\!scanImageId!-!scanCacheTs!-trivy*.rows" 2>nul
-				del /f /q "!CB_CONTAINER_TEMP!\!scanImageId!-!scanCacheTs!-trivy*.counts" 2>nul
-				set "scanJson="
-			) else (
-				set "scanCacheValid=true"
-			)
-		) else (
-			set "scanCacheValid=true"
 		)
+		if "!_cacheNewer!"=="true" (
+			if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%Image is newer than cache ^(!scanImageCreated! ^> !scanCacheTs!^), rescanning. >> "!scanVerbosePre!"
+			del /f /q "!scanJson!" 2>nul
+			del /f /q "!CB_CONTAINER_TEMP!\!scanImageId!-!scanCacheTs!-trivy*.rows" 2>nul
+			del /f /q "!CB_CONTAINER_TEMP!\!scanImageId!-!scanCacheTs!-trivy*.counts" 2>nul
+			set "scanJson="
+		)
+		if defined scanJson set "scanCacheValid=true"
 	)
 )
 :SCAN_CACHE_END
@@ -1767,19 +1860,49 @@ if defined scanJson (
 rem use cached result if rows file exists
 if "!scanCacheValid!"=="true" if exist "!scanRows!" (
 	if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%Using cached scan for '!CB_CONTAINER_RESOLVED_IMAGE!'. >> "!scanVerbosePre!"
-	type "!scanRows!" >> "!scanAllRows!"
+	set "scanRowsCsv=!scanJson:.json=.csv.rows!"
+	set "scanRowsToUse=!scanRows!"
+	if /I "!CB_CONTAINER_CSV!"=="true" if exist "!scanRowsCsv!" set "scanRowsToUse=!scanRowsCsv!"
+	type "!scanRowsToUse!" >> "!scanAllRows!"
 	goto :eof
 )
-if /I "!CB_CONTAINER_VERBOSE!"=="true" if not exist "!scanJson!" echo %CB_LINEHEADER%Scanning '!CB_CONTAINER_RESOLVED_IMAGE!' with trivy... >> "!scanVerbosePre!"
+if /I "!CB_CONTAINER_VERBOSE!"=="true" if not exist "!scanJson!" echo %CB_LINEHEADER%trivy image --quiet --format json !CB_CONTAINER_RESOLVED_IMAGE! >> "!scanVerbosePre!"
 if /I "!CB_CONTAINER_VERBOSE!"=="true" if exist "!scanJson!" echo %CB_LINEHEADER%Using cached scan result for '!CB_CONTAINER_RESOLVED_IMAGE!', reformatting. >> "!scanVerbosePre!"
 rem scan only if json not already cached
-if not exist "!scanJson!" trivy image --quiet --format json !CB_CONTAINER_RESOLVED_IMAGE! 2>nul > "!scanJson!"
-rem format results: generate normal rows, wide rows, and counts in a single powershell call
+if not exist "!scanJson!" trivy image --quiet --format json !CB_CONTAINER_RESOLVED_IMAGE! 2>"!scanJson!.err" > "!scanJson!"
+set "scanJsonHasContent="
+if exist "!scanJson!" for /f "usebackq" %%a in ("!scanJson!") do set "scanJsonHasContent=1"
+if not defined scanJsonHasContent (
+	rem direct trivy scan failed - fall back to runtime save (handles nerdctl/containerd images)
+	del /f /q "!scanJson!" 2>nul
+	echo %CB_LINEHEADER%Saving '!CB_CONTAINER_RESOLVED_IMAGE!' via '!CB_CONTAINER_RUNTIME! save' for trivy scan ^(this may take a while^)...
+	set "trivySaveTar=!CB_CONTAINER_TEMP!\!scanImageId!-save.tar"
+	!CB_CONTAINER_RUNTIME! save !CB_CONTAINER_RESOLVED_IMAGE! -o "!trivySaveTar!" 2>nul
+	set "trivySaveOk="
+	if exist "!trivySaveTar!" for /f "usebackq" %%a in ("!trivySaveTar!") do set "trivySaveOk=1"
+	if defined trivySaveOk (
+		trivy image --quiet --format json --input "!trivySaveTar!" 2>"!scanJson!.err" > "!scanJson!"
+	)
+	del /f /q "!trivySaveTar!" 2>nul
+	set "scanJsonHasContent="
+	if exist "!scanJson!" for /f "usebackq" %%a in ("!scanJson!") do set "scanJsonHasContent=1"
+)
+if not defined scanJsonHasContent (
+	del /f /q "!scanJson!" 2>nul
+	echo %CB_LINEHEADER%Trivy scan failed for '!CB_CONTAINER_RESOLVED_IMAGE!'.
+	if exist "!scanJson!.err" type "!scanJson!.err"
+	del /f /q "!scanJson!.err" 2>nul
+	del /f /q "!scanAllRows!" "!scanVerbosePre!" "!scanVerbosePost!" 2>nul
+	exit /b 1
+)
+del /f /q "!scanJson!.err" 2>nul
+rem format results: generate normal rows, wide rows, csv rows, and counts in a single powershell call
 set "scanRowsNormal=!scanJson:.json=.rows!"
 set "scanRowsWide=!scanJson:.json=-wide.rows!"
+set "scanRowsCsv=!scanJson:.json=.csv.rows!"
 set "scanCounts=!scanJson:.json=.counts!"
-powershell -NoProfile -Command "function tl($s,$m){if($s.Length -le $m){return $s}; return '..'+$s.Substring($s.Length-$m+2)}; $sc=@{CRITICAL='C';HIGH='H';MEDIUM='M';LOW='L'}; $so=@{CRITICAL=1;HIGH=2;MEDIUM=3;LOW=4}; $d=Get-Content '!scanJson!' -Raw|ConvertFrom-Json; $nl=@(); $wl=@(); $idx=0; $cc=0;$hc=0;$mc=0;$lc=0; foreach($r in $d.Results){$t=$r.Target; if($r.Vulnerabilities){foreach($v in $r.Vulnerabilities){$s=$v.Severity; $sv=if($sc.ContainsKey($s)){$sc[$s]}else{'?'}; $ord=if($so.ContainsKey($s)){$so[$s]}else{5}; switch($sv){'C'{$cc++}'H'{$hc++}'M'{$mc++}'L'{$lc++}}; $p=$v.PkgName; $iv=$v.InstalledVersion; $fixes=@(if($v.FixedVersion){($v.FixedVersion -split ', *')}else{'-'}); $nl+=,[PSCustomObject]@{O=$ord;I=$idx;S=0;L=('{0,-22} {1,-4} {2,-30} {3,-14} {4,-14} {5}' -f $v.VulnerabilityID,$sv,(tl $p 28),(tl $iv 12),(tl $fixes[0] 12),$t)}; $wl+=,[PSCustomObject]@{O=$ord;I=$idx;S=0;L=('{0,-22} {1,-4} {2,-42} {3,-30} {4,-30} {5}' -f $v.VulnerabilityID,$sv,$p,$iv,$fixes[0],$t)}; for($fi=1;$fi -lt $fixes.Count;$fi++){$nl+=,[PSCustomObject]@{O=$ord;I=$idx;S=$fi;L=('{0,-22} {1,-4} {2,-30} {3,-14} {4,-14}' -f '','','','',(tl $fixes[$fi] 12))}; $wl+=,[PSCustomObject]@{O=$ord;I=$idx;S=$fi;L=('{0,-22} {1,-4} {2,-42} {3,-30} {4,-30}' -f '','','','',$fixes[$fi])}}; $idx++}}}; $nl|Sort-Object O,I,S|ForEach-Object{$_.L}|Out-File -Encoding ASCII '!scanRowsNormal!'; $wl|Sort-Object O,I,S|ForEach-Object{$_.L}|Out-File -Encoding ASCII '!scanRowsWide!'; '{0} {1} {2} {3} {4}' -f ($cc+$hc+$mc+$lc),$cc,$hc,$mc,$lc|Out-File -Encoding ASCII '!scanCounts!'"
-type "!scanRows!" >> "!scanAllRows!"
+powershell -NoProfile -Command "function tl($s,$m){if($s.Length -le $m){return $s}; return '..'+$s.Substring($s.Length-$m+2)}; $sc=@{CRITICAL='C';HIGH='H';MEDIUM='M';LOW='L'}; $so=@{CRITICAL=1;HIGH=2;MEDIUM=3;LOW=4}; $d=Get-Content '!scanJson!' -Raw|ConvertFrom-Json; $nl=@(); $wl=@(); $cl=@(); $idx=0; $cc=0;$hc=0;$mc=0;$lc=0; foreach($r in $d.Results){$t=$r.Target; if($r.Vulnerabilities){foreach($v in $r.Vulnerabilities){$s=$v.Severity; $sv=if($sc.ContainsKey($s)){$sc[$s]}else{'?'}; $ord=if($so.ContainsKey($s)){$so[$s]}else{5}; switch($sv){'C'{$cc++}'H'{$hc++}'M'{$mc++}'L'{$lc++}}; $p=$v.PkgName; $iv=$v.InstalledVersion; $fixes=@(if($v.FixedVersion){($v.FixedVersion -split ', *')}else{'-'}); $nl+=,[PSCustomObject]@{O=$ord;I=$idx;S=0;L=('{0,-22} {1,-4} {2,-30} {3,-14} {4,-14} {5}' -f $v.VulnerabilityID,$sv,(tl $p 28),(tl $iv 12),(tl $fixes[0] 12),$t)}; $wl+=,[PSCustomObject]@{O=$ord;I=$idx;S=0;L=('{0,-22} {1,-4} {2,-42} {3,-30} {4,-30} {5}' -f $v.VulnerabilityID,$sv,(tl $p 40),$iv,$fixes[0],$t)}; $cl+=,[PSCustomObject]@{O=$ord;I=$idx;L=$v.VulnerabilityID+';'+$s+';'+$p+';'+$iv+';'+($fixes -join '/')+';'+$t}; for($fi=1;$fi -lt $fixes.Count;$fi++){$nl+=,[PSCustomObject]@{O=$ord;I=$idx;S=$fi;L=('{0,-22} {1,-4} {2,-30} {3,-14} {4,-14}' -f '','','','',(tl $fixes[$fi] 12))}; $wl+=,[PSCustomObject]@{O=$ord;I=$idx;S=$fi;L=('{0,-22} {1,-4} {2,-42} {3,-30} {4,-30}' -f '','','','',$fixes[$fi])}}; $idx++}}}; $nl|Sort-Object O,I,S|ForEach-Object{$_.L}|Out-File -Encoding ASCII '!scanRowsNormal!'; $wl|Sort-Object O,I,S|ForEach-Object{$_.L}|Out-File -Encoding ASCII '!scanRowsWide!'; $cl|Sort-Object O,I|ForEach-Object{$_.L}|Out-File -Encoding ASCII '!scanRowsCsv!'; '{0} {1} {2} {3} {4}' -f ($cc+$hc+$mc+$lc),$cc,$hc,$mc,$lc|Out-File -Encoding ASCII '!scanCounts!'"
+if /I "!CB_CONTAINER_CSV!"=="true" (type "!scanRowsCsv!" >> "!scanAllRows!") else (type "!scanRows!" >> "!scanAllRows!")
 if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%Scan result stored in !scanRows! >> "!scanVerbosePost!"
 if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%Scan json stored in !scanJson! >> "!scanVerbosePost!"
 goto :eof
@@ -1824,6 +1947,562 @@ for /f "tokens=* delims= " %%x in ("!%~1!") do set "%~1=%%x"
 :TRIM_LOOP
 if "!%~1:~-1!"==" " set "%~1=!%~1:~0,-1!" & goto TRIM_LOOP
 goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:_INFO -list tags from a remote Docker Registry v2
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:LIST_REMOTE_IMAGES
+if not defined CB_CONTAINER_LIST_FILTER (
+	echo %CB_LINEHEADER%Repository name required for remote listing.
+	echo %CB_LINEHEADER%Usage: %PN% --list ^<repository^> --registry ^<url^>
+	exit /b 1
+)
+if not defined CB_REGISTRY_USER (
+	echo %CB_LINEHEADER%Registry credentials not set. Set CB_REGISTRY_USER and CB_REGISTRY_PASSWORD.
+	exit /b 1
+)
+if not defined CB_REGISTRY_PASSWORD (
+	echo %CB_LINEHEADER%Registry credentials not set. Set CB_REGISTRY_USER and CB_REGISTRY_PASSWORD.
+	exit /b 1
+)
+set "regRepo=!CB_CONTAINER_LIST_FILTER!"
+set "regTagFilter="
+set "regRepoCheck=!regRepo::=!"
+if not "!regRepoCheck!"=="!regRepo!" (
+	set "regTagFilter=!regRepo!"
+	call set "regTagFilter=%%regTagFilter:*:=%%"
+	for /f "tokens=1 delims=:" %%a in ("!regRepo!") do set "regRepo=%%a"
+)
+set "regHost=!CB_REGISTRY_URL!"
+set "regHost=!regHost:https://=!"
+set "regHost=!regHost:http://=!"
+for /f "tokens=1 delims=/" %%h in ("!regHost!") do set "regHost=%%h"
+rem compute day-scoped cache key
+set "regCacheSlug=!regHost!-!regRepo!"
+if defined regTagFilter set "regCacheSlug=!regCacheSlug!-!regTagFilter!"
+set "regCacheSlug=!regCacheSlug:/=-!"
+set "regCacheSlug=!regCacheSlug::=-!"
+set "regCacheSlug=!regCacheSlug:.=-!"
+set "regCacheSlug=!regCacheSlug:@=-!"
+rem get current date/time (used for cache key and header)
+set "CB_REGLIST_DATE_TMP=!CB_CONTAINER_TEMP!\cb-reglist-date-%RANDOM%%RANDOM%.tmp"
+powershell -NoProfile -Command "$n=Get-Date; $n.ToString('yyyyMMdd'); $n.ToString('yyyy-MM-dd HH:mm:ss')" > "!CB_REGLIST_DATE_TMP!" 2>nul
+set /a regDateLine=0
+set "regToday="
+set "cbNow="
+for /f "usebackq tokens=*" %%t in ("!CB_REGLIST_DATE_TMP!") do (
+	set /a regDateLine+=1
+	if !regDateLine! EQU 1 set "regToday=%%t"
+	if !regDateLine! EQU 2 set "cbNow=%%t"
+)
+del /f /q "!CB_REGLIST_DATE_TMP!" 2>nul
+if not defined regToday set "regToday=00000000"
+if not defined cbNow set "cbNow=%DATE% %TIME:~0,8%"
+set "regCacheFile=!CB_CONTAINER_TEMP!\reglist-!regCacheSlug!-!regToday!.cache"
+rem clear cache on --force
+if /I "!CB_CONTAINER_FORCE!"=="true" (
+	del /f /q "!CB_CONTAINER_TEMP!\reglist-!regCacheSlug!-*.cache" 2>nul
+	if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%Force refresh, cache cleared for '!regRepo!'.
+)
+rem check cache
+set "regCacheHit=false"
+if exist "!regCacheFile!" for /f "usebackq" %%a in ("!regCacheFile!") do set "regCacheHit=true"
+if /I not "!regCacheHit!"=="true" goto REGLIST_CACHE_MISS
+if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%Using cached listing for '!regRepo!'.
+set "regTagCount=0"
+for /f "usebackq tokens=*" %%a in ("!regCacheFile!") do set /a regTagCount+=1
+set "CB_REGLIST_TMP=!regCacheFile!"
+goto REG_LIST_HEADER
+:REGLIST_CACHE_MISS
+set "CB_REGLIST_TMP=!CB_CONTAINER_TEMP!\cb-reglist-%RANDOM%%RANDOM%.tmp"
+powershell -NoProfile -Command ^
+  "$ErrorActionPreference='Stop'; " ^
+  "$url='!CB_REGISTRY_URL!'; $repo='!regRepo!'; $tagFilter='!regTagFilter!'; " ^
+  "$user='!CB_REGISTRY_USER!'; $pass='!CB_REGISTRY_PASSWORD!'; " ^
+  "$pair=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(\"${user}:${pass}\")); " ^
+  "$basicH=@{Authorization=\"Basic $pair\"}; " ^
+  "try { $r=Invoke-WebRequest -Uri \"$url/v2/\" -Headers $basicH -UseBasicParsing -ErrorAction Stop; $authH=$basicH } " ^
+  "catch { " ^
+  "  $wwwAuth=''; try{$wwwAuth=$_.Exception.Response.Headers['Www-Authenticate']}catch{}; " ^
+  "  if($wwwAuth -match '^Basic '){$authH=$basicH} " ^
+  "  elseif($wwwAuth -match 'realm=\"([^\"]+)\"'){ " ^
+  "    $realm=$Matches[1]; $svc=''; if($wwwAuth -match 'service=\"([^\"]+)\"'){$svc=$Matches[1]}; " ^
+  "    $tokUrl=\"${realm}?service=${svc}&scope=repository:${repo}:pull\"; " ^
+  "    $tokResp=Invoke-RestMethod -Uri $tokUrl -Headers $basicH; " ^
+  "    $tok=if($tokResp.token){$tokResp.token}else{$tokResp.access_token}; " ^
+  "    $authH=@{Authorization=\"Bearer $tok\"} " ^
+  "  } else{Write-Error 'Auth failed';exit 1} " ^
+  "}; " ^
+  "$tags=(Invoke-RestMethod -Uri \"$url/v2/$repo/tags/list\" -Headers $authH).tags; " ^
+  "if($tagFilter){ $tags=@($tags|Where-Object{$_ -like \"${tagFilter}*\"}) }; " ^
+  "if(-not $tags -or $tags.Count -eq 0){Write-Output 'NO_TAGS'; exit 0}; " ^
+  "foreach($tag in $tags){ " ^
+  "  $mf=Invoke-RestMethod -Uri \"$url/v2/$repo/manifests/$tag\" -Headers ($authH+@{Accept='application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json'}) -ErrorAction SilentlyContinue; " ^
+  "  if($mf.mediaType -match 'manifest\.list|index'){ " ^
+  "    $amd=$mf.manifests|Where-Object{$_.platform.os -eq 'linux' -and $_.platform.architecture -eq 'amd64'}|Select-Object -First 1; " ^
+  "    if($amd){$mf=Invoke-RestMethod -Uri \"$url/v2/$repo/manifests/$($amd.digest)\" -Headers ($authH+@{Accept='application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json'}) -ErrorAction SilentlyContinue} " ^
+  "  }; " ^
+  "  $cfgDigest=$mf.config.digest; " ^
+  "  $totalSize=0; foreach($l in $mf.layers){$totalSize+=$l.size}; $totalSize+=$mf.config.size; " ^
+  "  $imgId='-'; if($cfgDigest){$imgId=$cfgDigest.Replace('sha256:','').Substring(0,12)}; " ^
+  "  $created='-'; " ^
+  "  if($cfgDigest){ " ^
+  "    try{ $cfg=Invoke-RestMethod -Uri \"$url/v2/$repo/blobs/$cfgDigest\" -Headers $authH -ErrorAction SilentlyContinue; " ^
+  "      if($cfg.created){$created=$cfg.created.Substring(0,16).Replace('T',' ')} }catch{} " ^
+  "  }; " ^
+  "  $sz='-'; " ^
+  "  if($totalSize -gt 1073741824){$sz='{0:F1}GB' -f ($totalSize/1073741824)} " ^
+  "  elseif($totalSize -gt 1048576){$sz='{0:F1}MB' -f ($totalSize/1048576)} " ^
+  "  elseif($totalSize -gt 0){$sz='{0:F1}KB' -f ($totalSize/1024)}; " ^
+  "  Write-Output \"$imgId|$created|$sz|${repo}:${tag}\" " ^
+  "}" > "!CB_REGLIST_TMP!" 2>nul
+rem check for errors or empty result
+set "regTagCount=0"
+set "regNoTags=false"
+for /f "usebackq tokens=*" %%a in ("!CB_REGLIST_TMP!") do (
+	if "%%a"=="NO_TAGS" (set "regNoTags=true") else (set /a regTagCount+=1)
+)
+if /I "!regNoTags!"=="true" (
+	echo %CB_LINEHEADER%No tags found for '!regRepo!' on !CB_REGISTRY_URL!.
+	del /f /q "!CB_REGLIST_TMP!" 2>nul
+	exit /b 1
+)
+if !regTagCount! EQU 0 (
+	echo %CB_LINEHEADER%Failed to list tags for '!regRepo!' on !CB_REGISTRY_URL!.
+	del /f /q "!CB_REGLIST_TMP!" 2>nul
+	exit /b 1
+)
+rem save to cache
+copy /y "!CB_REGLIST_TMP!" "!regCacheFile!" >nul 2>nul
+:REG_LIST_HEADER
+rem print header
+if /I "!CB_CONTAINER_CSV!"=="true" (
+	echo IMAGE ID;CONTAINER ID;CREATED;STARTED;SIZE;TAG
+	goto REG_LIST_HEADER_DONE
+)
+echo %CB_LINE%
+set "headerLeft=IMAGE ID      CONTAINER ID  CREATED           STARTED           SIZE     TAG"
+set "headerRight=!cbNow! - !regTagCount! tag(s) [!regHost!]"
+set "headerPad=                                                                                                                        "
+set "headerFull=!headerLeft!!headerPad!"
+set "headerFull=!headerFull:~0,120!"
+call :STRLEN headerRight headerRightLen
+set /a headerTrim=120 - !headerRightLen!
+call set "headerFull=%%headerFull:~0,!headerTrim!%%"
+set "headerFull=!headerFull!!headerRight!"
+echo !headerFull!
+echo %CB_LINE%
+:REG_LIST_HEADER_DONE
+rem print image lines
+for /f "usebackq tokens=1,2,3,4 delims=|" %%a in ("!CB_REGLIST_TMP!") do (
+	if /I "!CB_CONTAINER_CSV!"=="true" (
+		echo %%a;-;%%b;-;%%c;%%d
+	) else (
+		set "rl1=%%a              "
+		set "rl1=!rl1:~0,14!"
+		set "rl2=-              "
+		set "rl2=!rl2:~0,14!"
+		set "rl3=%%b"
+		set "rl3=!rl3!                  "
+		set "rl3=!rl3:~0,18!"
+		set "rl4=-                  "
+		set "rl4=!rl4:~0,18!"
+		set "rl5=%%c         "
+		set "rl5=!rl5:~0,9!"
+		echo !rl1!!rl2!!rl3!!rl4!!rl5!%%d
+	)
+)
+rem only delete the temp file, not the cache
+if /I "!regCacheHit!"=="false" del /f /q "!CB_REGLIST_TMP!" 2>nul
+exit /b 0
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:_INFO -scan remote image(s) with trivy via registry credentials
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:SCAN_REMOTE_IMAGES
+call :DETECT_TRIVY
+if errorlevel 1 exit /b 1
+if not defined CB_REGISTRY_USER (
+	echo %CB_LINEHEADER%Registry credentials not set. Set CB_REGISTRY_USER and CB_REGISTRY_PASSWORD.
+	exit /b 1
+)
+if not defined CB_REGISTRY_PASSWORD (
+	echo %CB_LINEHEADER%Registry credentials not set. Set CB_REGISTRY_USER and CB_REGISTRY_PASSWORD.
+	exit /b 1
+)
+set "regHost=!CB_REGISTRY_URL!"
+set "regHost=!regHost:https://=!"
+set "regHost=!regHost:http://=!"
+for /f "tokens=1 delims=/" %%h in ("!regHost!") do set "regHost=%%h"
+rem determine if single tagged image or multi-target
+set "scanRemoteInput=!CB_CONTAINER_SCAN_TARGET!"
+set "scanRemoteHasColon=false"
+set "scanRemoteCheckColon=!scanRemoteInput::=!"
+if not "!scanRemoteCheckColon!"=="!scanRemoteInput!" set "scanRemoteHasColon=true"
+set "scanRemoteHasComma=false"
+set "scanRemoteCheckComma=!scanRemoteInput:,=!"
+if not "!scanRemoteCheckComma!"=="!scanRemoteInput!" set "scanRemoteHasComma=true"
+rem single tagged image: detailed CVE output
+if /I "!scanRemoteHasColon!"=="true" if /I "!scanRemoteHasComma!"=="false" if /I not "!CB_CONTAINER_ALL!"=="true" goto SCAN_REMOTE_SINGLE
+rem multi-target or repo scan: list-style output
+goto SCAN_REMOTE_MULTI
+:SCAN_REMOTE_SINGLE
+rem get timestamp
+set "CB_REGSCAN_TS_TMP=!CB_CONTAINER_TEMP!\cb-regscan-ts-%RANDOM%%RANDOM%.tmp"
+powershell -NoProfile -Command "$n=Get-Date; $n.ToString('yyyyMMdd-HHmmss'); $n.ToString('yyyy-MM-dd HH:mm:ss')" > "!CB_REGSCAN_TS_TMP!" 2>nul
+set /a regscanTsLine=0
+for /f "usebackq tokens=*" %%t in ("!CB_REGSCAN_TS_TMP!") do (
+	set /a regscanTsLine+=1
+	if !regscanTsLine! EQU 1 set "scanTimestamp=%%t"
+	if !regscanTsLine! EQU 2 set "scanNow=%%t"
+)
+del /f /q "!CB_REGSCAN_TS_TMP!" 2>nul
+if not defined scanTimestamp set "scanTimestamp=00000000-000000"
+if not defined scanNow set "scanNow=%DATE% %TIME:~0,8%"
+set "scanStartTime=%TIME: =0%"
+set /a "scanStartSec=(1!scanStartTime:~0,2!-100)*3600+(1!scanStartTime:~3,2!-100)*60+(1!scanStartTime:~6,2!-100)" 2>nul
+set "remoteRef=!regHost!/!scanRemoteInput!"
+rem get image ID from registry manifest
+set "scanImageId="
+set "CB_REGID_TMP=!CB_CONTAINER_TEMP!\cb-regid-%RANDOM%%RANDOM%.tmp"
+set "scanRemoteRepo=!scanRemoteInput!"
+for /f "tokens=1 delims=:" %%r in ("!scanRemoteRepo!") do set "scanRemoteRepo=%%r"
+set "scanRemoteTag=!scanRemoteInput!"
+for /f "tokens=2 delims=:" %%t in ("!scanRemoteTag!") do set "scanRemoteTag=%%t"
+powershell -NoProfile -Command ^
+  "$pair=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes('!CB_REGISTRY_USER!:!CB_REGISTRY_PASSWORD!')); " ^
+  "$basicH=@{Authorization=\"Basic $pair\"}; " ^
+  "try { Invoke-WebRequest -Uri '!CB_REGISTRY_URL!/v2/' -Headers $basicH -UseBasicParsing -ErrorAction Stop | Out-Null; $authH=$basicH } " ^
+  "catch { " ^
+  "  $wwwAuth=''; try{$wwwAuth=$_.Exception.Response.Headers['Www-Authenticate']}catch{}; " ^
+  "  if($wwwAuth -match '^Basic '){$authH=$basicH} " ^
+  "  elseif($wwwAuth -match 'realm=\"([^\"]+)\"'){ " ^
+  "    $realm=$Matches[1]; $svc=''; if($wwwAuth -match 'service=\"([^\"]+)\"'){$svc=$Matches[1]}; " ^
+  "    $tok=(Invoke-RestMethod -Uri \"${realm}?service=${svc}&scope=repository:!scanRemoteRepo!:pull\" -Headers $basicH); " ^
+  "    $t=if($tok.token){$tok.token}else{$tok.access_token}; $authH=@{Authorization=\"Bearer $t\"} " ^
+  "  } else{exit 1} " ^
+  "}; " ^
+  "$r=Invoke-WebRequest -Uri '!CB_REGISTRY_URL!/v2/!scanRemoteRepo!/manifests/!scanRemoteTag!' -Headers ($authH+@{Accept='application/vnd.docker.distribution.manifest.v2+json'}) -UseBasicParsing; " ^
+  "$digest=$r.Headers['Docker-Content-Digest']; " ^
+  "if($digest){Write-Output ($digest -replace 'sha256:','').Substring(0,12)}else{Write-Output 'unknown'}" > "!CB_REGID_TMP!" 2>nul
+for /f "usebackq tokens=*" %%a in ("!CB_REGID_TMP!") do if not defined scanImageId set "scanImageId=%%a"
+del /f /q "!CB_REGID_TMP!" 2>nul
+if not defined scanImageId set "scanImageId=unknown"
+rem scan using trivy with registry credentials
+set "scanAllRows=!CB_CONTAINER_TEMP!\cb-regscan-all-%RANDOM%%RANDOM%.tmp"
+set "scanVerbosePre=!CB_CONTAINER_TEMP!\cb-regscan-vpre-%RANDOM%%RANDOM%.tmp"
+set "scanVerbosePost=!CB_CONTAINER_TEMP!\cb-regscan-vpost-%RANDOM%%RANDOM%.tmp"
+type nul > "!scanAllRows!"
+type nul > "!scanVerbosePre!"
+type nul > "!scanVerbosePost!"
+rem check cache
+set "scanJson="
+set "scanCacheValid=false"
+if /I "!CB_CONTAINER_FORCE!"=="true" (
+	del /f /q "!CB_CONTAINER_TEMP!\!scanImageId!-*-trivy.json" 2>nul
+	del /f /q "!CB_CONTAINER_TEMP!\!scanImageId!-*-trivy*.rows" 2>nul
+	if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%Force scan, cache cleared for '!scanRemoteInput!'. >> "!scanVerbosePre!"
+)
+if /I "!CB_CONTAINER_FORCE!"=="true" goto REGSCAN_CACHE_END
+for /f "tokens=*" %%f in ('dir /b /o-n "!CB_CONTAINER_TEMP!\!scanImageId!-*-trivy.json" 2^>nul') do (
+	if not defined scanJson (
+		set "scanJson=!CB_CONTAINER_TEMP!\%%f"
+		set "scanCacheTs=%%f"
+		set "scanCacheTs=!scanCacheTs:%scanImageId%-=!"
+		set "scanCacheTs=!scanCacheTs:-trivy.json=!"
+		set "scanCacheDay=!scanCacheTs:~0,8!"
+		set "scanToday=!scanTimestamp:~0,8!"
+		if not "!scanCacheDay!"=="!scanToday!" (
+			del /f /q "!scanJson!" 2>nul
+			del /f /q "!CB_CONTAINER_TEMP!\!scanImageId!-!scanCacheTs!-trivy*.rows" 2>nul
+			del /f /q "!CB_CONTAINER_TEMP!\!scanImageId!-!scanCacheTs!-trivy*.counts" 2>nul
+			set "scanJson="
+		)
+		if defined scanJson set "scanCacheValid=true"
+	)
+)
+:REGSCAN_CACHE_END
+if defined scanJson (
+	set "scanRows=!CB_CONTAINER_TEMP!\!scanImageId!-!scanCacheTs!-trivy.rows"
+	if /I "!CB_CONTAINER_WIDE!"=="true" set "scanRows=!CB_CONTAINER_TEMP!\!scanImageId!-!scanCacheTs!-trivy-wide.rows"
+) else (
+	set "scanJson=!CB_CONTAINER_TEMP!\!scanImageId!-!scanTimestamp!-trivy.json"
+	set "scanRows=!CB_CONTAINER_TEMP!\!scanImageId!-!scanTimestamp!-trivy.rows"
+	if /I "!CB_CONTAINER_WIDE!"=="true" set "scanRows=!CB_CONTAINER_TEMP!\!scanImageId!-!scanTimestamp!-trivy-wide.rows"
+)
+if "!scanCacheValid!"=="true" if exist "!scanRows!" (
+	if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%Using cached scan for '!scanRemoteInput!'. >> "!scanVerbosePre!"
+	type "!scanRows!" >> "!scanAllRows!"
+	goto REGSCAN_SUMMARY
+)
+if not exist "!scanJson!" (
+	rem write temp docker config with base64 credentials to avoid --username/--password flag issues in newer trivy
+	set "trivyDockerDir=!CB_CONTAINER_TEMP!\trivy-docker-%RANDOM%%RANDOM%"
+	mkdir "!trivyDockerDir!" 2>nul
+	powershell -NoProfile -Command ^
+	  "$pair=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes('!CB_REGISTRY_USER!:!CB_REGISTRY_PASSWORD!')); " ^
+	  "[System.IO.File]::WriteAllText('!trivyDockerDir!\config.json', '{\"auths\":{\"!regHost!\":{\"auth\":\"' + $pair + '\"}}}')"
+	set "trivyTimeout=!CB_TRIVY_TIMEOUT!"
+	if not defined trivyTimeout set "trivyTimeout=30m"
+	if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%Scanning remote image '!scanRemoteInput!' via trivy (this may take several minutes for large images)...
+	if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%trivy image --quiet --format json --timeout !trivyTimeout! "!remoteRef!"
+	set "DOCKER_CONFIG=!trivyDockerDir!"
+	trivy image --quiet --format json --timeout "!trivyTimeout!" "!remoteRef!" 2>"!scanJson!.err" > "!scanJson!"
+	set "DOCKER_CONFIG="
+	rd /s /q "!trivyDockerDir!" 2>nul
+)
+set "scanJsonHasContent="
+if exist "!scanJson!" for /f "usebackq" %%a in ("!scanJson!") do set "scanJsonHasContent=1"
+if not defined scanJsonHasContent (
+	del /f /q "!scanJson!" 2>nul
+	echo %CB_LINEHEADER%Trivy scan failed for '!remoteRef!'.
+	if exist "!scanJson!.err" type "!scanJson!.err"
+	del /f /q "!scanJson!.err" 2>nul
+	del /f /q "!scanAllRows!" "!scanVerbosePre!" "!scanVerbosePost!" 2>nul
+	exit /b 1
+)
+del /f /q "!scanJson!.err" 2>nul
+rem format results (reuse same powershell as local scan)
+set "scanRowsNormal=!scanJson:.json=.rows!"
+set "scanRowsWide=!scanJson:.json=-wide.rows!"
+set "scanCounts=!scanJson:.json=.counts!"
+powershell -NoProfile -Command "function tl($s,$m){if($s.Length -le $m){return $s}; return '..'+$s.Substring($s.Length-$m+2)}; $sc=@{CRITICAL='C';HIGH='H';MEDIUM='M';LOW='L'}; $so=@{CRITICAL=1;HIGH=2;MEDIUM=3;LOW=4}; $d=Get-Content '!scanJson!' -Raw|ConvertFrom-Json; $nl=@(); $wl=@(); $idx=0; $cc=0;$hc=0;$mc=0;$lc=0; foreach($r in $d.Results){$t=$r.Target; if($r.Vulnerabilities){foreach($v in $r.Vulnerabilities){$s=$v.Severity; $sv=if($sc.ContainsKey($s)){$sc[$s]}else{'?'}; $ord=if($so.ContainsKey($s)){$so[$s]}else{5}; switch($sv){'C'{$cc++}'H'{$hc++}'M'{$mc++}'L'{$lc++}}; $p=$v.PkgName; $iv=$v.InstalledVersion; $fixes=@(if($v.FixedVersion){($v.FixedVersion -split ', *')}else{'-'}); $nl+=,[PSCustomObject]@{O=$ord;I=$idx;S=0;L=('{0,-22} {1,-4} {2,-30} {3,-14} {4,-14} {5}' -f $v.VulnerabilityID,$sv,(tl $p 28),(tl $iv 12),(tl $fixes[0] 12),$t)}; $wl+=,[PSCustomObject]@{O=$ord;I=$idx;S=0;L=('{0,-22} {1,-4} {2,-42} {3,-30} {4,-30} {5}' -f $v.VulnerabilityID,$sv,(tl $p 40),$iv,$fixes[0],$t)}; for($fi=1;$fi -lt $fixes.Count;$fi++){$nl+=,[PSCustomObject]@{O=$ord;I=$idx;S=$fi;L=('{0,-22} {1,-4} {2,-30} {3,-14} {4,-14}' -f '','','','',(tl $fixes[$fi] 12))}; $wl+=,[PSCustomObject]@{O=$ord;I=$idx;S=$fi;L=('{0,-22} {1,-4} {2,-42} {3,-30} {4,-30}' -f '','','','',$fixes[$fi])}}; $idx++}}}; $nl|Sort-Object O,I,S|ForEach-Object{$_.L}|Out-File -Encoding ASCII '!scanRowsNormal!'; $wl|Sort-Object O,I,S|ForEach-Object{$_.L}|Out-File -Encoding ASCII '!scanRowsWide!'; '{0} {1} {2} {3} {4}' -f ($cc+$hc+$mc+$lc),$cc,$hc,$mc,$lc|Out-File -Encoding ASCII '!scanCounts!'"
+type "!scanRows!" >> "!scanAllRows!"
+:REGSCAN_SUMMARY
+rem print scan output (same format as local SCAN_CONTAINER)
+set "scanLine=%CB_LINE%"
+if /I "!CB_CONTAINER_WIDE!"=="true" set "scanLine=%CB_LINE_WIDE%"
+if /I "!CB_CONTAINER_VERBOSE!"=="true" type "!scanVerbosePre!" 2>nul
+echo !scanLine!
+set "scanHeader=CVE ID                 SEV  PACKAGE                        INSTALLED      FIXED          TARGET"
+set /a scanHeaderTrim=101
+if /I "!CB_CONTAINER_WIDE!"=="true" set "scanHeader=CVE ID                 SEV  PACKAGE                                    INSTALLED                      FIXED                          TARGET"
+if /I "!CB_CONTAINER_WIDE!"=="true" set /a scanHeaderTrim=177
+set "scanHeaderSpaces=                                                                                                                                                                                        "
+set "scanHeaderPad=!scanHeader!!scanHeaderSpaces!"
+set "scanHeaderPad=!scanHeaderPad:~0,%scanHeaderTrim%!"
+echo !scanHeaderPad!!scanNow!
+echo !scanLine!
+set "hasRows="
+if exist "!scanAllRows!" for /f "usebackq tokens=*" %%a in ("!scanAllRows!") do set "hasRows=1"
+if defined hasRows (
+	type "!scanAllRows!"
+) else (
+	echo No vulnerabilities found.
+)
+set /a scanCritical=0
+set /a scanHigh=0
+set /a scanMedium=0
+set /a scanLow=0
+for /f "usebackq tokens=2" %%s in ("!scanAllRows!") do (
+	if "%%s"=="C" set /a scanCritical+=1
+	if "%%s"=="H" set /a scanHigh+=1
+	if "%%s"=="M" set /a scanMedium+=1
+	if "%%s"=="L" set /a scanLow+=1
+)
+set /a scanTotal=!scanCritical! + !scanHigh! + !scanMedium! + !scanLow!
+set "scanDuration="
+set "scanEndTime=%TIME: =0%"
+set /a "scanEndSec=(1!scanEndTime:~0,2!-100)*3600+(1!scanEndTime:~3,2!-100)*60+(1!scanEndTime:~6,2!-100)" 2>nul
+if defined scanStartSec if defined scanEndSec (
+	set /a scanDurationSec=!scanEndSec! - !scanStartSec!
+	set "scanDuration=!scanDurationSec!s"
+	if !scanDurationSec! GEQ 60 (
+		set /a scanDurationMin=!scanDurationSec! / 60
+		set /a scanDurationRemSec=!scanDurationSec! %% 60
+		set "scanDuration=!scanDurationMin!m !scanDurationRemSec!s"
+	)
+)
+echo !scanLine!
+if !scanTotal! GTR 0 (
+	echo Summary: !scanTotal! vulnerabilities ^(CRITICAL: !scanCritical!, HIGH: !scanHigh!, MEDIUM: !scanMedium!, LOW: !scanLow!^) [!scanDuration!]
+) else (
+	echo Summary: 0 vulnerabilities [!scanDuration!]
+)
+echo !scanLine!
+if /I "!CB_CONTAINER_VERBOSE!"=="true" type "!scanVerbosePost!" 2>nul
+del /f /q "!scanAllRows!" 2>nul
+del /f /q "!scanVerbosePre!" 2>nul
+del /f /q "!scanVerbosePost!" 2>nul
+exit /b 0
+:SCAN_REMOTE_MULTI
+rem multi-target or repo scan: list-style output with CRIT/HIGH/MED/LOW columns
+set "scanMultiStartTime=%TIME: =0%"
+set /a "scanMultiStartSec=(1!scanMultiStartTime:~0,2!-100)*3600+(1!scanMultiStartTime:~3,2!-100)*60+(1!scanMultiStartTime:~6,2!-100)" 2>nul
+set "CB_REGSCANM_TS_TMP=!CB_CONTAINER_TEMP!\cb-regscanm-ts-%RANDOM%%RANDOM%.tmp"
+powershell -NoProfile -Command "$n=Get-Date; $n.ToString('yyyyMMdd-HHmmss'); $n.ToString('yyyy-MM-dd HH:mm:ss')" > "!CB_REGSCANM_TS_TMP!" 2>nul
+set /a regscanmTsLine=0
+for /f "usebackq tokens=*" %%t in ("!CB_REGSCANM_TS_TMP!") do (
+	set /a regscanmTsLine+=1
+	if !regscanmTsLine! EQU 1 set "scanTimestamp=%%t"
+	if !regscanmTsLine! EQU 2 set "scanMultiNow=%%t"
+)
+del /f /q "!CB_REGSCANM_TS_TMP!" 2>nul
+if not defined scanTimestamp set "scanTimestamp=00000000-000000"
+if not defined scanMultiNow set "scanMultiNow=%DATE% %TIME:~0,8%"
+rem resolve targets: if no colon, fetch all tags from registry
+set "CB_REGSCANM_TARGETS=!CB_CONTAINER_TEMP!\cb-regscanm-targets-%RANDOM%%RANDOM%.tmp"
+type nul > "!CB_REGSCANM_TARGETS!"
+if /I "!scanRemoteHasColon!"=="false" goto REGSCANM_FETCH_TAGS
+if /I "!CB_CONTAINER_ALL!"=="true" goto REGSCANM_FETCH_TAGS
+goto REGSCANM_SPLIT_TARGETS
+:REGSCANM_FETCH_TAGS
+set "regscanmRepo=!scanRemoteInput!"
+set "regscanmRepo=!regscanmRepo::=!"
+set "CB_REGSCANM_TAGS_TMP=!CB_CONTAINER_TEMP!\cb-regscanm-tags-%RANDOM%%RANDOM%.tmp"
+powershell -NoProfile -Command ^
+  "$pair=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes('!CB_REGISTRY_USER!:!CB_REGISTRY_PASSWORD!')); " ^
+  "$basicH=@{Authorization=\"Basic $pair\"}; " ^
+  "try { Invoke-WebRequest -Uri '!CB_REGISTRY_URL!/v2/' -Headers $basicH -UseBasicParsing -ErrorAction Stop | Out-Null; $authH=$basicH } " ^
+  "catch { " ^
+  "  $wwwAuth=''; try{$wwwAuth=$_.Exception.Response.Headers['Www-Authenticate']}catch{}; " ^
+  "  if($wwwAuth -match '^Basic '){$authH=$basicH} " ^
+  "  elseif($wwwAuth -match 'realm=\"([^\"]+)\"'){ " ^
+  "    $realm=$Matches[1]; $svc=''; if($wwwAuth -match 'service=\"([^\"]+)\"'){$svc=$Matches[1]}; " ^
+  "    $tok=(Invoke-RestMethod -Uri \"${realm}?service=${svc}&scope=repository:!regscanmRepo!:pull\" -Headers $basicH); " ^
+  "    $t=if($tok.token){$tok.token}else{$tok.access_token}; $authH=@{Authorization=\"Bearer $t\"} " ^
+  "  } else{exit 1} " ^
+  "}; " ^
+  "$tags=(Invoke-RestMethod -Uri '!CB_REGISTRY_URL!/v2/!regscanmRepo!/tags/list' -Headers $authH).tags; " ^
+  "foreach($t in $tags){Write-Output \"!regscanmRepo!:$t\"}" > "!CB_REGSCANM_TAGS_TMP!" 2>nul
+for /f "usebackq tokens=*" %%a in ("!CB_REGSCANM_TAGS_TMP!") do echo %%a>> "!CB_REGSCANM_TARGETS!"
+del /f /q "!CB_REGSCANM_TAGS_TMP!" 2>nul
+goto REGSCANM_TARGETS_DONE
+:REGSCANM_SPLIT_TARGETS
+set "regscanmTargetList=!scanRemoteInput!"
+:REGSCANM_SPLIT_LOOP
+if not defined regscanmTargetList goto REGSCANM_TARGETS_DONE
+for /f "tokens=1* delims=," %%a in ("!regscanmTargetList!") do (
+	set "regscanmOneT=%%a"
+	set "regscanmTargetList=%%b"
+)
+call :TRIM regscanmOneT
+if defined regscanmOneT echo !regscanmOneT!>> "!CB_REGSCANM_TARGETS!"
+goto REGSCANM_SPLIT_LOOP
+:REGSCANM_TARGETS_DONE
+set /a regscanmCount=0
+for /f "usebackq tokens=*" %%a in ("!CB_REGSCANM_TARGETS!") do set /a regscanmCount+=1
+if !regscanmCount! GTR 0 goto REGSCANM_PRINT_HEADER
+echo %CB_LINEHEADER%No images found.
+del /f /q "!CB_REGSCANM_TARGETS!" 2>nul
+exit /b 1
+:REGSCANM_PRINT_HEADER
+rem print header
+if /I "!CB_CONTAINER_CSV!"=="true" (
+	echo IMAGE ID;CONTAINER ID;CREATED;CRIT;HIGH;MED;LOW;TAG
+	goto REGSCANM_HEADER_DONE
+)
+echo %CB_LINE%
+set "regscanmHeader=IMAGE ID      CONTAINER ID  CREATED           CRIT HIGH MED  LOW  TAG"
+set "regscanmSpaces=                                                                                                                        "
+set "regscanmPad=!regscanmHeader!!regscanmSpaces!"
+set "regscanmPad=!regscanmPad:~0,120!"
+set "regscanmRight=!scanMultiNow! - !regscanmCount! image(s) [!regHost!]"
+call :STRLEN regscanmRight regscanmRightLen
+set /a regscanmTrim=120 - !regscanmRightLen!
+call set "regscanmPad=%%regscanmPad:~0,!regscanmTrim!%%"
+echo !regscanmPad!!regscanmRight!
+echo %CB_LINE%
+:REGSCANM_HEADER_DONE
+rem scan each target
+for /f "usebackq tokens=*" %%a in ("!CB_REGSCANM_TARGETS!") do (
+	set "rmTarget=%%a"
+	set "rmRepo=!rmTarget!"
+	for /f "tokens=1 delims=:" %%r in ("!rmRepo!") do set "rmRepo=%%r"
+	set "rmTag=!rmTarget!"
+	for /f "tokens=2 delims=:" %%t in ("!rmTag!") do set "rmTag=%%t"
+	set "rmRemoteRef=!regHost!/!rmTarget!"
+	rem get image ID from registry
+	set "rmImageId=unknown"
+	set "CB_REGSCANM_ID_TMP=!CB_CONTAINER_TEMP!\cb-regscanm-id-%RANDOM%%RANDOM%.tmp"
+	powershell -NoProfile -Command ^
+	  "$pair=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes('!CB_REGISTRY_USER!:!CB_REGISTRY_PASSWORD!')); " ^
+	  "$basicH=@{Authorization=\"Basic $pair\"}; " ^
+	  "try{Invoke-WebRequest -Uri '!CB_REGISTRY_URL!/v2/' -Headers $basicH -UseBasicParsing -ErrorAction Stop|Out-Null; $authH=$basicH}" ^
+	  "catch{$wwwAuth='';try{$wwwAuth=$_.Exception.Response.Headers['Www-Authenticate']}catch{};" ^
+	  "  if($wwwAuth -match '^Basic '){$authH=$basicH}" ^
+	  "  elseif($wwwAuth -match 'realm=\"([^\"]+)\"'){" ^
+	  "    $realm=$Matches[1];$svc='';if($wwwAuth -match 'service=\"([^\"]+)\"'){$svc=$Matches[1]};" ^
+	  "    $tok=(Invoke-RestMethod -Uri \"${realm}?service=${svc}&scope=repository:!rmRepo!:pull\" -Headers $basicH);" ^
+	  "    $t=if($tok.token){$tok.token}else{$tok.access_token};$authH=@{Authorization=\"Bearer $t\"}}" ^
+	  "  else{exit 1}};" ^
+	  "$mf=Invoke-RestMethod -Uri '!CB_REGISTRY_URL!/v2/!rmRepo!/manifests/!rmTag!' -Headers ($authH+@{Accept='application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json'}) -ErrorAction SilentlyContinue;" ^
+	  "if($mf.config -and $mf.config.digest){" ^
+	  "  $id=$mf.config.digest.Replace('sha256:','').Substring(0,12);" ^
+	  "  $cfg=Invoke-RestMethod -Uri \"!CB_REGISTRY_URL!/v2/!rmRepo!/blobs/$($mf.config.digest)\" -Headers $authH -ErrorAction SilentlyContinue;" ^
+	  "  $cr='-'; if($cfg.created){$cr=$cfg.created.Substring(0,16).Replace('T',' ')};" ^
+	  "  Write-Output \"$id|$cr\"" ^
+	  "}else{Write-Output 'unknown|-'}" > "!CB_REGSCANM_ID_TMP!" 2>nul
+	set "rmCreated=-"
+	for /f "usebackq tokens=1,2 delims=|" %%x in ("!CB_REGSCANM_ID_TMP!") do (
+		set "rmImageId=%%x"
+		set "rmCreated=%%y"
+	)
+	del /f /q "!CB_REGSCANM_ID_TMP!" 2>nul
+	set "rmShortId=!rmImageId:~0,12!"
+	rem try cached counts
+	set "rmCC=-"
+	set "rmHC=-"
+	set "rmMC=-"
+	set "rmLC=-"
+	set "rmCountsFile="
+	for /f "tokens=*" %%f in ('dir /b /o-n "!CB_CONTAINER_TEMP!\!rmImageId!-*-trivy.counts" 2^>nul') do (
+		if not defined rmCountsFile (
+			set "rmCountsCacheTs=%%f"
+			set "rmCountsCacheTs=!rmCountsCacheTs:%rmImageId%-=!"
+			set "rmCountsCacheTs=!rmCountsCacheTs:-trivy.counts=!"
+			set "rmCountsCacheDay=!rmCountsCacheTs:~0,8!"
+			set "rmCountsToday=!scanMultiNow:~0,4!!scanMultiNow:~5,2!!scanMultiNow:~8,2!"
+			if "!rmCountsCacheDay!"=="!rmCountsToday!" set "rmCountsFile=!CB_CONTAINER_TEMP!\%%f"
+		)
+	)
+	if defined rmCountsFile for /f "usebackq tokens=1,2,3,4,5" %%a in ("!rmCountsFile!") do (set "rmCC=%%b" & set "rmHC=%%c" & set "rmMC=%%d" & set "rmLC=%%e")
+	rem if no cached counts, scan with trivy
+	if "!rmCC!"=="-" (
+		set "rmScanJson=!CB_CONTAINER_TEMP!\!rmImageId!-!scanTimestamp!-trivy.json"
+		if not exist "!rmScanJson!" (
+			set "rmTrivyDockerDir=!CB_CONTAINER_TEMP!\trivy-docker-%RANDOM%%RANDOM%"
+			mkdir "!rmTrivyDockerDir!" 2>nul
+			powershell -NoProfile -Command ^
+			  "$pair=[Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes('!CB_REGISTRY_USER!:!CB_REGISTRY_PASSWORD!')); " ^
+			  "{\"auths\":{\"!regHost!\":{\"auth\":\"$pair\"}}} | ConvertFrom-Json | ConvertTo-Json -Compress | " ^
+			  "Out-File -Encoding ASCII '!rmTrivyDockerDir!\config.json'"
+			set "DOCKER_CONFIG=!rmTrivyDockerDir!"
+			trivy image --quiet --format json "!rmRemoteRef!" 2>nul > "!rmScanJson!"
+			set "DOCKER_CONFIG="
+			rd /s /q "!rmTrivyDockerDir!" 2>nul
+		)
+		set "rmScanRowsN=!rmScanJson:.json=.rows!"
+		set "rmScanRowsW=!rmScanJson:.json=-wide.rows!"
+		set "rmScanCounts=!rmScanJson:.json=.counts!"
+		powershell -NoProfile -Command "function tl($s,$m){if($s.Length -le $m){return $s}; return '..'+$s.Substring($s.Length-$m+2)}; $sc=@{CRITICAL='C';HIGH='H';MEDIUM='M';LOW='L'}; $so=@{CRITICAL=1;HIGH=2;MEDIUM=3;LOW=4}; $d=Get-Content '!rmScanJson!' -Raw|ConvertFrom-Json; $nl=@(); $wl=@(); $idx=0; $cc=0;$hc=0;$mc=0;$lc=0; foreach($r in $d.Results){$t=$r.Target; if($r.Vulnerabilities){foreach($v in $r.Vulnerabilities){$s=$v.Severity; $sv=if($sc.ContainsKey($s)){$sc[$s]}else{'?'}; $ord=if($so.ContainsKey($s)){$so[$s]}else{5}; switch($sv){'C'{$cc++}'H'{$hc++}'M'{$mc++}'L'{$lc++}}; $p=$v.PkgName; $iv=$v.InstalledVersion; $fixes=@(if($v.FixedVersion){($v.FixedVersion -split ', *')}else{'-'}); $nl+=,[PSCustomObject]@{O=$ord;I=$idx;S=0;L=('{0,-22} {1,-4} {2,-30} {3,-14} {4,-14} {5}' -f $v.VulnerabilityID,$sv,(tl $p 28),(tl $iv 12),(tl $fixes[0] 12),$t)}; $wl+=,[PSCustomObject]@{O=$ord;I=$idx;S=0;L=('{0,-22} {1,-4} {2,-42} {3,-30} {4,-30} {5}' -f $v.VulnerabilityID,$sv,(tl $p 40),$iv,$fixes[0],$t)}; for($fi=1;$fi -lt $fixes.Count;$fi++){$nl+=,[PSCustomObject]@{O=$ord;I=$idx;S=$fi;L=('{0,-22} {1,-4} {2,-30} {3,-14} {4,-14}' -f '','','','',(tl $fixes[$fi] 12))}; $wl+=,[PSCustomObject]@{O=$ord;I=$idx;S=$fi;L=('{0,-22} {1,-4} {2,-42} {3,-30} {4,-30}' -f '','','','',$fixes[$fi])}}; $idx++}}}; $nl|Sort-Object O,I,S|ForEach-Object{$_.L}|Out-File -Encoding ASCII '!rmScanRowsN!'; $wl|Sort-Object O,I,S|ForEach-Object{$_.L}|Out-File -Encoding ASCII '!rmScanRowsW!'; '{0} {1} {2} {3} {4}' -f ($cc+$hc+$mc+$lc),$cc,$hc,$mc,$lc|Out-File -Encoding ASCII '!rmScanCounts!'"
+		set "rmCountsFile="
+		for /f "tokens=*" %%f in ('dir /b /o-n "!CB_CONTAINER_TEMP!\!rmImageId!-*-trivy.counts" 2^>nul') do (
+			if not defined rmCountsFile set "rmCountsFile=!CB_CONTAINER_TEMP!\%%f"
+		)
+		if defined rmCountsFile for /f "usebackq tokens=1,2,3,4,5" %%a in ("!rmCountsFile!") do (set "rmCC=%%b" & set "rmHC=%%c" & set "rmMC=%%d" & set "rmLC=%%e")
+	)
+	call :PRINT_SCAN_LINE "!rmShortId!" "-" "!rmCreated!" "!rmCC!" "!rmHC!" "!rmMC!" "!rmLC!" "!rmTarget!" "true"
+)
+:REGSCANM_CLEANUP
+set "scanMultiEndTime=%TIME: =0%"
+set /a "scanMultiEndSec=(1!scanMultiEndTime:~0,2!-100)*3600+(1!scanMultiEndTime:~3,2!-100)*60+(1!scanMultiEndTime:~6,2!-100)" 2>nul
+set "scanMultiDuration="
+if defined scanMultiStartSec if defined scanMultiEndSec (
+	set /a scanMultiDurSec=!scanMultiEndSec! - !scanMultiStartSec!
+	set "scanMultiDuration=!scanMultiDurSec!s"
+	if !scanMultiDurSec! GEQ 60 (
+		set /a scanMultiDurMin=!scanMultiDurSec! / 60
+		set /a scanMultiDurRem=!scanMultiDurSec! %% 60
+		set "scanMultiDuration=!scanMultiDurMin!m !scanMultiDurRem!s"
+	)
+)
+if /I not "!CB_CONTAINER_CSV!"=="true" echo %CB_LINE%
+if /I not "!CB_CONTAINER_CSV!"=="true" if defined scanMultiDuration echo %CB_LINEHEADER%Scan completed [!scanMultiDuration!]
+del /f /q "!CB_REGSCANM_TARGETS!" 2>nul
+exit /b 0
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
