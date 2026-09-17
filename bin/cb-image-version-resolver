@@ -1,0 +1,470 @@
+#!/usr/bin/env bash
+
+#########################################################################
+#
+# cb-image-version-resolver
+#
+# Copyright by toolarium, all rights reserved.
+#
+# This file is part of the toolarium common-build.
+#
+# The common-build is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The common-build is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Foobar. If not, see <http://www.gnu.org/licenses/>.
+#
+#########################################################################
+set -euo pipefail
+
+
+PN=$(basename "$0" 2>/dev/null)
+PN_BASE="${PN%*.sh}"
+_CB_REGISTRY_URL_ENV="${CB_REGISTRY_URL:-}"
+CB_REGISTRY_URL=""
+CB_REGISTRY_FLAG=false
+CB_REGISTRY_CURL_AUTH=()
+GIVEN_DIGEST=""
+
+
+#########################################################################
+# printUsage
+#########################################################################
+printUsage() {
+    echo "$PN - Resolve a Docker Hub image reference to a pinned tag@digest."
+    echo ""
+    echo "usage: $PN [OPTION] <image>[:<tag>]"
+    echo "   or: $PN [OPTION] <image> <tag>"
+    echo ""
+    echo "Overview of the available OPTIONs:"
+    echo " -h, --help              Show this help message."
+    echo " --registry <url>        Use a remote Docker Registry v2 instead of Docker Hub."
+    echo "                         The URL can also be set via the CB_REGISTRY_URL env var."
+    echo "                         Requires CB_REGISTRY_USER and CB_REGISTRY_PASSWORD env vars."
+    echo ""
+    echo "Arguments:"
+    echo " <image>                 Docker Hub image name, e.g. alpine or library/alpine."
+    echo "                         Official images (no namespace) are automatically prefixed"
+    echo "                         with 'library/', e.g. alpine -> library/alpine."
+    echo "                         This auto-prefix is not applied when --registry is used."
+    echo " <tag>                   Tag to resolve. Defaults to 'latest' when omitted."
+    echo "                         Numeric tags are resolved to their newest patch/build"
+    echo "                         variant on the same major version line."
+    echo ""
+    echo "Examples"
+    echo "# resolve the newest alpine tag and its digest:"
+    echo "#> $PN alpine"
+    echo ""
+    echo "# resolve via explicit latest tag (colon form):"
+    echo "#> $PN alpine:latest"
+    echo ""
+    echo "# resolve via two-argument form:"
+    echo "#> $PN library/alpine latest"
+    echo ""
+    echo "# resolve the newest eclipse-temurin 25 JRE on Alpine:"
+    echo "#> $PN eclipse-temurin:25-jre-alpine"
+    echo ""
+    echo "# resolve the newest eclipse-temurin 25 JDK on Alpine:"
+    echo "#> $PN eclipse-temurin:25-jdk-alpine"
+    echo ""
+    echo "# resolve from a private registry using env-var credentials:"
+    echo "#> CB_REGISTRY_USER=user CB_REGISTRY_PASSWORD=pass $PN myapp:1.0 --registry https://reg.example.com"
+    echo ""
+}
+
+
+#########################################################################
+# Parse arguments
+#########################################################################
+if [ $# -eq 0 ]; then
+    printUsage; exit 1
+fi
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h|--help)
+            printUsage; exit 0;;
+        --registry)
+            CB_REGISTRY_FLAG=true
+            if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+                shift; CB_REGISTRY_URL="$1"
+            else
+                CB_REGISTRY_URL="$_CB_REGISTRY_URL_ENV"
+            fi;;
+        -*)
+            echo "Invalid parameter: $1"; echo ""; printUsage; exit 1;;
+        *)
+            break;;
+    esac
+    shift
+done
+
+if [ $# -eq 0 ]; then
+    echo "Missing image argument."; echo ""; printUsage; exit 1
+elif [ $# -eq 1 ]; then
+    _arg="$1"
+    if [[ "$_arg" == *@sha256:* ]]; then
+        GIVEN_DIGEST="${_arg#*@}"
+        _arg="${_arg%%@*}"
+    fi
+    if [[ "$_arg" == *:* ]]; then
+        RAW_IMAGE="${_arg%%:*}"
+        BASE_TAG="${_arg#*:}"
+    else
+        RAW_IMAGE="$_arg"
+        BASE_TAG="latest"
+    fi
+elif [ $# -eq 2 ]; then
+    RAW_IMAGE="$1"
+    if [[ "$2" == *@sha256:* ]]; then
+        GIVEN_DIGEST="${2#*@}"
+        BASE_TAG="${2%%@*}"
+    else
+        BASE_TAG="$2"
+    fi
+else
+    echo "Invalid parameter: $3"; echo ""; printUsage; exit 1
+fi
+
+# Official Docker Hub images have no namespace (no '/'), e.g. "alpine" is
+# really "library/alpine". Only auto-prefix when there's no '/' already and
+# no custom registry is configured.
+if [ "$CB_REGISTRY_FLAG" = false ] && [[ "$RAW_IMAGE" != */* ]]; then
+    IMAGE="library/${RAW_IMAGE}"
+else
+    IMAGE="$RAW_IMAGE"
+fi
+
+
+#########################################################################
+# Daily cache -- avoid repeated registry lookups for the same image
+# Cache location: <CB_IMAGE_VERSION_RESOLVER_PATH or <TMPDIR>/cb/image-version-resolver-cache>/<yyyyMMdd>-<safeKey>.txt
+#########################################################################
+if [ -n "${CB_IMAGE_VERSION_RESOLVER_PATH:-}" ]; then
+    CB_IMAGE_CACHE_DIR="$CB_IMAGE_VERSION_RESOLVER_PATH"
+else
+    CB_IMAGE_CACHE_DIR="${TMPDIR:-${TMP:-/tmp}}/cb/image-version-resolver-cache"
+fi
+TODAY=$(date +%Y%m%d)
+CACHE_KEY=$(printf '%s:%s' "$RAW_IMAGE" "$BASE_TAG" | sed 's|[:/]|_|g; s|[^a-zA-Z0-9._-]|_|g')
+CACHE_FILE="${CB_IMAGE_CACHE_DIR}/${TODAY}-${CACHE_KEY}.txt"
+
+if [ -z "$GIVEN_DIGEST" ] && [ "$CB_REGISTRY_FLAG" = false ] && [ -f "$CACHE_FILE" ] && [ -s "$CACHE_FILE" ]; then
+    cat "$CACHE_FILE"
+    exit 0
+fi
+
+
+#########################################################################
+# Check dependencies
+#########################################################################
+if ! command -v curl >/dev/null 2>&1; then
+    echo "ERROR: curl is required but not found in PATH" >&2
+    exit 1
+fi
+
+
+#########################################################################
+# JSON parsing helpers — tries jq → python3 → python → powershell
+#########################################################################
+_json_parser=""
+if command -v jq >/dev/null 2>&1; then
+    _json_parser="jq"
+elif command -v python3 >/dev/null 2>&1; then
+    _json_parser="python3"
+elif command -v python >/dev/null 2>&1; then
+    _json_parser="python"
+elif command -v powershell >/dev/null 2>&1; then
+    _json_parser="powershell"
+else
+    echo "ERROR: a JSON parser is required (jq, python3, python, or powershell)" >&2
+    exit 1
+fi
+
+json_string() {   # reads stdin, extracts top-level string field $1
+    local key="$1"
+    case "$_json_parser" in
+        jq)         jq -r ".$key" ;;
+        python3)    python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('$key','') or '')" ;;
+        python)     python  -c "import json,sys; d=json.load(sys.stdin); print(d.get('$key','') or '')" ;;
+        powershell) powershell -NoProfile -Command "\$in=[Console]::In.ReadToEnd(); ((\$in|ConvertFrom-Json).'$key')" ;;
+    esac
+}
+
+json_array() {    # reads stdin, extracts top-level array field $1 (one item per line)
+    local key="$1"
+    case "$_json_parser" in
+        jq)         jq -r ".${key} // [] | .[]" ;;
+        python3)    python3 -c "import json,sys; [print(x) for x in json.load(sys.stdin).get('$key',[])]" ;;
+        python)     python  -c "import json,sys; [print(x) for x in json.load(sys.stdin).get('$key',[])]" ;;
+        powershell) powershell -NoProfile -Command "\$in=[Console]::In.ReadToEnd(); ((\$in|ConvertFrom-Json).'$key') -join \"\`n\"" ;;
+    esac
+}
+
+
+#########################################################################
+# registryAuth — authenticate with a Docker Registry v2
+# Supports Basic auth and token-based (Bearer) auth.
+# Sets CB_REGISTRY_CURL_AUTH array for use with curl.
+#########################################################################
+registryAuth() {
+    local registryUrl="$1"
+    local repo="$2"
+    CB_REGISTRY_CURL_AUTH=()
+
+    if [ -z "${CB_REGISTRY_USER:-}" ] || [ -z "${CB_REGISTRY_PASSWORD:-}" ]; then
+        echo "Registry credentials not set. Set CB_REGISTRY_USER and CB_REGISTRY_PASSWORD." >&2
+        return 1
+    fi
+
+    # Try Basic auth on /v2/
+    local httpCode
+    httpCode=$(curl -s -o /dev/null -w "%{http_code}" -u "$CB_REGISTRY_USER:$CB_REGISTRY_PASSWORD" "$registryUrl/v2/" 2>/dev/null)
+    if [ "$httpCode" = "200" ]; then
+        CB_REGISTRY_CURL_AUTH=(-u "$CB_REGISTRY_USER:$CB_REGISTRY_PASSWORD")
+        return 0
+    fi
+
+    # Parse Www-Authenticate header to determine auth scheme
+    local headers
+    headers=$(curl -s -D - -o /dev/null "$registryUrl/v2/" 2>/dev/null)
+    local wwwAuth
+    wwwAuth=$(echo "$headers" | grep -i 'Www-Authenticate')
+    local authScheme
+    authScheme=$(echo "$wwwAuth" | sed 's/^[Ww][Ww][Ww]-[Aa]uthenticate: *\([A-Za-z]*\).*/\1/' | tr '[:upper:]' '[:lower:]')
+
+    # If registry uses Basic auth, set credentials and proceed — some registries always
+    # challenge /v2/ with 401 but accept Basic credentials on actual API endpoints
+    if [ "$authScheme" = "basic" ]; then
+        CB_REGISTRY_CURL_AUTH=(-u "$CB_REGISTRY_USER:$CB_REGISTRY_PASSWORD")
+        return 0
+    fi
+
+    # Bearer token auth
+    local realm service
+    realm=$(echo "$wwwAuth" | sed 's/.*realm="\([^"]*\)".*/\1/')
+    service=$(echo "$wwwAuth" | sed 's/.*service="\([^"]*\)".*/\1/')
+
+    if [ -z "$realm" ]; then
+        echo "Could not authenticate with registry at $registryUrl (HTTP $httpCode)." >&2
+        return 1
+    fi
+
+    local tokenUrl="$realm?service=$service&scope=repository:$repo:pull"
+    local tokenResponse
+    tokenResponse=$(curl -s -u "$CB_REGISTRY_USER:$CB_REGISTRY_PASSWORD" "$tokenUrl" 2>/dev/null)
+    local token
+    token=$(echo "$tokenResponse" | sed 's/.*"token" *: *"\([^"]*\)".*/\1/')
+    # some registries use access_token instead of token
+    if [ "$token" = "$tokenResponse" ]; then
+        token=$(echo "$tokenResponse" | sed 's/.*"access_token" *: *"\([^"]*\)".*/\1/')
+    fi
+
+    if [ -z "$token" ] || [ "$token" = "$tokenResponse" ]; then
+        echo "Failed to obtain registry token from $realm." >&2
+        return 1
+    fi
+
+    CB_REGISTRY_CURL_AUTH=(-H "Authorization: Bearer $token")
+    return 0
+}
+
+
+#########################################################################
+# Obtain a Docker Hub bearer token for the given image
+#########################################################################
+get_dockerhub_token() {
+    curl -sS --max-time 15 \
+        "https://auth.docker.io/token?service=registry.docker.io&scope=repository:${IMAGE}:pull" \
+        | json_string token
+}
+
+
+#########################################################################
+# Authenticate and determine the registry base URL
+#########################################################################
+if [ "$CB_REGISTRY_FLAG" = true ]; then
+    if [ -z "$CB_REGISTRY_URL" ]; then
+        echo "ERROR: --registry requires a URL (or set CB_REGISTRY_URL env var)" >&2
+        exit 1
+    fi
+    registryAuth "$CB_REGISTRY_URL" "$IMAGE" || exit 1
+    REGISTRY_BASE_URL="$CB_REGISTRY_URL"
+else
+    TOKEN=$(get_dockerhub_token)
+    if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+        echo "Failed to obtain auth token for ${IMAGE}" >&2
+        exit 1
+    fi
+    CB_REGISTRY_CURL_AUTH=(-H "Authorization: Bearer $TOKEN")
+    REGISTRY_BASE_URL="https://registry-1.docker.io"
+fi
+
+
+#########################################################################
+# Resolve the content-digest for a given tag
+#########################################################################
+digest_for_tag() {
+    local tag="$1"
+    local headers digest
+    headers=$(curl -sS --max-time 15 \
+        "${CB_REGISTRY_CURL_AUTH[@]}" \
+        -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json" \
+        -H "Accept: application/vnd.oci.image.index.v1+json" \
+        -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+        -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+        -I "$REGISTRY_BASE_URL/v2/${IMAGE}/manifests/${tag}") || true
+    digest=$(printf '%s' "$headers" | grep -i docker-content-digest | tr -d '\r' | awk '{print $2}') || true
+    if [ -z "$digest" ]; then
+        echo "Failed to resolve digest for tag '${tag}'. Full response headers:" >&2
+        printf '%s\n' "$headers" >&2
+        return 1
+    fi
+    echo "$digest"
+}
+
+
+#########################################################################
+# Verification path: caller supplied a digest — verify it matches the tag
+#########################################################################
+if [ -n "$GIVEN_DIGEST" ]; then
+    ACTUAL_DIGEST=$(digest_for_tag "$BASE_TAG")
+    if [ "$ACTUAL_DIGEST" != "$GIVEN_DIGEST" ]; then
+        echo "ERROR: Digest mismatch for ${RAW_IMAGE}:${BASE_TAG}" >&2
+        echo "  provided: ${GIVEN_DIGEST}" >&2
+        echo "  actual:   ${ACTUAL_DIGEST}" >&2
+        exit 1
+    fi
+    RESOLVED_REF="${RAW_IMAGE}:${BASE_TAG}@${GIVEN_DIGEST}"
+    if [ "$CB_REGISTRY_FLAG" = false ]; then
+        mkdir -p "$CB_IMAGE_CACHE_DIR"
+        printf '%s\n' "$RESOLVED_REF" > "$CACHE_FILE"
+    fi
+    echo "$RESOLVED_REF"
+    exit 0
+fi
+
+
+#########################################################################
+# Fetch all available tags
+#########################################################################
+if [[ "$BASE_TAG" =~ ^[0-9] ]]; then
+    MAJOR=$(echo "$BASE_TAG" | grep -oE '^[0-9]+')
+    SUFFIX=$(echo "$BASE_TAG" | sed -E 's/^[0-9][0-9._]*//')
+else
+    MAJOR=""
+    SUFFIX=""
+fi
+
+ALL_TAGS=$(curl -sS --max-time 15 \
+    "${CB_REGISTRY_CURL_AUTH[@]}" \
+    "$REGISTRY_BASE_URL/v2/${IMAGE}/tags/list" \
+    | json_array tags)
+
+if [ -z "$ALL_TAGS" ]; then
+    echo "ERROR: No tags found for '${RAW_IMAGE}'. The image may not exist or may be inaccessible." >&2
+    exit 1
+fi
+
+
+#########################################################################
+# Resolve the newest matching tag
+#
+# Priority 1: tags that are literally "${BASE_TAG}-X.Y" (a trailing
+# OS-base-version qualifier appended AFTER the base tag, e.g.
+# eclipse-temurin's "25-jre-alpine-3.24" = "25-jre-alpine" + Alpine 3.24).
+# This is a completely different axis from a JDK patch version prefixed
+# BEFORE the suffix (e.g. "25.0.1_9-jre-alpine"), so it is resolved
+# separately and preferred when present, matching what a manual `grep`
+# against the base tag would find.
+#########################################################################
+# Non-numeric, non-floating-alias tags (e.g. "jre-alpine", "lasf") must exist
+# literally in the tag list — they are not version ranges to be searched.
+# "latest", "edge", and "stable" are treated as floating aliases that resolve
+# to the newest concrete semver tag.
+if [ -z "$MAJOR" ] && [ "$BASE_TAG" != "latest" ] && [ "$BASE_TAG" != "edge" ] && [ "$BASE_TAG" != "stable" ]; then
+    if ! printf '%s\n' $ALL_TAGS | grep -qx -- "$BASE_TAG"; then
+        echo "ERROR: Tag '${BASE_TAG}' not found for image '${RAW_IMAGE}'" >&2
+        exit 1
+    fi
+    NEWEST_TAG="$BASE_TAG"
+else
+
+TRAILING=()
+if [ -n "$SUFFIX" ]; then
+    for t in $ALL_TAGS; do
+        [[ "$t" =~ ^${BASE_TAG}-[0-9]+\.[0-9]+$ ]] && TRAILING+=("$t")
+    done
+fi
+
+if [ ${#TRAILING[@]} -gt 0 ]; then
+    NEWEST_TAG=$(printf '%s\n' "${TRAILING[@]}" | sort -V | tail -n1)
+else
+    # Fallback: broader MAJOR+suffix match (build-number / patch-version variants).
+    CANDIDATES=()
+    for t in $ALL_TAGS; do
+        [[ "$t" =~ ^[0-9] ]] || continue
+        if [ -n "$SUFFIX" ]; then
+            # must start with the same major version AND contain the same suffix,
+            # e.g. base "25-jdk-alpine" matches "25.0.1_9-jdk-alpine" and
+            # "25_36-jdk-alpine" but NOT "26_35-jdk-alpine" (different major
+            # version) or "251-jdk-alpine" (different tag, same leading digits).
+            [[ "$t" =~ ^${MAJOR}([._-]|$) ]] && [[ "$t" == *"$SUFFIX"* ]] && CANDIDATES+=("$t")
+        else
+            if [ -n "$MAJOR" ]; then
+                # base tag was a bare numeric version (e.g. "24") -> restrict to
+                # that same major version line ("24.x.y"), not the newest overall.
+                [[ "$t" =~ ^${MAJOR}(\.[0-9]+)*$ ]] && CANDIDATES+=("$t")
+            else
+                # base tag was "latest"/"edge" (no leading digit at all) -> newest
+                # release overall, any major version.
+                [[ "$t" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] && CANDIDATES+=("$t")
+            fi
+        fi
+    done
+
+    if [ ${#CANDIDATES[@]} -eq 0 ]; then
+        echo "No version tags found matching suffix '${SUFFIX}'" >&2
+        exit 1
+    fi
+
+    NEWEST_TAG=$(printf '%s\n' "${CANDIDATES[@]}" \
+        | awk '{orig=$0; norm=$0; gsub(/_/,".",norm); print norm"|"orig}' \
+        | sort -t'|' -k1,1V \
+        | tail -n1 \
+        | cut -d'|' -f2)
+fi
+
+fi  # end of floating-alias / version-range branch
+
+
+#########################################################################
+# Emit the pinned image reference and write to daily cache
+#########################################################################
+NEWEST_DIGEST=$(digest_for_tag "$NEWEST_TAG")
+RESOLVED_REF="${RAW_IMAGE}:${NEWEST_TAG}@${NEWEST_DIGEST}"
+
+if [ "$CB_REGISTRY_FLAG" = false ]; then
+    mkdir -p "$CB_IMAGE_CACHE_DIR"
+    printf '%s\n' "$RESOLVED_REF" > "$CACHE_FILE"
+    # Remove stale cache files (date prefix older than today)
+    for f in "$CB_IMAGE_CACHE_DIR"/*.txt; do
+        [ -f "$f" ] || continue
+        fdate=$(basename "$f" | sed -E 's/^([0-9]{8})-.*/\1/')
+        [ "${#fdate}" -eq 8 ] && [ "$fdate" \< "$TODAY" ] && rm -f "$f" || true
+    done
+fi
+
+echo "$RESOLVED_REF"
+
+
+#########################################################################
+# EOF
+#########################################################################

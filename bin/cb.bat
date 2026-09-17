@@ -41,6 +41,7 @@ set errorCode=0
 if not defined TEMP set "TEMP=%TMP%"
 if not defined CB_TEMP set "CB_TEMP=%TEMP%\cb"
 if not exist %CB_TEMP% mkdir "%CB_TEMP%" >nul 2>nul
+if not defined CB_IMAGE_VERSION_RESOLVER_PATH set "CB_IMAGE_VERSION_RESOLVER_PATH=%CB_TEMP%\image-version-resolver-cache"
 if not defined GIT_CLIENT set "GIT_CLIENT=git"
 
 :: fast-exit paths (help/version/packages) skip timestamp/powershell/findstr checks

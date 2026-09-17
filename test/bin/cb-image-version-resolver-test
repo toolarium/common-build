@@ -1,0 +1,320 @@
+#!/usr/bin/env bash
+
+#########################################################################
+#
+# cb-image-version-resolver-test
+#
+# Tests for cb-image-version-resolver: verifies that Docker Hub image
+# references are resolved to a pinned tag@digest reference.
+#
+# Copyright by toolarium, all rights reserved.
+#
+# This file is part of the toolarium common-build.
+#
+# The common-build is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The common-build is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Foobar. If not, see <http://www.gnu.org/licenses/>.
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+SCRIPT="$SRC_ROOT/bin/cb-image-version-resolver"
+PASS=0
+FAIL=0
+SKIP=0
+
+
+#########################################################################
+# assertion helpers
+#########################################################################
+assertEquals() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg"
+		echo "        expected: [$expected]"
+		echo "        actual:   [$actual]"
+	fi
+}
+
+assertContains() {
+	local needle="$1" haystack="$2" msg="$3"
+	if echo "$haystack" | grep -q -- "$needle"; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (missing: $needle)"
+		echo "        actual: [$haystack]"
+	fi
+}
+
+assertMatches() {
+	local pattern="$1" value="$2" msg="$3"
+	if [[ "$value" =~ $pattern ]]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (pattern: $pattern)"
+		echo "        actual: [$value]"
+	fi
+}
+
+assertExitCode() {
+	local expected="$1" actual="$2" msg="$3"
+	if [ "$expected" = "$actual" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: $msg (exit $actual)"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: $msg (expected exit $expected, got $actual)"
+	fi
+}
+
+
+#########################################################################
+# error / usage tests (no network required)
+#########################################################################
+test_no_args() {
+	echo "TEST: no arguments -> exit 1 with usage"
+	output=$(bash "$SCRIPT" 2>&1) && rc=$? || rc=$?
+	assertExitCode "1" "$rc" "no args exits with code 1"
+	assertContains "usage:" "$output" "usage line printed"
+	assertContains "resolve" "$output" "description printed"
+}
+
+test_help_short() {
+	echo "TEST: -h -> exit 0 with usage"
+	output=$(bash "$SCRIPT" -h 2>&1) && rc=$? || rc=$?
+	assertExitCode "0" "$rc" "-h exits with code 0"
+	assertContains "usage:" "$output" "usage line printed"
+	assertContains "Examples" "$output" "examples section printed"
+}
+
+test_help_long() {
+	echo "TEST: --help -> exit 0 with usage"
+	output=$(bash "$SCRIPT" --help 2>&1) && rc=$? || rc=$?
+	assertExitCode "0" "$rc" "--help exits with code 0"
+	assertContains "usage:" "$output" "usage line printed"
+	assertContains "Examples" "$output" "examples section printed"
+}
+
+test_too_many_args() {
+	echo "TEST: three arguments -> exit 1 with invalid parameter message"
+	output=$(bash "$SCRIPT" alpine latest extra 2>&1) && rc=$? || rc=$?
+	assertExitCode "1" "$rc" "three args exits with code 1"
+	assertContains "Invalid parameter:" "$output" "invalid parameter message printed"
+	assertContains "usage:" "$output" "usage line printed"
+}
+
+test_unknown_option() {
+	echo "TEST: unknown option -> exit 1 with invalid parameter message"
+	output=$(bash "$SCRIPT" --unknown alpine 2>&1) && rc=$? || rc=$?
+	assertExitCode "1" "$rc" "unknown option exits with code 1"
+	assertContains "Invalid parameter:" "$output" "invalid parameter message printed"
+}
+
+test_registry_missing_url() {
+	echo "TEST: --registry without URL and no CB_REGISTRY_URL env -> exit 1"
+	output=$(CB_REGISTRY_URL="" bash "$SCRIPT" --registry alpine 2>&1) && rc=$? || rc=$?
+	assertExitCode "1" "$rc" "--registry with no URL exits with code 1"
+	assertContains "registry" "$output" "error mentions registry"
+}
+
+test_registry_help_documents_option() {
+	echo "TEST: --help documents --registry option"
+	output=$(bash "$SCRIPT" --help 2>&1)
+	assertContains "--registry" "$output" "help documents --registry option"
+	assertContains "CB_REGISTRY_USER" "$output" "help documents CB_REGISTRY_USER"
+	assertContains "CB_REGISTRY_PASSWORD" "$output" "help documents CB_REGISTRY_PASSWORD"
+}
+
+test_registry_url_via_env() {
+	echo "TEST: CB_REGISTRY_URL env var accepted by --registry flag"
+	# A non-reachable URL; we only check that the error is from auth/connect,
+	# not from missing-URL validation — confirming the env var was picked up.
+	output=$(CB_REGISTRY_URL="https://127.0.0.1:19999" bash "$SCRIPT" --registry alpine 2>&1) && rc=$? || rc=$?
+	assertExitCode "1" "$rc" "--registry with CB_REGISTRY_URL env exits 1 on connect failure"
+	# Should NOT complain about missing URL — the env var was consumed
+	if echo "$output" | grep -q "requires a URL"; then
+		FAIL=$((FAIL+1))
+		echo "  FAIL: should not print 'requires a URL' when CB_REGISTRY_URL is set"
+	else
+		PASS=$((PASS+1))
+		echo "  PASS: did not print 'requires a URL' (env var was consumed)"
+	fi
+}
+
+
+#########################################################################
+# live resolution tests (require jq + internet / Docker Hub access)
+#########################################################################
+
+# Validate that output matches the pinned-reference format:
+#   <image>:<resolved-tag>@sha256:<64-hex-chars>
+DIGEST_PATTERN='^.+:.+@sha256:[0-9a-f]{64}$'
+
+test_alpine_latest() {
+	echo "TEST: alpine (bare image, no tag) -> resolves to versioned tag@digest"
+	output=$(bash "$SCRIPT" alpine 2>&1)
+	rc=$?
+	assertExitCode "0" "$rc" "alpine exits 0"
+	assertMatches "$DIGEST_PATTERN" "$output" "output matches image:tag@sha256:<digest>"
+	assertContains "alpine:" "$output" "output prefixed with 'alpine:'"
+}
+
+test_alpine_colon_form() {
+	echo "TEST: alpine:latest (colon form) -> resolves to versioned tag@digest"
+	output=$(bash "$SCRIPT" alpine:latest 2>&1)
+	rc=$?
+	assertExitCode "0" "$rc" "alpine:latest exits 0"
+	assertMatches "$DIGEST_PATTERN" "$output" "output matches image:tag@sha256:<digest>"
+	assertContains "alpine:" "$output" "output prefixed with 'alpine:'"
+}
+
+test_alpine_two_arg_form() {
+	echo "TEST: alpine latest (two-arg form) -> same result as colon form"
+	out1=$(bash "$SCRIPT" alpine:latest 2>&1)
+	out2=$(bash "$SCRIPT" alpine latest 2>&1)
+	assertEquals "$out1" "$out2" "colon form and two-arg form produce identical output"
+}
+
+test_node_latest() {
+	echo "TEST: node (bare image) -> resolves to versioned tag@digest"
+	output=$(bash "$SCRIPT" node 2>&1)
+	rc=$?
+	assertExitCode "0" "$rc" "node exits 0"
+	assertMatches "$DIGEST_PATTERN" "$output" "output matches image:tag@sha256:<digest>"
+	assertContains "node:" "$output" "output prefixed with 'node:'"
+}
+
+test_eclipse_temurin_25_jre_alpine() {
+	echo "TEST: eclipse-temurin:25-jre-alpine -> resolves to pinned jre-alpine tag@digest"
+	output=$(bash "$SCRIPT" eclipse-temurin:25-jre-alpine 2>&1)
+	rc=$?
+	assertExitCode "0" "$rc" "eclipse-temurin:25-jre-alpine exits 0"
+	assertMatches "$DIGEST_PATTERN" "$output" "output matches image:tag@sha256:<digest>"
+	assertContains "eclipse-temurin:" "$output" "output prefixed with 'eclipse-temurin:'"
+	assertContains "jre-alpine" "$output" "resolved tag contains 'jre-alpine'"
+	assertContains "25" "$output" "resolved tag contains major version '25'"
+}
+
+test_eclipse_temurin_25_jdk_alpine() {
+	echo "TEST: eclipse-temurin:25-jdk-alpine -> resolves to pinned jdk-alpine tag@digest"
+	output=$(bash "$SCRIPT" eclipse-temurin:25-jdk-alpine 2>&1)
+	rc=$?
+	assertExitCode "0" "$rc" "eclipse-temurin:25-jdk-alpine exits 0"
+	assertMatches "$DIGEST_PATTERN" "$output" "output matches image:tag@sha256:<digest>"
+	assertContains "eclipse-temurin:" "$output" "output prefixed with 'eclipse-temurin:'"
+	assertContains "jdk-alpine" "$output" "resolved tag contains 'jdk-alpine'"
+	assertContains "25" "$output" "resolved tag contains major version '25'"
+}
+
+test_jre_jdk_different() {
+	echo "TEST: 25-jre-alpine and 25-jdk-alpine resolve to different tags"
+	out_jre=$(bash "$SCRIPT" eclipse-temurin:25-jre-alpine 2>&1)
+	out_jdk=$(bash "$SCRIPT" eclipse-temurin:25-jdk-alpine 2>&1)
+	if [ "$out_jre" != "$out_jdk" ]; then
+		PASS=$((PASS+1))
+		echo "  PASS: jre and jdk resolve to different references"
+	else
+		FAIL=$((FAIL+1))
+		echo "  FAIL: jre and jdk resolved to the same reference: [$out_jre]"
+	fi
+}
+
+test_verify_valid_digest() {
+	echo "TEST: alpine:3.24.1@<digest> (valid) -> verifies and returns reference as-is"
+	ref=$(bash "$SCRIPT" alpine:3.24.1 2>&1)
+	if [ $? -ne 0 ] || [ -z "$ref" ]; then
+		echo "  SKIP: could not resolve alpine:3.24.1 to get a reference"
+		SKIP=$((SKIP+2)); return
+	fi
+	out=$(bash "$SCRIPT" "$ref" 2>&1)
+	assertExitCode "0" "$?" "verify valid digest exits 0"
+	assertEquals "$ref" "$out" "verify returns same reference unchanged"
+}
+
+test_verify_wrong_digest() {
+	echo "TEST: alpine:3.24.1@sha256:0000...0000 (wrong digest) -> mismatch error"
+	out=$(bash "$SCRIPT" "alpine:3.24.1@sha256:0000000000000000000000000000000000000000000000000000000000000000" 2>&1)
+	assertExitCode "1" "$?" "wrong digest exits 1"
+	assertContains "mismatch" "$out" "error mentions mismatch"
+}
+
+test_invalid_image() {
+	echo "TEST: nonexistentimage12345 (unknown image) -> exit 1 with error"
+	out=$(bash "$SCRIPT" nonexistentimage12345 2>&1)
+	assertExitCode "1" "$?" "unknown image exits 1"
+	assertContains "nonexistentimage12345" "$out" "error mentions the image name"
+}
+
+test_invalid_tag() {
+	echo "TEST: alpine:nonexistenttag12345 (unknown tag) -> exit 1 with error"
+	out=$(bash "$SCRIPT" alpine:nonexistenttag12345 2>&1)
+	assertExitCode "1" "$?" "unknown tag exits 1"
+	assertContains "nonexistenttag12345" "$out" "error mentions the tag name"
+}
+
+
+#########################################################################
+# main
+#########################################################################
+echo "Running cb-image-version-resolver tests..."
+echo "Using: $SCRIPT"
+echo ""
+
+[ ! -r "$SCRIPT" ] && echo "ERROR: $SCRIPT not found" && exit 1
+
+echo "=== Error / usage tests ==="
+test_no_args
+test_help_short
+test_help_long
+test_too_many_args
+test_unknown_option
+test_registry_missing_url
+test_registry_help_documents_option
+test_registry_url_via_env
+
+echo ""
+if ! (command -v jq >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1 || command -v powershell >/dev/null 2>&1); then
+	echo "=== Live resolution tests ==="
+	echo "  SKIP: no JSON parser (jq/python3/python/powershell) found - skipping all live tests"
+	SKIP=$((SKIP+11))
+else
+	echo "=== Live resolution tests ==="
+	test_alpine_latest
+	test_alpine_colon_form
+	test_alpine_two_arg_form
+	test_node_latest
+	test_eclipse_temurin_25_jre_alpine
+	test_eclipse_temurin_25_jdk_alpine
+	test_jre_jdk_different
+	test_verify_valid_digest
+	test_verify_wrong_digest
+	test_invalid_image
+	test_invalid_tag
+fi
+
+echo ""
+echo "Results: $PASS passed, $FAIL failed, $SKIP skipped"
+[ $FAIL -eq 0 ] && exit 0 || exit 1
+
+
+#########################################################################
+# EOF
+#########################################################################

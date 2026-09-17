@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.6] - 2026-09-17
+### Added
+- `cb-image-version-resolver` (`cb-image-version-resolver.bat`): new script to resolve a Docker Hub or private registry image reference to a pinned `tag@sha256:<digest>` reference. Supports Docker Hub (PowerShell and wget), private Docker Registry v2 (Basic/Bearer auth), daily result cache (`CB_IMAGE_VERSION_RESOLVER_PATH` or `<tmp>/cb/image-version-resolver-cache`), digest verification when a full `image:tag@sha256:<digest>` reference is supplied, and automatic stale-cache cleanup.
+- `cb` / `cb.bat`: export `CB_IMAGE_VERSION_RESOLVER_PATH` pointing to `<tmp>/cb/image-version-resolver-cache` when not already set, and ensure the directory exists.
+
 ## [1.1.5] - 2026-07-20
 ### Added
 - `cb-container`: Remote Docker Registry v2 support via `--registry <url>` flag and `CB_REGISTRY_URL` / `CB_REGISTRY_USER` / `CB_REGISTRY_PASSWORD` environment variables.

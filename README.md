@@ -126,6 +126,7 @@ In addition to the main `cb` command, common-build ships with a set of standalon
 |---|---|
 | `cb-clean-files` | Delete regular files older than N days from a single directory (top-level, non-recursive). Supports glob pattern filter, `--dry-run` and `--silent` modes. Rejects dangerous target paths (`/`, `$HOME`, `/usr`, `/etc`, ...). |
 | `cb-cleanup` | Cleanup common-build artifacts (caches, temp directories, stale downloads). Calls `cleanup-start` / `cleanup-end` lifecycle hooks if a custom hook script is configured. |
+| `cb-image-version-resolver` | Resolve a Docker Hub or private Docker Registry v2 image reference to a pinned `image:tag@sha256:<digest>` reference. Accepts `image`, `image:tag`, `image tag`, or a full `image:tag@sha256:<digest>` (verify mode). Numeric tags are resolved to the newest patch/build variant on the same major version line. Results are cached daily under `CB_IMAGE_VERSION_RESOLVER_PATH`. Supports `--registry <url>` with `CB_REGISTRY_USER` / `CB_REGISTRY_PASSWORD` for private registries. |
 | `cb-container` | Container management tool for Docker and nerdctl. List images (`-l`), filter by name or image ID prefix (`-l alpine`), connect interactively (`-i`), start/stop containers, view logs, scan vulnerabilities (`--scan`), scan all images with severity breakdown (`--scan -a` shows CRIT/HIGH/MED/LOW), CSV export (`--csv`), wide output (`-w`), force rescan (`-f`). Project-aware: auto-detects image name from `settings.gradle` and stores scan results in `build/container/`. See [`docs/cb-container.md`](docs/cb-container.md). |
 | `cb-dockterm` | Open an interactive terminal inside a running Docker container. Types are defined in `conf/dockterm-types.properties` (key = type name, value = Docker image). Default types: alpine, arch, debian, fedora, kali, ubuntu. Add custom entries to use private or corporate images. |
 | `cb-filetail` | Follow/tail a file (like `tail -f`) with optional `grep` filtering — cross-platform, works on Windows too. |
@@ -201,6 +202,7 @@ cb --install cb
 | `CB_DEVTOOLS_DRIVE` | (Windows only) Drive letter where devtools are installed. | `c:` |
 | `CB_HOME` | Common-build installation directory. | `$CB_DEVTOOLS/toolarium-common-build-v<version>` |
 | `CB_TEMP` | Temporary directory for work files, download caches, and lock files. | `$TMPDIR/cb-$USER` (Unix), `%TEMP%\cb` (Windows) |
+| `CB_IMAGE_VERSION_RESOLVER_PATH` | Cache directory for `cb-image-version-resolver` daily resolution results. Set by `cb` / `cb.bat` automatically; override to share a cache across projects. | `$TMPDIR/cb/image-version-resolver-cache` (Unix), `%TEMP%\cb\image-version-resolver-cache` (Windows) |
 | `CB_CUSTOM_CONFIG` | Git URL to a custom config project for full customization. | |
 | `CB_CUSTOM_SETTING` | Path to a custom hook script called during all operations. See [`docs/sample/`](docs/sample/) for templates. | |
 | `CB_PACKAGE_URL` | URL to a directory of additional package zip files. | |
