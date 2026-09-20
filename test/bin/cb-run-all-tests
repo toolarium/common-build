@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+
+#########################################################################
+#
+# cb-run-all-tests
+#
+# Runs all common-build test suites (bash + bat) and prints a grouped
+# summary: PASS / FAIL / SKIP / HANG / ERROR.
+#
+# Each run is fully isolated: tests execute against a temporary copy of
+# the project so that files like bin/wget, bin/unzip,
+# tool-version-default.properties, tool-version-installed.properties and
+# tool-version-default.lastCheck are never modified in the real tree.
+#
+# Copyright by toolarium, all rights reserved.
+#
+# This file is part of the toolarium common-build.
+#
+# The common-build is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The common-build is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Foobar. If not, see <http://www.gnu.org/licenses/>.
+#
+#########################################################################
+
+SCRIPT_DIR=$(cd -- "$(dirname "$0")" 2>/dev/null && pwd)
+SRC_ROOT=$(cd "$SCRIPT_DIR/../.." && pwd)
+TEST_TIMEOUT=${CB_TEST_TIMEOUT:-600}   # seconds per suite (override via CB_TEST_TIMEOUT)
+
+declare -a PASS_LIST FAIL_LIST SKIP_LIST HANG_LIST ERROR_LIST
+
+
+#########################################################################
+# Initialize environment via cb --setenv
+# Windows: python must be initialized before sourcing cb --setenv.
+# Linux/WSL: plain source suffices.
+#########################################################################
+_is_windows=false
+if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* || "$OSTYPE" == win32* ]] || \
+   command -v cmd >/dev/null 2>&1; then
+    _is_windows=true
+fi
+
+echo "Initializing environment (cb --setenv)..."
+_ORIGINAL_PATH="$PATH"
+if $_is_windows; then
+    python --version > /dev/null 2>&1 || python3 --version > /dev/null 2>&1 || true
+fi
+# shellcheck source=/dev/null
+source "$SRC_ROOT/bin/cb" --setenv > /dev/null 2>&1 || true
+echo ""
+
+
+#########################################################################
+# Isolation: copy the entire project to a temp directory so tests cannot
+# modify files in the real working tree.
+#########################################################################
+ISOLATED_ROOT=$(mktemp -d)
+echo "Copying project to isolated environment: $ISOLATED_ROOT"
+cp -r "$SRC_ROOT/." "$ISOLATED_ROOT/"
+TEST_DIR="$ISOLATED_ROOT/test/bin"
+
+cleanup() { rm -rf "$ISOLATED_ROOT"; }
+trap cleanup EXIT
+echo ""
+
+
+#########################################################################
+# run_suite <display-name> <command>
+# Runs the command in a background process with a kill-based timeout
+# (background+kill works reliably on Windows where the 'timeout' builtin
+# does not propagate to cmd.exe child processes).
+#########################################################################
+run_suite() {
+	local name="$1"
+	local cmd="$2"
+
+	printf "  %-48s" "$name"
+
+	local tmpout
+	tmpout=$(mktemp)
+
+	bash -c "$cmd" > "$tmpout" 2>&1 &
+	local pid=$!
+
+	local elapsed=0
+	while [ "$elapsed" -lt "$TEST_TIMEOUT" ]; do
+		if ! kill -0 "$pid" 2>/dev/null; then
+			break
+		fi
+		sleep 2
+		elapsed=$((elapsed + 2))
+	done
+
+	local rc
+	if kill -0 "$pid" 2>/dev/null; then
+		kill -9 "$pid" 2>/dev/null
+		wait "$pid" 2>/dev/null
+		rm -f "$tmpout"
+		echo "HANG"
+		HANG_LIST+=("$name")
+		return
+	fi
+
+	wait "$pid"
+	rc=$?
+	local output
+	output=$(cat "$tmpout")
+	rm -f "$tmpout"
+
+	# --- Whole-suite SKIP (no Results line, starts with SKIP:) ---
+	if echo "$output" | grep -q "^SKIP:" && ! echo "$output" | grep -q "^Results:"; then
+		local reason
+		reason=$(echo "$output" | grep "^SKIP:" | head -1 | sed 's/^SKIP: *//')
+		echo "SKIP   ($reason)"
+		SKIP_LIST+=("$name  [suite-skip: $reason]")
+		return
+	fi
+
+	# --- No Results line ---
+	if ! echo "$output" | grep -q "^Results:"; then
+		local errmsg
+		errmsg=$(echo "$output" | grep "^ERROR:" | head -1)
+		if echo "$errmsg" | grep -qi "not found\|not executable"; then
+			echo "ERROR  ($errmsg)"
+			ERROR_LIST+=("$name  [$errmsg]")
+		else
+			local detail="${errmsg:-exit $rc}"
+			echo "FAIL   ($detail)"
+			FAIL_LIST+=("$name  [$detail]")
+		fi
+		return
+	fi
+
+	# --- Parse Results line ---
+	local results
+	results=$(echo "$output" | grep "^Results:" | tail -1)
+	local failed skipped
+	failed=$(echo "$results"  | grep -oE '[0-9]+ failed'  | awk '{print $1}')
+	skipped=$(echo "$results" | grep -oE '[0-9]+ skipped' | awk '{print $1}')
+	failed="${failed:-0}"
+	skipped="${skipped:-0}"
+
+	if [ "$failed" -gt 0 ]; then
+		echo "FAIL   ($results)"
+		FAIL_LIST+=("$name  [$results]")
+	elif [ "$skipped" -gt 0 ]; then
+		echo "PASS*  ($results)"
+		PASS_LIST+=("$name")
+		SKIP_LIST+=("$name  [internal: $results]")
+	else
+		echo "PASS   ($results)"
+		PASS_LIST+=("$name")
+	fi
+}
+
+
+#########################################################################
+# Bash test suites
+#########################################################################
+echo "Running bash test suites..."
+echo ""
+for t in "$TEST_DIR"/*-test; do
+	[ -f "$t" ] && [ -x "$t" ] || continue
+	run_suite "$(basename "$t")" "bash '$t'"
+done
+
+
+#########################################################################
+# Bat test suites (Windows only)
+#########################################################################
+if $_is_windows; then
+	echo ""
+	echo "Running bat test suites..."
+	echo ""
+	for t in "$TEST_DIR"/*-test.bat; do
+		[ -f "$t" ] || continue
+		winpath=$(cygpath -w "$t" 2>/dev/null || echo "$t")
+		run_suite "$(basename "$t")" "(cd '$ISOLATED_ROOT' && PATH='$_ORIGINAL_PATH' && cmd //c '$winpath')"
+	done
+fi
+
+
+#########################################################################
+# Summary
+#########################################################################
+echo ""
+echo "================================================================"
+echo "SUMMARY"
+echo "================================================================"
+
+echo ""
+echo "PASSED  (${#PASS_LIST[@]}):"
+for s in "${PASS_LIST[@]}"; do echo "  PASS  $s"; done
+
+echo ""
+echo "FAILED  (${#FAIL_LIST[@]}):"
+for s in "${FAIL_LIST[@]}"; do echo "  FAIL  $s"; done
+
+echo ""
+echo "SKIPPED (${#SKIP_LIST[@]}):"
+for s in "${SKIP_LIST[@]}"; do echo "  SKIP  $s"; done
+
+echo ""
+echo "HANGING (${#HANG_LIST[@]}):"
+for s in "${HANG_LIST[@]}"; do echo "  HANG  $s"; done
+
+echo ""
+echo "ERRORS  (${#ERROR_LIST[@]}):"
+for s in "${ERROR_LIST[@]}"; do echo "  ERR   $s"; done
+
+echo ""
+total_fail=$(( ${#FAIL_LIST[@]} + ${#HANG_LIST[@]} + ${#ERROR_LIST[@]} ))
+[ "$total_fail" -eq 0 ] && exit 0 || exit 1
+
+
+#########################################################################
+# EOF
+#########################################################################

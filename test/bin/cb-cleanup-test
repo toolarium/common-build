@@ -111,6 +111,7 @@ test_help() {
 	assertContains "Cleanup common-build" "$output" "help mentions purpose"
 	assertContains "\-\-cb " "$output" "help lists --cb"
 	assertContains "\-\-cgb " "$output" "help lists --cgb"
+	assertContains "\-\-docker-builder" "$output" "help lists --docker-builder"
 	assertContains "\-\-dry-run" "$output" "help lists --dry-run"
 	assertContains "\-\-silent" "$output" "help lists --silent"
 
@@ -332,6 +333,22 @@ test_docker_image_arg_parsing() {
 	esac
 }
 
+test_docker_builder_arg_parsing() {
+	echo "TEST: --docker-builder / --docker-builder-until accepted by parser"
+	output=$(PATH="$SAFE_PATH" CB_HOME="$SRC_ROOT" HOME="$TMPDIR" \
+		bash "$CLEANUP" --docker-builder --docker-builder-until 48 --dry-run 2>&1)
+	rc=$?
+	assertEquals "0" "$rc" "exit 0 for --docker-builder --docker-builder-until 48"
+	case "$output" in
+		*"Invalid parameter"*)
+			FAIL=$((FAIL+1)); echo "  FAIL: --docker-builder* rejected by parser"
+			;;
+		*)
+			PASS=$((PASS+1)); echo "  PASS: --docker-builder / --docker-builder-until parse cleanly"
+			;;
+	esac
+}
+
 test_docker_system_arg_parsing() {
 	echo "TEST: --docker-system / --docker-system-until accepted by parser"
 	output=$(PATH="$SAFE_PATH" CB_HOME="$SRC_ROOT" HOME="$TMPDIR" \
@@ -393,7 +410,7 @@ test_combined_cb_cgb_dry_run() {
 }
 
 test_default_mode() {
-	echo "TEST: no args runs default targets (cb + cgb + docker-image)"
+	echo "TEST: no args runs default targets (cb + cgb + docker-image + docker-builder)"
 	# default mode kicks in only when argCount == 0, so we cannot pass
 	# --dry-run. Point every path at an empty fake dir so the real delete
 	# doesn't touch anything we care about.
@@ -433,6 +450,7 @@ test_cb_deletes_logs
 test_log_until_threshold
 test_gradle_cache_threshold
 test_docker_image_arg_parsing
+test_docker_builder_arg_parsing
 test_docker_system_arg_parsing
 test_npm_arg_parsing
 test_default_mode

@@ -25,6 +25,7 @@
 
 PN=$(basename "$0" 2>/dev/null)
 DOCKER_IMAGE_CLEAN_UNTIL=24
+DOCKER_BUILDER_CLEAN_UNTIL=24
 DOCKER_SYSTEM_CLEAN_UNTIL=72
 CLEAN_LOG_UNTIL_DAYS=1
 GRADLE_CACHE_LAST_ACCESS_DAYS=30
@@ -151,7 +152,7 @@ cleanupCommonBuild() {
 	[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Cleanup $CB_LOGS..."
 	"$CB_HOME/bin/cb-clean-files" $DRY_RUN_FLAG --days $CLEAN_LOG_UNTIL_DAYS --pattern "*" --path "$CB_LOGS" > $CB_OUT
 
-	! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb-$USER"
+	if [ -z "$CB_TEMP" ]; then [ -n "$USER" ] && CB_TEMP="/tmp/cb-$USER" || CB_TEMP="/tmp/cb"; fi
 	[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Cleanup $CB_TEMP..."
 	"$CB_HOME/bin/cb-clean-files" $DRY_RUN_FLAG --days $CLEAN_LOG_UNTIL_DAYS --pattern "*" --path "$CB_TEMP" > $CB_OUT
 
@@ -206,7 +207,7 @@ EOF
 	fi
 
 	# cleanup cache — see gradle https://www.baeldung.com/gradle-build-cache
-	! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb-$USER"
+	if [ -z "$CB_TEMP" ]; then [ -n "$USER" ] && CB_TEMP="/tmp/cb-$USER" || CB_TEMP="/tmp/cb"; fi
 	[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Cleanup $CB_TEMP..."
 	"$CB_HOME/bin/cb-clean-files" $DRY_RUN_FLAG --days $GRADLE_CACHE_LAST_ACCESS_DAYS --pattern "*" --path "$HOME/.gradle/caches" > $CB_OUT
 	[ "$CB_DRY_RUN" = "false" ] && find "$HOME/.gradle/caches" -mindepth 1 -type d -empty -exec rmdir {} + 2>/dev/null
@@ -235,6 +236,19 @@ dockerImagePrune() {
 	if [ -n "$CB_DOCKER_CMD" ]; then
 		[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Docker image prune (until ${DOCKER_IMAGE_CLEAN_UNTIL}H)..."
 		eval $CB_DOCKER_CMD image prune -f -a --filter "until=${DOCKER_IMAGE_CLEAN_UNTIL}H" > $CB_OUT 2>&1
+		[ $? -eq 0 ] && return 0 || return 1
+	fi
+	return 0
+}
+
+
+#########################################################################
+# Prune docker builder cache
+#########################################################################
+dockerBuilderPrune() {
+	if [ -n "$CB_DOCKER_CMD" ]; then
+		[ "$CB_SILENT" = "false" ] && echo "${CB_LINEHEADER}Docker builder prune (until ${DOCKER_BUILDER_CLEAN_UNTIL}H)..."
+		eval $CB_DOCKER_CMD builder prune -f --filter "until=${DOCKER_BUILDER_CLEAN_UNTIL}H" > $CB_OUT 2>&1
 		[ $? -eq 0 ] && return 0 || return 1
 	fi
 	return 0
@@ -280,7 +294,7 @@ printUsage() {
 	echo "usage: $PN [OPTION]..."
 	echo ""
 	echo "Runs one or more cleanup targets. Without any"
-	echo "arguments it runs --cb, --cgb and --docker-image."
+	echo "arguments it runs --cb, --cgb, --docker-image and --docker-builder."
 	echo ""
 	echo "Targets:"
 	echo " --cb                         Clean common-build: \$CB_HOME/logs, \$CB_TEMP"
@@ -288,6 +302,7 @@ printUsage() {
 	echo "                              \$CGB_TEMP, ~/.gradle/daemon (keep newest),"
 	echo "                              ~/.gradle/common-gradle-build, ~/.gradle/caches"
 	echo " --docker-image               $CB_DOCKER_CMD_INFO image prune (until $DOCKER_IMAGE_CLEAN_UNTIL hours)"
+	echo " --docker-builder             $CB_DOCKER_CMD_INFO builder prune (until $DOCKER_BUILDER_CLEAN_UNTIL hours)"
 	echo " --docker-system              $CB_DOCKER_CMD_INFO system prune (until $DOCKER_SYSTEM_CLEAN_UNTIL hours)"
 	echo " --npm                        npm cache clean + verify + browserslist update"
 	echo " --path <dir>                 Custom cleanup: top-level files under <dir>"
@@ -297,6 +312,7 @@ printUsage() {
 	echo " --log-until <n>              Days to keep logs/temp files (default $CLEAN_LOG_UNTIL_DAYS)"
 	echo " --gradle-cache <n>           Days since last access for gradle cache (default $GRADLE_CACHE_LAST_ACCESS_DAYS)"
 	echo " --docker-image-until <h>     $CB_DOCKER_CMD_INFO image prune age in hours (default $DOCKER_IMAGE_CLEAN_UNTIL)"
+	echo " --docker-builder-until <h>   $CB_DOCKER_CMD_INFO builder prune age in hours (default $DOCKER_BUILDER_CLEAN_UNTIL)"
 	echo " --docker-system-until <h>    $CB_DOCKER_CMD_INFO system prune age in hours (default $DOCKER_SYSTEM_CLEAN_UNTIL)"
 	echo ""
 	echo "Misc:"
@@ -305,7 +321,7 @@ printUsage() {
 	echo " --dry-run                    Show what would be deleted without touching anything."
 	echo ""
 	echo "Examples:"
-	echo " Default cleanup (cb + cgb + docker-image):"
+	echo " Default cleanup (cb + cgb + docker-image + docker-builder):"
 	echo " cb-cleanup"
 	echo ""
 	echo " Delete gradle worker files in /tmp:"
@@ -319,6 +335,7 @@ printUsage() {
 enableCleanupCommonBuild=0
 enableCleanupCommonGradleBuild=0
 enableDockerImagePrune=0
+enableDockerBuilderPrune=0
 enableDockerSystemPrune=0
 enableCleanupNpm=0
 CB_SILENT=false
@@ -338,6 +355,8 @@ while [ $# -gt 0 ]; do
 		--cgb) 					enableCleanupCommonGradleBuild=1;;
 		--docker-image)			enableDockerImagePrune=1;;
 		--docker-image-until) 	shift; DOCKER_IMAGE_CLEAN_UNTIL="$1";;
+		--docker-builder)		enableDockerBuilderPrune=1;;
+		--docker-builder-until)	shift; DOCKER_BUILDER_CLEAN_UNTIL="$1";;
 		--docker-system)		enableDockerSystemPrune=1;;
 		--docker-system-until) 	shift; DOCKER_SYSTEM_CLEAN_UNTIL="$1";;
 		--npm) 					enableCleanupNpm=1;;
@@ -363,6 +382,7 @@ if [ $argCount -eq 0 ] && [ -z "$CB_CLEAN_PATH" ]; then
 	enableCleanupCommonBuild=1
 	enableCleanupCommonGradleBuild=1
 	enableDockerImagePrune=1
+	enableDockerBuilderPrune=1
 	enableDockerSystemPrune=0
 	enableCleanupNpm=0
 fi
@@ -380,6 +400,7 @@ fi
 [ $enableCleanupCommonBuild -eq 1 ] && cleanupCommonBuild
 [ $enableCleanupCommonGradleBuild -eq 1 ] && cleanupCommonGradleBuild
 [ $enableDockerImagePrune -eq 1 ] && dockerImagePrune
+[ $enableDockerBuilderPrune -eq 1 ] && dockerBuilderPrune
 [ $enableDockerSystemPrune -eq 1 ] && dockerSystemPrune
 [ $enableCleanupNpm -eq 1 ] && cleanupNpm
 

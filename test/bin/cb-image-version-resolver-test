@@ -33,6 +33,9 @@ PASS=0
 FAIL=0
 SKIP=0
 
+# shellcheck source=/dev/null
+source "$SRC_ROOT/bin/cb" --setenv > /dev/null 2>&1 || true
+
 
 #########################################################################
 # assertion helpers

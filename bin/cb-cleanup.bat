@@ -30,6 +30,7 @@ set "CB_LINEHEADER=.: "
 
 :: defaults
 set "DOCKER_IMAGE_CLEAN_UNTIL=24"
+set "DOCKER_BUILDER_CLEAN_UNTIL=24"
 set "DOCKER_SYSTEM_CLEAN_UNTIL=72"
 set "CLEAN_LOG_UNTIL_DAYS=1"
 set "GRADLE_CACHE_LAST_ACCESS_DAYS=30"
@@ -42,6 +43,7 @@ if not defined CB_TEMP set "CB_TEMP=%TEMP%\cb"
 set "enableCleanupCommonBuild=0"
 set "enableCleanupCommonGradleBuild=0"
 set "enableDockerImagePrune=0"
+set "enableDockerBuilderPrune=0"
 set "enableDockerSystemPrune=0"
 set "enableCleanupNpm=0"
 set "CB_CLEAN_PATH="
@@ -63,6 +65,8 @@ if .%1==.--cb set "enableCleanupCommonBuild=1" & shift & goto CHECK_PARAMETER
 if .%1==.--cgb set "enableCleanupCommonGradleBuild=1" & shift & goto CHECK_PARAMETER
 if .%1==.--docker-image set "enableDockerImagePrune=1" & shift & goto CHECK_PARAMETER
 if .%1==.--docker-image-until shift & set "DOCKER_IMAGE_CLEAN_UNTIL=%~2" & shift & goto CHECK_PARAMETER
+if .%1==.--docker-builder set "enableDockerBuilderPrune=1" & shift & goto CHECK_PARAMETER
+if .%1==.--docker-builder-until shift & set "DOCKER_BUILDER_CLEAN_UNTIL=%~2" & shift & goto CHECK_PARAMETER
 if .%1==.--docker-system set "enableDockerSystemPrune=1" & shift & goto CHECK_PARAMETER
 if .%1==.--docker-system-until shift & set "DOCKER_SYSTEM_CLEAN_UNTIL=%~2" & shift & goto CHECK_PARAMETER
 if .%1==.--npm set "enableCleanupNpm=1" & shift & goto CHECK_PARAMETER
@@ -93,6 +97,7 @@ if %argCount% EQU 0 if not defined CB_CLEAN_PATH if not defined CB_CLEAN_PATTERN
 	set "enableCleanupCommonBuild=1"
 	set "enableCleanupCommonGradleBuild=1"
 	set "enableDockerImagePrune=1"
+	set "enableDockerBuilderPrune=1"
 )
 
 :: resolve custom setting script if not already set (e.g. via cb --setenv)
@@ -105,6 +110,7 @@ if exist "%CB_CUSTOM_SETTING_SCRIPT%" call "%CB_CUSTOM_SETTING_SCRIPT%" cleanup-
 if %enableCleanupCommonBuild% EQU 1 call :CLEANUP_COMMON_BUILD
 if %enableCleanupCommonGradleBuild% EQU 1 call :CLEANUP_COMMON_GRADLE_BUILD
 if %enableDockerImagePrune% EQU 1 call :DOCKER_IMAGE_PRUNE
+if %enableDockerBuilderPrune% EQU 1 call :DOCKER_BUILDER_PRUNE
 if %enableDockerSystemPrune% EQU 1 call :DOCKER_SYSTEM_PRUNE
 if %enableCleanupNpm% EQU 1 call :CLEANUP_NPM
 
@@ -215,6 +221,15 @@ goto :eof
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:DOCKER_BUILDER_PRUNE
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+if not defined CB_DOCKER_CMD goto :eof
+if .%CB_SILENT%==.false echo %CB_LINEHEADER%Docker builder prune (until %DOCKER_BUILDER_CLEAN_UNTIL%H)...
+call %CB_DOCKER_CMD% builder prune -f --filter "until=%DOCKER_BUILDER_CLEAN_UNTIL%H"
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :DOCKER_SYSTEM_PRUNE
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 if not defined CB_DOCKER_CMD goto :eof
@@ -244,7 +259,7 @@ echo %PN% - Cleanup common-build atrefacts
 echo usage: %PN% [OPTION]...
 echo\
 echo Runs one or more cleanup targets. Without any
-echo arguments it runs --cb, --cgb and --docker-image.
+echo arguments it runs --cb, --cgb, --docker-image and --docker-builder.
 echo\
 echo Targets:
 echo  --cb                         Clean common-build: %%CB_HOME%%\logs, %%CB_TEMP%%
@@ -252,16 +267,18 @@ echo  --cgb                        Clean common-gradle-build: stop gradle daemon
 echo                               %%CGB_TEMP%%, ~\.gradle\daemon ^(keep newest^),
 echo                               ~\.gradle\common-gradle-build, ~\.gradle\caches
 echo  --docker-image               %CB_DOCKER_CMD_INFO% image prune ^(until %DOCKER_IMAGE_CLEAN_UNTIL% hours^)
+echo  --docker-builder             %CB_DOCKER_CMD_INFO% builder prune ^(until %DOCKER_BUILDER_CLEAN_UNTIL% hours^)
 echo  --docker-system              %CB_DOCKER_CMD_INFO% system prune ^(until %DOCKER_SYSTEM_CLEAN_UNTIL% hours^)
 echo  --npm                        npm cache clean + verify + browserslist update
 echo  --path ^<dir^>               Custom cleanup: top-level files under ^<dir^>
 echo  --pattern ^<glob^>           Glob pattern for --path ^(default: all files^)
 echo\
 echo Thresholds:
-echo  --log-until ^<n^>            Days to keep logs/temp files ^(default %CLEAN_LOG_UNTIL_DAYS%^)
-echo  --gradle-cache ^<n^>         Days since last access for gradle cache ^(default %GRADLE_CACHE_LAST_ACCESS_DAYS%^)
-echo  --docker-image-until ^<h^>   %CB_DOCKER_CMD_INFO% image prune age in hours ^(default %DOCKER_IMAGE_CLEAN_UNTIL%^)
-echo  --docker-system-until ^<h^>  %CB_DOCKER_CMD_INFO% system prune age in hours ^(default %DOCKER_SYSTEM_CLEAN_UNTIL%^)
+echo  --log-until ^<n^>              Days to keep logs/temp files ^(default %CLEAN_LOG_UNTIL_DAYS%^)
+echo  --gradle-cache ^<n^>           Days since last access for gradle cache ^(default %GRADLE_CACHE_LAST_ACCESS_DAYS%^)
+echo  --docker-image-until ^<h^>     %CB_DOCKER_CMD_INFO% image prune age in hours ^(default %DOCKER_IMAGE_CLEAN_UNTIL%^)
+echo  --docker-builder-until ^<h^>   %CB_DOCKER_CMD_INFO% builder prune age in hours ^(default %DOCKER_BUILDER_CLEAN_UNTIL%^)
+echo  --docker-system-until ^<h^>    %CB_DOCKER_CMD_INFO% system prune age in hours ^(default %DOCKER_SYSTEM_CLEAN_UNTIL%^)
 echo\
 echo Misc:
 echo  -h, --help                   Show this help message.
@@ -269,7 +286,7 @@ echo  --silent                     Suppress informational output.
 echo  --dry-run                    Show what would be deleted without touching anything.
 echo\
 echo Examples:
-echo  Default cleanup ^(cb + cgb + docker-image^):
+echo  Default cleanup ^(cb + cgb + docker-image + docker-builder^):
 echo  cb-cleanup
 echo\
 echo  Delete gradle worker files in %%TEMP%%:

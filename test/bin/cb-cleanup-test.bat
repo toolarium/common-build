@@ -42,6 +42,7 @@ call :TEST_CB_DELETES_LOGS
 call :TEST_LOG_UNTIL_THRESHOLD
 call :TEST_GRADLE_CACHE_THRESHOLD
 call :TEST_DOCKER_IMAGE_ARG_PARSING
+call :TEST_DOCKER_BUILDER_ARG_PARSING
 call :TEST_DOCKER_SYSTEM_ARG_PARSING
 call :TEST_NPM_ARG_PARSING
 call :TEST_DEFAULT_MODE
@@ -161,6 +162,7 @@ call "%CLEANUP%" --help > "%OUT%" 2>&1
 call :ASSERT_CONTAINS "Cleanup common-build" "%OUT%" "help mentions purpose"
 call :ASSERT_CONTAINS "--cb " "%OUT%" "help lists --cb"
 call :ASSERT_CONTAINS "--cgb" "%OUT%" "help lists --cgb"
+call :ASSERT_CONTAINS "--docker-builder" "%OUT%" "help lists --docker-builder"
 call :ASSERT_CONTAINS "--dry-run" "%OUT%" "help lists --dry-run"
 call :ASSERT_CONTAINS "--silent" "%OUT%" "help lists --silent"
 goto :eof
@@ -440,6 +442,17 @@ goto :eof
 
 
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_DOCKER_BUILDER_ARG_PARSING
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: --docker-builder / --docker-builder-until accepted by parser
+set "OUT=%TEST_ROOT%\db.txt"
+set "CB_HOME=%SRC_ROOT%"
+call "%CLEANUP%" --docker-builder --docker-builder-until 48 --dry-run > "%OUT%" 2>&1
+call :ASSERT_NOT_CONTAINS "Invalid parameter" "%OUT%" "--docker-builder / --docker-builder-until parse cleanly"
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :TEST_DOCKER_SYSTEM_ARG_PARSING
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 echo TEST: --docker-system / --docker-system-until accepted by parser
@@ -467,7 +480,7 @@ goto :eof
 :: Cannot combine with --dry-run (that would make argCount > 0), so point
 :: every path at a fresh empty fake tree.
 :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-echo TEST: no args runs default targets (cb + cgb + docker-image)
+echo TEST: no args runs default targets (cb + cgb + docker-image + docker-builder)
 call :SETUP_FAKE_CB_HOME FAKE_CBH
 call :SETUP_FAKE_HOME HOME_D 2.0.0
 set "FAKE_TMP=%TEST_ROOT%\defaulttmp-%RANDOM%"

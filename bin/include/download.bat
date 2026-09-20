@@ -84,19 +84,19 @@ goto DOWNLOAD_END
 
 :DOWNLOAD_PACKAGE_ERROR
 echo %CB_LINEHEADER%Error occured in download: %CB_ERROR_INFO% & echo %CB_LINEHEADER%Error occured in download: %CB_ERROR_INFO%>> "%CB_LOGFILE%"
-del /f /q "%TMPFILE%" >nul 2>nul
+if defined TMPFILE del /f /q "%TMPFILE%" >nul 2>nul
 exit /b 1
 
 :DOWNLOAD_PACKAGE_NOTFOUND_ERROR
 echo %CB_LINEHEADER%Package %CB_PACKAGE_NAME% is currently not supported! & echo %CB_LINEHEADER%Package %CB_PACKAGE_NAME% is currently not supported!>> "%CB_LOGFILE%"
-del /f /q "%TMPFILE%" >nul 2>nul
+if defined TMPFILE del /f /q "%TMPFILE%" >nul 2>nul
 exit /b 1
 
 :DOWNLOAD_ENVIRONMENT_ERROR
 echo %CB_LINEHEADER%Could not found expected environment variable %CB_ERROR_INFO% & echo %CB_LINEHEADER%Could not found expected environment variable %CB_ERROR_INFO%>> "%CB_LOGFILE%"
-del /f /q "%TMPFILE%" >nul 2>nul
+if defined TMPFILE del /f /q "%TMPFILE%" >nul 2>nul
 exit /b 1
 
 :DOWNLOAD_END
-del /f /q "%TMPFILE%" >nul 2>nul
+if defined TMPFILE del /f /q "%TMPFILE%" >nul 2>nul
 exit /b 0

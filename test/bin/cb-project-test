@@ -27,6 +27,14 @@ SKIP=0
 [ -z "$CB_PROJECT_SCAFFOLD_TIMEOUT" ] && CB_PROJECT_SCAFFOLD_TIMEOUT=60
 
 #########################################################################
+# Initialize environment via cb --setenv so tools (java, gradle, …) are
+# on PATH and CB_HOME points to the real installation.
+#########################################################################
+# shellcheck source=/dev/null
+source "$SRC_ROOT/bin/cb" --setenv > /dev/null 2>&1 || true
+REAL_CB_HOME="${CB_HOME:-}"
+
+#########################################################################
 # Build a sandbox CB_HOME (never use the repo)
 #########################################################################
 SANDBOX_HOME=$(mktemp -d 2>/dev/null || echo "/tmp/cb-project-home-$$")
@@ -39,11 +47,20 @@ CB="$SANDBOX_HOME/bin/cb"
 
 #########################################################################
 # Install tools into sandbox via cb --install
+# If the tool is already available from REAL_CB_HOME (set via --setenv),
+# symlink it instead of downloading — avoids network in isolated runs.
 #########################################################################
 installTool() {
 	local toolName="$1"
-	local installLog="$SANDBOX_HOME/install-${toolName}.log"
 
+	# Fast path: tool already present in the real CB_HOME installation
+	if [ -n "$REAL_CB_HOME" ] && [ -d "$REAL_CB_HOME/current/$toolName" ]; then
+		ln -s "$REAL_CB_HOME/current/$toolName" "$SANDBOX_HOME/current/$toolName" 2>/dev/null || true
+		echo "  -> $toolName linked from CB_HOME into sandbox"
+		return 0
+	fi
+
+	local installLog="$SANDBOX_HOME/install-${toolName}.log"
 	echo "  -> installing $toolName via cb --install (into sandbox)..."
 	"$CB" --install "$toolName" --default >"$installLog" 2>&1
 	if [ -d "$SANDBOX_HOME/current/$toolName/bin" ] || [ -d "$SANDBOX_HOME/current/$toolName" ]; then

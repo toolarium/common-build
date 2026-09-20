@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.7] - 2026-09-20
+### Added
+- `cb-cleanup` / `cb-cleanup.bat`: new `--docker-builder` flag runs `docker builder prune -f --filter until=<h>H` to reclaim BuildKit cache. Included in default mode (alongside `--cb`, `--cgb`, `--docker-image`). Companion `--docker-builder-until <h>` sets the age threshold (default 24 hours).
+- `test/bin/cb-run-all-tests`: new unified test runner that executes all bash (`*-test`) and Windows batch (`*-test.bat`) suites, reports grouped PASS / FAIL / SKIP / HANG / ERROR summary, enforces a per-suite timeout, and runs every suite in a fully isolated temp copy of the project so that files like `bin/wget`, `bin/unzip`, and `tool-version-*.properties` are never modified in the real working tree.
+
+### Fixed
+- `cb` / `cb-cleanup` / `cb-cleanup.bat`: `CB_TEMP` path derivation now handles an empty or unset `$USER` (containers, rootless CI) — falls back to `/tmp/cb` instead of producing an invalid `/tmp/cb-` path.
+- `bin/include/download.bat`: guarded all `del /f /q "%TMPFILE%"` cleanup lines with `if defined TMPFILE` — previously an undefined `TMPFILE` expanded to an empty string causing `del` to silently delete all files in the current directory on error paths.
+- `bin/cb-container.bat`: added `call` prefix to all container runtime invocations (`nerdctl info`, `docker info`, `%CB_CONTAINER_RUNTIME% ps/images/pull/save/login`, `trivy image`) so that `cmd.exe` correctly chains return codes and does not exit the batch file prematurely.
+
 ## [1.1.6] - 2026-09-17
 ### Added
 - `cb-image-version-resolver` (`cb-image-version-resolver.bat`): new script to resolve a Docker Hub or private registry image reference to a pinned `tag@sha256:<digest>` reference. Supports Docker Hub (PowerShell and wget), private Docker Registry v2 (Basic/Bearer auth), daily result cache (`CB_IMAGE_VERSION_RESOLVER_PATH` or `<tmp>/cb/image-version-resolver-cache`), digest verification when a full `image:tag@sha256:<digest>` reference is supplied, and automatic stale-cache cleanup.

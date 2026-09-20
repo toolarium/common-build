@@ -284,8 +284,8 @@ if not defined CB_CONTAINER_START_IMAGE if "!CB_CONTAINER_LOG_TARGET!"=="auto" (
 :: detect container runtime (not needed in registry-only mode)
 set "CB_CONTAINER_RUNTIME="
 if not defined CB_REGISTRY_URL (
-	where nerdctl >nul 2>nul && nerdctl info >nul 2>nul && set "CB_CONTAINER_RUNTIME=nerdctl"
-	if not defined CB_CONTAINER_RUNTIME where docker >nul 2>nul && docker info >nul 2>nul && set "CB_CONTAINER_RUNTIME=docker"
+	where nerdctl >nul 2>nul && call nerdctl info >nul 2>nul && set "CB_CONTAINER_RUNTIME=nerdctl"
+	if not defined CB_CONTAINER_RUNTIME where docker >nul 2>nul && call docker info >nul 2>nul && set "CB_CONTAINER_RUNTIME=docker"
 	if not defined CB_CONTAINER_RUNTIME (
 		echo %CB_LINE%
 		echo %CB_LINEHEADER%Neither nerdctl nor docker found in PATH.
@@ -1444,8 +1444,8 @@ rem collect data (same as LIST_IMAGES)
 set "CB_SCANALL_PS=!CB_CONTAINER_TEMP!\cb-scanall-ps-%RANDOM%%RANDOM%.tmp"
 set "CB_SCANALL_IMG=!CB_CONTAINER_TEMP!\cb-scanall-img-%RANDOM%%RANDOM%.tmp"
 set "CB_SCANALL_UNSORTED=!CB_CONTAINER_TEMP!\cb-scanall-unsorted-%RANDOM%%RANDOM%.tmp"
-%CB_CONTAINER_RUNTIME% ps --format "!CB_FMT_PS!" >"!CB_SCANALL_PS!" 2>nul
-%CB_CONTAINER_RUNTIME% images --format "!CB_FMT_IMG!" >"!CB_SCANALL_UNSORTED!" 2>nul
+call %CB_CONTAINER_RUNTIME% ps --format "!CB_FMT_PS!" >"!CB_SCANALL_PS!" 2>nul
+call %CB_CONTAINER_RUNTIME% images --format "!CB_FMT_IMG!" >"!CB_SCANALL_UNSORTED!" 2>nul
 powershell -NoProfile -Command "Get-Content '!CB_SCANALL_UNSORTED!' | Sort-Object { ($_ -split '\|')[1] + ':' + ($_ -split '\|')[2] }" > "!CB_SCANALL_IMG!"
 del /f /q "!CB_SCANALL_UNSORTED!" 2>nul
 
@@ -1753,7 +1753,7 @@ if not defined CB_CONTAINER_RESOLVED_IMAGE (
 	set "scanCheckColon=!CB_SCAN_CURRENT::=!"
 	if not "!scanCheckColon!"=="!CB_SCAN_CURRENT!" (
 		if /I "!CB_CONTAINER_VERBOSE!"=="true" echo %CB_LINEHEADER%Image '!CB_SCAN_CURRENT!' not found locally, pulling... >> "!scanVerbosePre!"
-		!CB_CONTAINER_RUNTIME! pull !CB_SCAN_CURRENT! >nul 2>nul
+		call !CB_CONTAINER_RUNTIME! pull !CB_SCAN_CURRENT! >nul 2>nul
 		if not errorlevel 1 set "CB_CONTAINER_RESOLVED_IMAGE=!CB_SCAN_CURRENT!"
 	)
 )
@@ -1764,12 +1764,12 @@ if not defined CB_CONTAINER_RESOLVED_IMAGE (
 rem resolve image ID — pull first if image not in local store
 set "scanImageId="
 set "CB_SCAN_TMPFILE=!CB_CONTAINER_TEMP!\cb-scan-id-%RANDOM%%RANDOM%.tmp"
-%CB_CONTAINER_RUNTIME% images --format "!CB_FMT_SCAN_ID!" --filter "reference=!CB_CONTAINER_RESOLVED_IMAGE!" >"!CB_SCAN_TMPFILE!" 2>nul
+call %CB_CONTAINER_RUNTIME% images --format "!CB_FMT_SCAN_ID!" --filter "reference=!CB_CONTAINER_RESOLVED_IMAGE!" >"!CB_SCAN_TMPFILE!" 2>nul
 for /f "usebackq tokens=*" %%a in ("!CB_SCAN_TMPFILE!") do if not defined scanImageId set "scanImageId=%%a"
 del /f /q "!CB_SCAN_TMPFILE!" 2>nul
 if defined scanImageId goto SCAN_ID_REPULL
 echo %CB_LINEHEADER%Image '!CB_CONTAINER_RESOLVED_IMAGE!' not found locally, pulling...
-!CB_CONTAINER_RUNTIME! pull !CB_CONTAINER_RESOLVED_IMAGE! >nul 2>nul
+call !CB_CONTAINER_RUNTIME! pull !CB_CONTAINER_RESOLVED_IMAGE! >nul 2>nul
 if not errorlevel 1 goto SCAN_ID_REPULL
 if not defined CB_REGISTRY_URL_ENV goto SCAN_ID_SLUG
 if not defined CB_REGISTRY_USER goto SCAN_ID_SLUG
@@ -1777,14 +1777,14 @@ if not defined CB_REGISTRY_PASSWORD goto SCAN_ID_SLUG
 set "scanRegHost=!CB_REGISTRY_URL_ENV:https://=!"
 set "scanRegHost=!scanRegHost:http://=!"
 for /f "tokens=1 delims=/" %%h in ("!scanRegHost!") do set "scanRegHost=%%h"
-!CB_CONTAINER_RUNTIME! login --username "!CB_REGISTRY_USER!" --password "!CB_REGISTRY_PASSWORD!" !scanRegHost! >nul 2>nul
+call !CB_CONTAINER_RUNTIME! login --username "!CB_REGISTRY_USER!" --password "!CB_REGISTRY_PASSWORD!" !scanRegHost! >nul 2>nul
 set "CB_SCAN_FULLREF=!scanRegHost!/!CB_CONTAINER_RESOLVED_IMAGE!"
-!CB_CONTAINER_RUNTIME! pull !CB_SCAN_FULLREF! >nul 2>nul
+call !CB_CONTAINER_RUNTIME! pull !CB_SCAN_FULLREF! >nul 2>nul
 if errorlevel 1 goto SCAN_ID_SLUG
 set "CB_CONTAINER_RESOLVED_IMAGE=!CB_SCAN_FULLREF!"
 :SCAN_ID_REPULL
 set "CB_SCAN_TMPFILE=!CB_CONTAINER_TEMP!\cb-scan-id-%RANDOM%%RANDOM%.tmp"
-%CB_CONTAINER_RUNTIME% images --format "!CB_FMT_SCAN_ID!" --filter "reference=!CB_CONTAINER_RESOLVED_IMAGE!" >"!CB_SCAN_TMPFILE!" 2>nul
+call %CB_CONTAINER_RUNTIME% images --format "!CB_FMT_SCAN_ID!" --filter "reference=!CB_CONTAINER_RESOLVED_IMAGE!" >"!CB_SCAN_TMPFILE!" 2>nul
 for /f "usebackq tokens=*" %%a in ("!CB_SCAN_TMPFILE!") do if not defined scanImageId set "scanImageId=%%a"
 del /f /q "!CB_SCAN_TMPFILE!" 2>nul
 :SCAN_ID_SLUG
@@ -1793,7 +1793,7 @@ set "scanImageId=!scanImageId::=-!"
 rem get image creation timestamp for cache validation (format: YYYY-MM-DD HH:MM:SS ...)
 set "scanImageCreated="
 set "CB_SCAN_CREATED_TMP=!CB_CONTAINER_TEMP!\cb-scan-created-%RANDOM%%RANDOM%.tmp"
-!CB_CONTAINER_RUNTIME! images --format "!CB_FMT_CREATED!" --filter "reference=!CB_CONTAINER_RESOLVED_IMAGE!" > "!CB_SCAN_CREATED_TMP!" 2>nul
+call !CB_CONTAINER_RUNTIME! images --format "!CB_FMT_CREATED!" --filter "reference=!CB_CONTAINER_RESOLVED_IMAGE!" > "!CB_SCAN_CREATED_TMP!" 2>nul
 for /f "usebackq tokens=1,2" %%a in ("!CB_SCAN_CREATED_TMP!") do if not defined scanImageCreated (
 	set "scanCreatedDate=%%a"
 	set "scanCreatedTime=%%b"
@@ -1869,7 +1869,7 @@ if "!scanCacheValid!"=="true" if exist "!scanRows!" (
 if /I "!CB_CONTAINER_VERBOSE!"=="true" if not exist "!scanJson!" echo %CB_LINEHEADER%trivy image --quiet --format json !CB_CONTAINER_RESOLVED_IMAGE! >> "!scanVerbosePre!"
 if /I "!CB_CONTAINER_VERBOSE!"=="true" if exist "!scanJson!" echo %CB_LINEHEADER%Using cached scan result for '!CB_CONTAINER_RESOLVED_IMAGE!', reformatting. >> "!scanVerbosePre!"
 rem scan only if json not already cached
-if not exist "!scanJson!" trivy image --quiet --format json !CB_CONTAINER_RESOLVED_IMAGE! 2>"!scanJson!.err" > "!scanJson!"
+if not exist "!scanJson!" call trivy image --quiet --format json !CB_CONTAINER_RESOLVED_IMAGE! 2>"!scanJson!.err" > "!scanJson!"
 set "scanJsonHasContent="
 if exist "!scanJson!" for /f "usebackq" %%a in ("!scanJson!") do set "scanJsonHasContent=1"
 if not defined scanJsonHasContent (
@@ -1877,7 +1877,7 @@ if not defined scanJsonHasContent (
 	del /f /q "!scanJson!" 2>nul
 	echo %CB_LINEHEADER%Saving '!CB_CONTAINER_RESOLVED_IMAGE!' via '!CB_CONTAINER_RUNTIME! save' for trivy scan ^(this may take a while^)...
 	set "trivySaveTar=!CB_CONTAINER_TEMP!\!scanImageId!-save.tar"
-	!CB_CONTAINER_RUNTIME! save !CB_CONTAINER_RESOLVED_IMAGE! -o "!trivySaveTar!" 2>nul
+	call !CB_CONTAINER_RUNTIME! save !CB_CONTAINER_RESOLVED_IMAGE! -o "!trivySaveTar!" 2>nul
 	set "trivySaveOk="
 	if exist "!trivySaveTar!" for /f "usebackq" %%a in ("!trivySaveTar!") do set "trivySaveOk=1"
 	if defined trivySaveOk (

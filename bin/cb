@@ -56,7 +56,7 @@ case $CB_OS in
 	*) ;;
 esac
 CB_MACHINE="$(uname -m | tr '[:upper:]' '[:lower:]')"
-! [ -n "$CB_TEMP" ] && CB_TEMP="/tmp/cb-$USER"
+if [ -z "$CB_TEMP" ]; then [ -n "$USER" ] && CB_TEMP="/tmp/cb-$USER" || CB_TEMP="/tmp/cb"; fi
 ! [ -r "$CB_TEMP" ] && mkdir "$CB_TEMP" >/dev/null 2>&1
 export CB_TEMP
 ! [ -n "$CB_IMAGE_VERSION_RESOLVER_PATH" ] && CB_IMAGE_VERSION_RESOLVER_PATH="$CB_TEMP/image-version-resolver-cache"
