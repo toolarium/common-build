@@ -178,14 +178,16 @@ powershell -NoProfile -Command ^
   "$majorStr=''; $suffix=''; " ^
   "if($baseTag -match ($c+'([0-9]+)')){$majorStr=$Matches[1]; $suffix=$baseTag -replace ($c+'[0-9][0-9._]*'),'' }; " ^
   "if(-not $majorStr -and $baseTag -ne 'latest' -and $baseTag -ne 'edge' -and $baseTag -ne 'stable'){ " ^
-  "  if($allTags -notcontains $baseTag){[Console]::Error.WriteLine('ERROR: Tag ''' + $baseTag + ''' not found for image ''' + $rawImage + ''''); exit 1}; " ^
-  "  $newestTag=$baseTag " ^
+  "  $variant=@($allTags | Where-Object{$_ -match ($c+'[0-9]+\.[0-9]+(\.[0-9]+)?-'+[regex]::Escape($baseTag)+'$$')}); " ^
+  "  if($variant.Count -gt 0){ $newestTag=($variant | Sort-Object{ $v=$_ -replace ('['+$c+'0-9.]'),'.'; $v=$v -replace '\.+','.'; $v=$v -replace ($c+'\.|\.$$'),''; try{[version]$v}catch{[version]'0.0'} } | Select-Object -Last 1) } " ^
+  "  elseif($allTags -contains $baseTag){ $newestTag=$baseTag } " ^
+  "  else{[Console]::Error.WriteLine('ERROR: Tag ''' + $baseTag + ''' not found for image ''' + $rawImage + ''''); exit 1} " ^
   "} else { " ^
   "  $trailing=@($allTags | Where-Object{$_ -match ($c+[regex]::Escape($baseTag)+'-[0-9]+\.[0-9]+$')}); " ^
   "  if($trailing.Count -gt 0){ $newestTag=($trailing | Sort-Object{ $v=$_ -replace ('['+$c+'0-9.]'),'.'; $v=$v -replace '\.+','.'; $v=$v -replace ($c+'\.|\.$$'),''; try{[version]$v}catch{[version]'0.0'} } | Select-Object -Last 1) } " ^
   "  else{ " ^
   "    $cands=@($allTags | Where-Object{$_ -match ($c+'[0-9]')} | Where-Object{ " ^
-  "      if($suffix){ $_ -match ($c+$majorStr+'([._-]|$$)') -and $_ -like ('*'+$suffix+'*') } " ^
+  "      if($suffix){ $_ -match ($c+$majorStr+'([._-]|$$)') -and $_ -like ('*'+$suffix) } " ^
   "      elseif($majorStr){ $_ -match ($c+$majorStr+'(\.[0-9]+)*$$') } " ^
   "      else{ $_ -match ($c+'[0-9]+\.[0-9]+(\.[0-9]+)?$$') } " ^
   "    }); " ^
@@ -231,14 +233,16 @@ powershell -NoProfile -Command ^
   "$majorStr=''; $suffix=''; " ^
   "if($baseTag -match ($c+'([0-9]+)')){$majorStr=$Matches[1]; $suffix=$baseTag -replace ($c+'[0-9][0-9._]*'),'' }; " ^
   "if(-not $majorStr -and $baseTag -ne 'latest' -and $baseTag -ne 'edge' -and $baseTag -ne 'stable'){ " ^
-  "  if($allTags -notcontains $baseTag){[Console]::Error.WriteLine('ERROR: Tag ''' + $baseTag + ''' not found for image ''' + $rawImage + ''''); exit 1}; " ^
-  "  $newestTag=$baseTag " ^
+  "  $variant=@($allTags | Where-Object{$_ -match ($c+'[0-9]+\.[0-9]+(\.[0-9]+)?-'+[regex]::Escape($baseTag)+'$$')}); " ^
+  "  if($variant.Count -gt 0){ $newestTag=($variant | Sort-Object{ $v=$_ -replace ('['+$c+'0-9.]'),'.'; $v=$v -replace '\.+','.'; $v=$v -replace ($c+'\.|\.$$'),''; try{[version]$v}catch{[version]'0.0'} } | Select-Object -Last 1) } " ^
+  "  elseif($allTags -contains $baseTag){ $newestTag=$baseTag } " ^
+  "  else{[Console]::Error.WriteLine('ERROR: Tag ''' + $baseTag + ''' not found for image ''' + $rawImage + ''''); exit 1} " ^
   "} else { " ^
   "  $trailing=@($allTags | Where-Object{$_ -match ($c+[regex]::Escape($baseTag)+'-[0-9]+\.[0-9]+$')}); " ^
   "  if($trailing.Count -gt 0){ $newestTag=($trailing | Sort-Object{ $v=$_ -replace ('['+$c+'0-9.]'),'.'; $v=$v -replace '\.+','.'; $v=$v -replace ($c+'\.|\.$$'),''; try{[version]$v}catch{[version]'0.0'} } | Select-Object -Last 1) } " ^
   "  else{ " ^
   "    $cands=@($allTags | Where-Object{$_ -match ($c+'[0-9]')} | Where-Object{ " ^
-  "      if($suffix){ $_ -match ($c+$majorStr+'([._-]|$$)') -and $_ -like ('*'+$suffix+'*') } " ^
+  "      if($suffix){ $_ -match ($c+$majorStr+'([._-]|$$)') -and $_ -like ('*'+$suffix) } " ^
   "      elseif($majorStr){ $_ -match ($c+$majorStr+'(\.[0-9]+)*$$') } " ^
   "      else{ $_ -match ($c+'[0-9]+\.[0-9]+(\.[0-9]+)?$$') } " ^
   "    }); " ^
@@ -299,14 +303,16 @@ powershell -NoProfile -Command ^
   "$majorStr=''; $suffix=''; " ^
   "if($baseTag -match ($c+'([0-9]+)')){$majorStr=$Matches[1]; $suffix=$baseTag -replace ($c+'[0-9][0-9._]*'),'' }; " ^
   "if(-not $majorStr -and $baseTag -ne 'latest' -and $baseTag -ne 'edge' -and $baseTag -ne 'stable'){ " ^
-  "  if($allTags -notcontains $baseTag){[Console]::Error.WriteLine('ERROR: Tag ''' + $baseTag + ''' not found for image ''' + $rawImage + ''''); exit 1}; " ^
-  "  $newestTag=$baseTag " ^
+  "  $variant=@($allTags | Where-Object{$_ -match ($c+'[0-9]+\.[0-9]+(\.[0-9]+)?-'+[regex]::Escape($baseTag)+'$$')}); " ^
+  "  if($variant.Count -gt 0){ $newestTag=($variant | Sort-Object{ $v=$_ -replace ('['+$c+'0-9.]'),'.'; $v=$v -replace '\.+','.'; $v=$v -replace ($c+'\.|\.$$'),''; try{[version]$v}catch{[version]'0.0'} } | Select-Object -Last 1) } " ^
+  "  elseif($allTags -contains $baseTag){ $newestTag=$baseTag } " ^
+  "  else{[Console]::Error.WriteLine('ERROR: Tag ''' + $baseTag + ''' not found for image ''' + $rawImage + ''''); exit 1} " ^
   "} else { " ^
   "  $trailing=@($allTags | Where-Object{$_ -match ($c+[regex]::Escape($baseTag)+'-[0-9]+\.[0-9]+$')}); " ^
   "  if($trailing.Count -gt 0){ $newestTag=($trailing | Sort-Object{ $v=$_ -replace ('['+$c+'0-9.]'),'.'; $v=$v -replace '\.+','.'; $v=$v -replace ($c+'\.|\.$$'),''; try{[version]$v}catch{[version]'0.0'} } | Select-Object -Last 1) } " ^
   "  else{ " ^
   "    $cands=@($allTags | Where-Object{$_ -match ($c+'[0-9]')} | Where-Object{ " ^
-  "      if($suffix){ $_ -match ($c+$majorStr+'([._-]|$$)') -and $_ -like ('*'+$suffix+'*') } " ^
+  "      if($suffix){ $_ -match ($c+$majorStr+'([._-]|$$)') -and $_ -like ('*'+$suffix) } " ^
   "      elseif($majorStr){ $_ -match ($c+$majorStr+'(\.[0-9]+)*$$') } " ^
   "      else{ $_ -match ($c+'[0-9]+\.[0-9]+(\.[0-9]+)?$$') } " ^
   "    }); " ^

@@ -195,7 +195,7 @@ json_string() {   # reads stdin, extracts top-level string field $1
         python3)    python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('$key','') or '')" ;;
         python)     python  -c "import json,sys; d=json.load(sys.stdin); print(d.get('$key','') or '')" ;;
         powershell) powershell -NoProfile -Command "\$in=[Console]::In.ReadToEnd(); ((\$in|ConvertFrom-Json).'$key')" ;;
-    esac
+    esac | tr -d '\r'
 }
 
 json_array() {    # reads stdin, extracts top-level array field $1 (one item per line)
@@ -205,7 +205,7 @@ json_array() {    # reads stdin, extracts top-level array field $1 (one item per
         python3)    python3 -c "import json,sys; [print(x) for x in json.load(sys.stdin).get('$key',[])]" ;;
         python)     python  -c "import json,sys; [print(x) for x in json.load(sys.stdin).get('$key',[])]" ;;
         powershell) powershell -NoProfile -Command "\$in=[Console]::In.ReadToEnd(); ((\$in|ConvertFrom-Json).'$key') -join \"\`n\"" ;;
-    esac
+    esac | tr -d '\r'
 }
 
 
@@ -390,11 +390,28 @@ fi
 # "latest", "edge", and "stable" are treated as floating aliases that resolve
 # to the newest concrete semver tag.
 if [ -z "$MAJOR" ] && [ "$BASE_TAG" != "latest" ] && [ "$BASE_TAG" != "edge" ] && [ "$BASE_TAG" != "stable" ]; then
-    if ! printf '%s\n' $ALL_TAGS | grep -qx -- "$BASE_TAG"; then
+    # The tag names a variant instead of a version (e.g. nginx "alpine", node "alpine").
+    # Resolve the newest tag of the same variant family ("X.Y[.Z]-<variant>") so the
+    # variant is kept: "alpine" -> "1.31.6-alpine" and NOT the plain "1.31.6", which is
+    # a different distribution. A variant which is not published per version (e.g.
+    # "stable-alpine") keeps the tag itself.
+    VARIANT_CANDIDATES=()
+    for t in $ALL_TAGS; do
+        case "$t" in
+            *"-${BASE_TAG}")
+                [[ "${t%-${BASE_TAG}}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] && VARIANT_CANDIDATES+=("$t")
+                ;;
+        esac
+    done
+
+    if [ ${#VARIANT_CANDIDATES[@]} -gt 0 ]; then
+        NEWEST_TAG=$(printf '%s\n' "${VARIANT_CANDIDATES[@]}" | sort -V | tail -n1)
+    elif printf '%s\n' $ALL_TAGS | grep -qx -- "$BASE_TAG"; then
+        NEWEST_TAG="$BASE_TAG"
+    else
         echo "ERROR: Tag '${BASE_TAG}' not found for image '${RAW_IMAGE}'" >&2
         exit 1
     fi
-    NEWEST_TAG="$BASE_TAG"
 else
 
 TRAILING=()
@@ -416,7 +433,9 @@ else
             # e.g. base "25-jdk-alpine" matches "25.0.1_9-jdk-alpine" and
             # "25_36-jdk-alpine" but NOT "26_35-jdk-alpine" (different major
             # version) or "251-jdk-alpine" (different tag, same leading digits).
-            [[ "$t" =~ ^${MAJOR}([._-]|$) ]] && [[ "$t" == *"$SUFFIX"* ]] && CANDIDATES+=("$t")
+            # the suffix has to terminate the tag: "1-alpine" must not match
+            # "1.31.6-alpine-slim" / "-perl" / "-otel", which are different images
+            [[ "$t" =~ ^${MAJOR}([._-]|$) ]] && [[ "$t" == *"$SUFFIX" ]] && CANDIDATES+=("$t")
         else
             if [ -n "$MAJOR" ]; then
                 # base tag was a bare numeric version (e.g. "24") -> restrict to

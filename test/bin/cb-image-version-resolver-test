@@ -273,6 +273,26 @@ test_invalid_tag() {
 	assertContains "nonexistenttag12345" "$out" "error mentions the tag name"
 }
 
+test_nginx_alpine_variant() {
+	echo "TEST: nginx:alpine -> resolves to versioned X.Y.Z-alpine tag (not plain X.Y.Z)"
+	output=$(bash "$SCRIPT" nginx:alpine 2>&1)
+	rc=$?
+	assertExitCode "0" "$rc" "nginx:alpine exits 0"
+	assertMatches "$DIGEST_PATTERN" "$output" "output matches image:tag@sha256:<digest>"
+	assertContains "nginx:" "$output" "output prefixed with 'nginx:'"
+	assertContains "-alpine" "$output" "resolved tag contains '-alpine' suffix (not plain numeric)"
+}
+
+test_nginx_stable_alpine() {
+	echo "TEST: nginx:stable-alpine -> resolves to stable-alpine literal tag@digest"
+	output=$(bash "$SCRIPT" nginx:stable-alpine 2>&1)
+	rc=$?
+	assertExitCode "0" "$rc" "nginx:stable-alpine exits 0"
+	assertMatches "$DIGEST_PATTERN" "$output" "output matches image:tag@sha256:<digest>"
+	assertContains "nginx:" "$output" "output prefixed with 'nginx:'"
+	assertContains "stable-alpine" "$output" "resolved tag contains 'stable-alpine'"
+}
+
 
 #########################################################################
 # main
@@ -297,7 +317,7 @@ echo ""
 if ! (command -v jq >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1 || command -v python >/dev/null 2>&1 || command -v powershell >/dev/null 2>&1); then
 	echo "=== Live resolution tests ==="
 	echo "  SKIP: no JSON parser (jq/python3/python/powershell) found - skipping all live tests"
-	SKIP=$((SKIP+11))
+	SKIP=$((SKIP+13))
 else
 	echo "=== Live resolution tests ==="
 	test_alpine_latest
@@ -311,6 +331,8 @@ else
 	test_verify_wrong_digest
 	test_invalid_image
 	test_invalid_tag
+	test_nginx_alpine_variant
+	test_nginx_stable_alpine
 fi
 
 echo ""

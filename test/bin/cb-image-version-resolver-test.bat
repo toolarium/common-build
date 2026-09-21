@@ -38,14 +38,14 @@ echo === Live resolution tests ===
 powershell -NoProfile -Command "exit 0" >nul 2>nul
 if !ERRORLEVEL! NEQ 0 (
     echo   SKIP: PowerShell not available - skipping all live tests
-    set /a SKIP+=11
+    set /a SKIP+=13
     goto RESULTS
 )
 powershell -NoProfile -Command ^
   "(Invoke-RestMethod -Uri 'https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/alpine:pull').token" >nul 2>nul
 if !ERRORLEVEL! NEQ 0 (
     echo   SKIP: Docker Hub not reachable - skipping all live tests
-    set /a SKIP+=11
+    set /a SKIP+=13
     goto RESULTS
 )
 call :TEST_ALPINE_LATEST
@@ -59,6 +59,8 @@ call :TEST_VERIFY_VALID_DIGEST
 call :TEST_VERIFY_WRONG_DIGEST
 call :TEST_INVALID_IMAGE
 call :TEST_INVALID_TAG
+call :TEST_NGINX_ALPINE_VARIANT
+call :TEST_NGINX_STABLE_ALPINE
 
 :RESULTS
 echo\
@@ -428,5 +430,35 @@ call "%SCRIPT%" alpine:nonexistenttag12345 > "%OUT%" 2>&1
 set "_RC=!ERRORLEVEL!"
 call :ASSERT_EXIT_CODE "1" "!_RC!" "unknown tag exits 1"
 call :ASSERT_OUTPUT_CONTAINS "nonexistenttag12345" "%OUT%" "error mentions the tag name"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_NGINX_ALPINE_VARIANT
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: nginx:alpine -^> resolves to versioned X.Y.Z-alpine tag (not plain X.Y.Z)
+set "OUT=%TEMP%\cb\cb-image-version-resolver-nax-%RANDOM%.txt"
+call "%SCRIPT%" nginx:alpine > "%OUT%" 2>&1
+set "_RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "0" "!_RC!" "nginx:alpine exits 0"
+call :ASSERT_OUTPUT_MATCHES_DIGEST "nginx:" "%OUT%" "output matches nginx:tag@sha256:..."
+call :ASSERT_OUTPUT_CONTAINS "nginx:" "%OUT%" "output prefixed with nginx:"
+call :ASSERT_OUTPUT_CONTAINS "-alpine" "%OUT%" "resolved tag contains -alpine suffix, not plain numeric"
+del /f /q "%OUT%" >nul 2>nul
+goto :eof
+
+
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:TEST_NGINX_STABLE_ALPINE
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+echo TEST: nginx:stable-alpine -^> resolves to stable-alpine literal tag@digest
+set "OUT=%TEMP%\cb\cb-image-version-resolver-nsa-%RANDOM%.txt"
+call "%SCRIPT%" nginx:stable-alpine > "%OUT%" 2>&1
+set "_RC=!ERRORLEVEL!"
+call :ASSERT_EXIT_CODE "0" "!_RC!" "nginx:stable-alpine exits 0"
+call :ASSERT_OUTPUT_MATCHES_DIGEST "nginx:" "%OUT%" "output matches nginx:tag@sha256:..."
+call :ASSERT_OUTPUT_CONTAINS "nginx:" "%OUT%" "output prefixed with nginx:"
+call :ASSERT_OUTPUT_CONTAINS "stable-alpine" "%OUT%" "resolved tag contains stable-alpine"
 del /f /q "%OUT%" >nul 2>nul
 goto :eof

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.8] - 2026-09-21
+### Fixed
+- Fixed `cb-image-version-resolver` / `.bat`: variant tags (e.g. `nginx:alpine`) now resolve to the newest versioned form (`nginx:1.31.6-alpine`) instead of a plain numeric or literal floating tag.
+
+### Added
+- `test/bin/cb-image-version-resolver-test` / `.bat`: added `nginx:alpine` and `nginx:stable-alpine` regression tests.
+
 ## [1.1.7] - 2026-09-20
 ### Added
 - `cb-cleanup` / `cb-cleanup.bat`: new `--docker-builder` flag runs `docker builder prune -f --filter until=<h>H` to reclaim BuildKit cache. Included in default mode (alongside `--cb`, `--cgb`, `--docker-image`). Companion `--docker-builder-until <h>` sets the age threshold (default 24 hours).
