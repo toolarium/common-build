@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.9] - 2026-10-11
+### Fixed
+- `cb.bat`: reduced `cb --setenv` startup time by skipping unnecessary subprocess spawns.
+
 ## [1.1.8] - 2026-09-21
 ### Fixed
 - Fixed `cb-image-version-resolver` / `.bat`: variant tags (e.g. `nginx:alpine`) now resolve to the newest versioned form (`nginx:1.31.6-alpine`) instead of a plain numeric or literal floating tag.

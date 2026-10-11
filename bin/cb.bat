@@ -58,7 +58,12 @@ for %%p in (%*) do (
   if "%%~p"=="--silent" set "CB_INSTALL_SILENT=true" & set "CB_INSTALL_USER_COMMIT=false"
 )
 
+:: detect --setenv early to skip powershell timestamp call (main AV scan hotspot)
+set "CB_SETENV_ONLY="
+for %%p in (%*) do if "%%~p"=="--setenv" set "CB_SETENV_ONLY=true"
+
 if ".%CB_FAST_EXIT%"==".true" goto :CB_SKIP_START_TIMESTAMP
+if ".%CB_SETENV_ONLY%"==".true" goto :CB_SKIP_START_TIMESTAMP
 where powershell >nul 2>nul
 if %ERRORLEVEL% NEQ 0 echo %CB_LINEHEADER%Please install powershell. & goto END_WITH_ERROR
 call "%CB_SCRIPT_PATH%include\timestamp.bat" CB_START_TIMESTAMP
@@ -146,6 +151,7 @@ if defined CB_CUSTOM_CONFIG if not ".%CB_CUSTOM_CONFIG%"=="." goto CUSTOM_CONFIG
 set "CB_CONFIG_HOME=%USERPROFILE%\.common-build"
 if not exist "%CB_CONFIG_HOME%\conf\%CB_CUSTOM_CONFIG_FILENAME%" goto CUSTOM_CONFIG_END
 set "TMPFILE=%CB_TEMP%\cb-git-%RANDOM%%RANDOM%.tmp"
+if ".%CB_SETENV_ONLY%"==".true" goto SET_GIT_PROJECT_END
 if not exist %CB_WORKING_PATH%\.git goto SET_GIT_PROJECT_END
 where %GIT_CLIENT% >nul 2>nul
 if %ERRORLEVEL% NEQ 0 if .%CB_VERBOSE% == .true (echo %CB_LINEHEADER%No git installation found: %GIT_CLIENT% & goto SET_GIT_PROJECT_END) else (goto SET_GIT_PROJECT_END)
